@@ -169,6 +169,65 @@ class VoiceAssistant {
       return;
     }
 
+    // --- GOOGLE CHROME & YOUTUBE SYSTEM LAUNCHER VOICE COMMANDS ---
+
+    // 1. Google Search: "search google for [query]" / "google par search karo [query]" / "search [query] on google"
+    const googleSearchPatterns = [
+      /(?:search google for|google search for|search on google|google search)\s+(.+)/i,
+      /(?:google par|google me|google pe)\s*(?:search karo|khojo|dekho)\s+(.+)/i,
+      /(.+)\s+(?:google par search karo|google me search karo)/i,
+      /search\s+(.+)\s+(?:on google|in google)/i,
+      /search for\s+(.+)/i
+    ];
+
+    for (const pattern of googleSearchPatterns) {
+      const match = transcript.match(pattern);
+      if (match && match[1]) {
+        const query = match[1].trim();
+        const spoken = `Searching Google for "${query}", Sir.`;
+        this.setTranscriptText(spoken);
+        this.speak(spoken);
+        if (window.systemLauncher) window.systemLauncher.searchGoogle(query);
+        return;
+      }
+    }
+
+    // 2. Open Chrome: "open chrome" / "chrome kholo" / "chrome open karo"
+    if (lower.includes('open chrome') || lower.includes('chrome kholo') || lower.includes('chrome chalao') || lower.includes('chrome open karo') || lower.includes('launch chrome')) {
+      const spoken = 'Opening Google Chrome, Sir.';
+      this.setTranscriptText(spoken);
+      this.speak(spoken);
+      if (window.systemLauncher) window.systemLauncher.openChrome();
+      return;
+    }
+
+    // 3. YouTube Search: "search youtube for [query]" / "youtube par search karo [query]"
+    const youtubeSearchPatterns = [
+      /(?:search youtube for|youtube search for|search on youtube|youtube search)\s+(.+)/i,
+      /(?:youtube par|youtube me|youtube pe)\s*(?:search karo|chalao|dekho)\s+(.+)/i
+    ];
+
+    for (const pattern of youtubeSearchPatterns) {
+      const match = transcript.match(pattern);
+      if (match && match[1]) {
+        const query = match[1].trim();
+        const spoken = `Searching YouTube for "${query}", Sir.`;
+        this.setTranscriptText(spoken);
+        this.speak(spoken);
+        if (window.systemLauncher) window.systemLauncher.openYouTube(query);
+        return;
+      }
+    }
+
+    // 4. Open YouTube: "open youtube" / "youtube kholo" / "youtube chalao"
+    if (lower.includes('open youtube') || lower.includes('youtube kholo') || lower.includes('youtube chalao') || lower.includes('youtube open karo') || lower.includes('launch youtube')) {
+      const spoken = 'Launching YouTube, Sir.';
+      this.setTranscriptText(spoken);
+      this.speak(spoken);
+      if (window.systemLauncher) window.systemLauncher.openYouTube();
+      return;
+    }
+
     // 2. Normal Chat Query via Voice
     if (window.orb) window.orb.setState('THINKING');
     this.setTranscriptText('Thinking: "' + transcript + '"...');

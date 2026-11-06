@@ -186,11 +186,12 @@
         <div class="chat-input-bar">
           <!-- Quick Suggestion Chips -->
           <div class="quick-chips-row">
+            <button class="chip-btn" onclick="window.systemLauncher.openChrome()">🌐 Open Chrome</button>
+            <button class="chip-btn" onclick="window.systemLauncher.searchGoogle('Latest AI News')">🔍 Search Google</button>
+            <button class="chip-btn" onclick="window.systemLauncher.openYouTube()">▶️ Open YouTube</button>
             <button class="chip-btn" data-query="हेलो जार्विस, आप क्या-क्या कर सकते हैं?">🇮🇳 हेलो जार्विस</button>
             <button class="chip-btn" data-query="Explain quantum computing in simple words">🔬 Quantum Computing</button>
-            <button class="chip-btn" data-query="Write a Python script to automate file organization">🐍 Python Automation</button>
-            <button class="chip-btn" data-query="Generate 5 viral YouTube video ideas about AI">🎬 YouTube Ideas</button>
-            <button class="chip-btn" data-query="एक प्यारी सी मोटिवेशनल शायरी सुनाओ">✨ शायरी</button>
+            <button class="chip-btn" data-query="Write a Python script to automate file organization">🐍 Python Script</button>
           </div>
 
           <!-- Image Attachment Preview Box -->
@@ -685,6 +686,7 @@
 
 <!-- Scripts -->
 <script src="/js/audio-fx.js"></script>
+<script src="/js/system-launcher.js"></script>
 <script src="/js/orb.js"></script>
 <script src="/js/voice.js"></script>
 <script src="/js/chat.js"></script>

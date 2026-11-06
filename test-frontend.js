@@ -26,6 +26,7 @@ function assert(condition, testName, detail = '') {
 // 1. Verify all JS files compile cleanly with no syntax errors
 const jsFiles = [
   'audio-fx.js',
+  'system-launcher.js',
   'orb.js',
   'voice.js',
   'chat.js',
