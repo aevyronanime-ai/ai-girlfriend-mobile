@@ -7,16 +7,12 @@ on:
 
 jobs:
   build:
+    name: Build Native Android APK
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
 
       - name: Set up Java JDK 17
         uses: actions/setup-java@v4
@@ -24,26 +20,55 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Dependencies
-        run: |
-          npm install --legacy-peer-deps || true
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
 
       - name: Sync Web Assets to Android Project
         run: |
           mkdir -p android/app/src/main/assets/public
           cp -r public/* android/app/src/main/assets/public/
 
-      - name: Build Debug APK
+      - name: Generate Release Signing Key
+        run: |
+          keytool -genkeypair -v \
+            -keystore android/app/release.jks \
+            -alias jarvis \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass jarvis123 \
+            -keypass jarvis123 \
+            -dname "CN=JARVIS AI, OU=Assistant, O=JARVIS, L=NewDelhi, S=DL, C=IN"
+
+      - name: Generate Gradle Wrapper
         run: |
           cd android
-          chmod +x gradlew || gradle wrapper
-          ./gradlew assembleDebug --stacktrace
+          gradle wrapper --gradle-version 8.2.1
+
+      - name: Build Debug & Signed Release APKs
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug assembleRelease --stacktrace
+
+      - name: Verify Generated APK Files
+        run: |
+          echo "Listing generated APKs:"
+          find android/app/build/outputs/apk/ -name "*.apk" -ls
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: JARVIS-AI-Debug-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARVIS-AI-Release-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
