@@ -423,6 +423,17 @@ class VoiceAssistant {
         return;
       }
 
+      if (data.quotaExhausted) {
+        const spokenNotice = 'Google Gemini API quota limit exhaust ho gaya hai. Please Settings me check karein.';
+        this.setTranscriptText(spokenNotice);
+        this.speak(spokenNotice);
+        if (window.chat) {
+          window.chat.appendQuotaExhaustedCard(data.content, data.modelsAttempted);
+        }
+        if (window.orb) window.orb.setState('IDLE');
+        return;
+      }
+
       const reply = data.content || data.error || 'No response received.';
 
       // Clean markdown tags for spoken audio

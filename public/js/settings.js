@@ -162,23 +162,23 @@ class SettingsController {
 
     try {
       const model = this.modelSelect ? this.modelSelect.value : 'gemini-2.5-flash';
-      const testUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-      const res = await fetch(testUrl, {
+      const res = await fetch('/api/test-api-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: 'Respond with just one word: OK' }] }]
-        })
+        body: JSON.stringify({ apiKey: key, model })
       });
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson?.error?.message || `HTTP ${res.status}`);
-      }
+      const data = await res.json();
 
-      alert('✅ API Key is VALID and connected to Google Gemini successfully!');
+      if (data.valid && !data.quotaExhausted) {
+        alert(`✅ API Key is VALID and connected to ${data.model} successfully!`);
+      } else if (data.quotaExhausted) {
+        alert(`⚠️ Google Gemini Quota Exhausted (HTTP 429)\n\n${data.message}\n\nNote: Google AI Studio free tier quotas reset automatically within 24 hours. You can also insert another free API key.`);
+      } else {
+        alert(`❌ API Key verification failed: ${data.message || data.error || 'Invalid API Key'}`);
+      }
     } catch (err) {
-      alert('❌ API Key verification failed: ' + err.message);
+      alert('❌ API Key verification network error: ' + err.message);
     } finally {
       if (testBtn) testBtn.textContent = 'Verify Key';
     }

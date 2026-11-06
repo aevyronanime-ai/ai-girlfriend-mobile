@@ -1,4 +1,4 @@
-name: Build JARVIS AI Android APK
+name: Build AI Girlfriend Mobile Android APK
 
 on:
   push:
@@ -22,37 +22,35 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
-      - name: Set up Gradle
+      - name: Set up Gradle 8.2.1
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2.1'
 
       - name: Sync Web Assets to Android Project
         run: |
           mkdir -p android/app/src/main/assets/public
           cp -r public/* android/app/src/main/assets/public/
 
-      - name: Generate Release Signing Key
+      - name: Generate Release Keystore
         run: |
           keytool -genkeypair -v \
             -keystore android/app/release.jks \
-            -alias jarvis \
+            -alias aigirlfriend \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -storepass jarvis123 \
-            -keypass jarvis123 \
-            -dname "CN=JARVIS AI, OU=Assistant, O=JARVIS, L=NewDelhi, S=DL, C=IN"
-
-      - name: Generate Gradle Wrapper
-        run: |
-          cd android
-          gradle wrapper --gradle-version 8.2.1
+            -storepass girlfriend123 \
+            -keypass girlfriend123 \
+            -dname "CN=AI Girlfriend Mobile, OU=Companion, O=AIGirlfriend, L=NewDelhi, S=DL, C=IN"
 
       - name: Build Debug & Signed Release APKs
         run: |
           cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug assembleRelease --stacktrace
+          gradle assembleDebug assembleRelease --stacktrace
 
       - name: Verify Generated APK Files
         run: |
@@ -62,13 +60,13 @@ jobs:
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-AI-Debug-APK
+          name: AI-Girlfriend-Mobile-Debug-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
       - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: JARVIS-AI-Release-APK
+          name: AI-Girlfriend-Mobile-Release-APK
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

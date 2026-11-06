@@ -204,11 +204,26 @@ class App {
     }
 
     const installBtn = document.getElementById('btnPWAInstall');
-
-    // Check if already running in installed standalone mode
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-    if (isStandalone && installBtn) {
-      installBtn.style.display = 'none';
+
+    if (isStandalone) {
+      if (installBtn) installBtn.style.display = 'none';
+    } else if (installBtn) {
+      // Show install button so Android Chrome users can trigger A2HS
+      installBtn.style.display = 'inline-flex';
+      installBtn.onclick = async () => {
+        if (window.deferredPwaPrompt) {
+          window.deferredPwaPrompt.prompt();
+          const choice = await window.deferredPwaPrompt.userChoice;
+          if (choice && choice.outcome === 'accepted') {
+            installBtn.style.display = 'none';
+            if (window.app) window.app.showToast('💖 Installing AI Girlfriend to your Home Screen...');
+          }
+          window.deferredPwaPrompt = null;
+        } else {
+          this.showInstallHelpModal();
+        }
+      };
     }
 
     // Capture Chrome PWA Install Prompt
@@ -217,16 +232,6 @@ class App {
       window.deferredPwaPrompt = e;
       if (installBtn && !isStandalone) {
         installBtn.style.display = 'inline-flex';
-        installBtn.onclick = async () => {
-          if (!window.deferredPwaPrompt) return;
-          window.deferredPwaPrompt.prompt();
-          const choice = await window.deferredPwaPrompt.userChoice;
-          if (choice && choice.outcome === 'accepted') {
-            installBtn.style.display = 'none';
-            if (window.app) window.app.showToast('💖 Installing AI Girlfriend to your Home Screen...');
-          }
-          window.deferredPwaPrompt = null;
-        };
       }
     });
 
@@ -234,6 +239,39 @@ class App {
       if (installBtn) installBtn.style.display = 'none';
       if (window.app) window.app.showToast('💖 AI Girlfriend installed successfully on your device!');
     });
+  }
+
+  showInstallHelpModal() {
+    const existing = document.getElementById('pwaInstallModal');
+    if (existing && existing.style.display !== 'none') {
+      existing.remove();
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'pwaInstallModal';
+    modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(6px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:16px;';
+    modal.innerHTML = `
+      <div style="background:#080d1a; border:1px solid #ff2a85; border-radius:16px; max-width:400px; width:100%; padding:20px; box-shadow:0 0 25px rgba(255,42,133,0.35); color:#fff; text-align:left;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h3 style="margin:0; font-size:1.15rem; color:#ff2a85; display:flex; align-items:center; gap:8px;">
+            <span>💖</span> Install AI Girlfriend Mobile
+          </h3>
+          <button onclick="document.getElementById('pwaInstallModal').remove()" style="background:transparent; border:none; color:#8b9bb4; font-size:1.3rem; cursor:pointer;">✕</button>
+        </div>
+        <p style="font-size:0.88rem; color:#cbd5e1; margin-bottom:14px; line-height:1.45;">
+          You can install this app directly onto your Android phone via <strong>Google Chrome</strong> with full-screen experience and zero PC needed!
+        </p>
+        <div style="background:rgba(255,42,133,0.08); border-radius:10px; padding:14px; margin-bottom:16px; font-size:0.85rem; line-height:1.55;">
+          <div style="margin-bottom:8px;"><strong>1.</strong> In Chrome, tap the <strong>3 vertical dots (⋮)</strong> at top-right.</div>
+          <div style="margin-bottom:8px;"><strong>2.</strong> Tap <strong>"Install app"</strong> (or <strong>"Add to Home screen"</strong>).</div>
+          <div><strong>3.</strong> Tap <strong>"Install"</strong> — AI Girlfriend icon will appear on your Android home screen!</div>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button onclick="document.getElementById('pwaInstallModal').remove()" class="chip-btn" style="background:#ff2a85; color:#fff; font-weight:700; border:none; padding:8px 18px; border-radius:8px;">Understood</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
   }
 }
 

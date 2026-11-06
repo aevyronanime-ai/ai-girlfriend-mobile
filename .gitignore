@@ -14,3 +14,7 @@ npm-debug.log*
 android/app/build/
 android/.gradle/
 android/app/release.jks
+
+# Backups & Archives
+.backups/
+*.zip

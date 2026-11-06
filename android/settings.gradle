@@ -1,2 +1,2 @@
 include ':app'
-rootProject.name = 'JARVIS AI'
+rootProject.name = 'AI Girlfriend Mobile'

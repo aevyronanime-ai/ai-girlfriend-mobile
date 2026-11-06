@@ -1,76 +1,79 @@
-# 🤖 J.A.R.V.I.S. AI – Advanced Personal AI Assistant
+# 💖 AI Girlfriend Mobile App (JARVIS Neural OS)
 
-An Android-first, high-performance personal AI assistant application engineered with bilingual voice capabilities (Hindi & English), real-time conversational intelligence, animated holographic AI orb, multimodal vision understanding, image generation, and creative tools.
+An Android-first, high-performance personal AI companion and developer assistant application with bilingual voice interaction (Hindi & English), real-time conversational intelligence, animated holographic AI orb, multimodal vision understanding, image generation, creative tools, and an In-App Developer Studio.
 
 ---
 
 ## 📱 Features Overview
 
 ### 1. 💬 AI Chat & Real-Time Streaming
-- **Bilingual Intelligence**: Fluent in English, Hindi (हिंदी), and Hinglish.
+- **Bilingual & Polyglot Intelligence**: Fluent in Hindi (हिंदी), English, Hinglish, Assamese, Bengali, Urdu, and world languages.
 - **Streaming Responses**: Real-time token streaming via Server-Sent Events (SSE).
-- **Multimodal Vision**: Attach photos or documents for deep visual inspection.
-- **Full Markdown**: Formatted text, bullet points, headers, and code blocks with 1-click **Copy Code** buttons.
-- **Message Actions**: Copy response, speak aloud (TTS), and native Android Web Share.
+- **Multimodal Vision**: Attach photos or documents for deep visual analysis.
+- **Quota Protection (HTTP 429)**: Automatic fallback across official Google Gemini models (`gemini-2.5-flash` ➔ `gemini-2.0-flash` ➔ `gemini-1.5-flash` ➔ `gemini-1.5-pro`) with in-memory cooldown tracking.
 
 ### 2. 🎙️ Voice Assistant & Animated Holographic Orb
-- **Animated Arc Reactor Orb**: Dynamic 60fps HTML5 Canvas particle orb that shifts states (`IDLE`, `LISTENING`, `THINKING`, `SPEAKING`).
+- **Animated Arc Reactor Orb**: Dynamic 60fps HTML5 Canvas particle orb shifting through `IDLE`, `LISTENING`, `THINKING`, and `SPEAKING` states.
 - **Speech Recognition (STT)**: Recognizes voice commands in Hindi and English.
 - **Voice Synthesis (TTS)**: Natural spoken audio with adjustable speech rate and pitch.
-- **Voice Commands**: Say *"Open translator"*, *"Generate image of..."*, *"Dark mode"*, or ask any question.
+- **Auto-Speak**: Automatically speaks responses aloud in the detected language.
 
-### 3. 🎨 AI Image Generator
-- Powered by **Pollinations AI FLUX** engine (100% free, high resolution, no watermarks).
-- **Prompt Enhancer**: Automatically transforms simple ideas into hyper-detailed 8K cinematic prompts.
-- **Styles**: Cyberpunk Neon, Photorealistic 8K, Anime/Manga, Epic Fantasy, 3D Pixar.
-- **Aspect Ratios**: Square (1:1), Landscape (16:9), Mobile Story (9:16).
+### 3. 🛠️ In-App Developer Studio
+- **File Explorer**: Browse and inspect project files directly inside the mobile app.
+- **Code Editor**: Real-time syntax highlighting with line numbers, find & replace, and instant validation.
+- **Live Preview**: Split-screen live preview frame before saving changes.
+- **Backup & Rollback**: Automatic timestamped backup snapshots with 1-click restore.
+- **Automated Tests**: Run test suites directly from the mobile UI.
 
-### 4. ✍️ AI Writer & Coding Studio
-- **📖 Story Writer**: Immersive storytelling with custom genres and tones.
-- **🎬 YouTube Script**: High-retention hooks, visual cues [B-roll], CTAs, viral title ideas, and SEO tags.
-- **💻 Coding Assistant**: Generates production-ready, clean, commented code in any programming language.
-- **📱 Social Media**: Generates Instagram hooks, Twitter/X threads, and LinkedIn posts with viral hashtags.
-- **📄 Summarizer**: Executive TL;DR and key bullet takeaways.
-
-### 5. 🌐 AI Translator
-- Dual-way translation between Hindi, English, Hinglish, Spanish, French, German, Japanese.
-- Pronunciation and phonetic reading guide.
-- Spoken audio pronunciation button.
-
-### 6. 📄 Document Intelligence
-- Upload files (`.txt`, `.md`, `.json`, `.csv`) or paste raw document text.
-- Executive summaries, action item extraction, simple language explanations, and risk analysis.
-
-### 7. 📜 Persistent History & Storage
-- Native **SQLite Database** (`jarvis.db`) via Node.js `node:sqlite`.
-- Stores sessions, message histories, and user settings locally.
-- Rename, search, and delete chats with 1-tap.
-
-### 8. 💖 Customizable Persona Engine
-- **J.A.R.V.I.S. (Default)**: Sophisticated, witty, articulate, addresses user as *"Sir"*.
-- **AI Girlfriend / Companion**: Loving, caring, affectionate, speaks sweet Hindi & English, asks about your day and health.
-- **Custom Persona**: Set your own assistant name and system prompt.
+### 4. 🎨 AI Image Generator & Writer Studio
+- **Pollinations FLUX**: 100% free high-resolution image synthesis with prompt enhancement.
+- **Writer Studio**: Story writer, YouTube scripts with B-roll cues, code generator, social captions, and executive summaries.
+- **AI Translator**: Accurate bilingual translation with pronunciation guide.
+- **Document Intelligence**: Instant document breakdown, Q&A, and takeaways.
 
 ---
 
-## 🚀 Quick Start (Running on Termux / Android)
+## 📲 How to Install & Test on Your Android Phone
 
-### 1. Launch the Server
-```bash
-cd /data/user/0/com.termux/files/home/.gemini/antigravity-cli/scratch/jarvis-ai
-node server.js
-```
+### Method 1: Instant Chrome PWA Installation (Recommended — 0 Second Setup)
+You can install and use the app on your Android phone right now without needing a PC or compiler:
+1. Ensure the app server is running on Termux:
+   ```bash
+   cd /data/user/0/com.termux/files/home/.gemini/antigravity-cli/scratch/jarvis-ai
+   node server.js
+   ```
+2. Open Google Chrome on your phone and go to:
+   `http://localhost:3000` (or your phone's Wi-Fi IP `http://<phone-ip>:3000`)
+3. Tap the Chrome menu (3 dots in top right) ➔ tap **"Install app"** or **"Add to Home Screen"**.
+4. The **AI Girlfriend Mobile** app icon will appear directly on your phone's Home Screen and launch in true full-screen native mode!
 
-The server will start on port `3000`:
-- **Local Mobile Browser:** `http://localhost:3000` or `http://127.0.0.1:3000`
+---
 
-### 2. Install as an Android App (PWA)
-1. Open Chrome on your Android phone and visit: `http://localhost:3000`
-2. Tap the Chrome menu (three dots in top right) ➔ **"Add to Home screen"** or **"Install app"**.
-3. J.A.R.V.I.S. AI will be installed directly on your Android phone's home screen with a futuristic icon, running fullscreen without browser bars!
+### Method 2: Build Native Android APK via Android Studio (PC / Laptop)
+1. Download the complete Android project archive:
+   `ai-girlfriend-mobile-android.zip`
+2. Extract the zip on your computer.
+3. Open **Android Studio** ➔ Click **Open** ➔ Select the `android` folder.
+4. Android Studio will automatically sync the Gradle project (`compileSdk 35`, `targetSdk 35`).
+5. In the top menu, go to **Build** ➔ **Build Bundle(s) / APK(s)** ➔ **Build APK(s)**.
+6. The debug APK will be generated at:
+   `android/app/build/outputs/apk/debug/app-debug.apk`
+7. Transfer `app-debug.apk` to your phone via USB or Google Drive, tap to install, and grant permissions.
 
-### 3. Activate Google Gemini API (Optional for Web-Scale AI)
-1. Open **Settings (⚙️)** inside the J.A.R.V.I.S. app.
-2. Enter your free Google Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-3. Tap **Verify Key** and **Save Calibration**.
-*(Note: If no API key is added, J.A.R.V.I.S. runs automatically on its built-in offline intelligence engine).*
+---
+
+### Method 3: Cloud Build via GitHub Actions (Zero Local Setup)
+This repository includes a pre-configured GitHub Actions CI/CD workflow at `.github/workflows/build-apk.yml`:
+1. Push this project to your GitHub repository.
+2. Go to the **Actions** tab on your GitHub repository.
+3. Select **"Build AI Girlfriend Mobile Android APK"** and click **Run workflow**.
+4. GitHub Actions will spin up a fresh Ubuntu Linux runner with OpenJDK 17 and Android SDK 35, compile the native code, and output:
+   - `AI-Girlfriend-Mobile-Debug-APK` (`app-debug.apk`)
+   - `AI-Girlfriend-Mobile-Release-APK` (`app-release.apk`)
+5. Download the APK artifact directly to your phone and install!
+
+---
+
+## 🔒 Security & API Calibration
+- **API Keys**: Stored exclusively on your local device server inside SQLite (`jarvis.db`). Never committed to source code or bundled into APK assets.
+- **Free Tier Respect**: Designed to work 100% on free tier models. If quota is exhausted, Maya explains the status warmly without crashing.

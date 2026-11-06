@@ -3,16 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>JARVIS AI - Advanced Personal Assistant</title>
+  <title>AI Girlfriend Mobile — Neural Companion & Assistant</title>
   
   <!-- PWA & Android Meta Tags -->
-  <meta name="theme-color" content="#00f0ff">
+  <meta name="theme-color" content="#ff2a85">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="JARVIS AI">
+  <meta name="apple-mobile-web-app-title" content="AI Girlfriend Mobile">
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
 
   <!-- Core Stylesheet -->
   <link rel="stylesheet" href="/css/style.css">
@@ -163,12 +166,13 @@
           </svg>
         </button>
         <div class="top-bar-title">
-          <span id="topBarChatTitle">J.A.R.V.I.S. Chat</span>
-          <span class="persona-tag" id="activePersonaBadge">⚡ J.A.R.V.I.S.</span>
+          <span id="topBarChatTitle">AI Girlfriend Mobile App</span>
+          <span class="persona-tag" id="activePersonaBadge">💖 Maya (AI Girlfriend)</span>
         </div>
       </div>
 
       <div class="top-bar-actions">
+        <button class="chip-btn" id="btnPWAInstall" style="display:none; background:linear-gradient(135deg, #ff2a85, #9d4edd); color:#fff; font-weight:700; border:none; padding:4px 10px; font-size:0.75rem; border-radius:var(--radius-full); box-shadow:0 0 10px rgba(255,42,133,0.5);">📲 Install App</button>
         <button class="btn-icon" id="btnToggleAutoSpeak" title="Auto-Speak Voice (TTS)">🔊</button>
         <button class="btn-icon" id="btnTopNewChat" title="New Conversation">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -786,6 +790,9 @@
       </a>
     </nav>
   </main>
+
+  <!-- PWA Install Modal Container -->
+  <div id="pwaInstallModal" style="display:none;"></div>
 
   <!-- Global Toast Notification Container -->
   <div class="toast-container" id="toastContainer"></div>

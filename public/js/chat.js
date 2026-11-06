@@ -186,7 +186,18 @@ class ChatController {
 
               try {
                 const parsed = JSON.parse(dataStr);
-                if (parsed.chunk) {
+                if (parsed.quotaExhausted) {
+                  fullText = parsed.chunk || parsed.fullContent || 'Google Gemini quota limit exhausted.';
+                  msgBubble.innerHTML = this.renderMarkdown(fullText) + `
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; border-top:1px solid rgba(255,64,129,0.3); padding-top:8px;">
+                      <button class="chip-btn" onclick="window.app.switchTab('settings')" style="background:var(--neon-pink); color:#fff; font-weight:700;">⚙️ Open Settings to Add Key</button>
+                      <a href="https://aistudio.google.com/app/apikey" target="_blank" class="chip-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px; color:#00f0ff; border-color:rgba(0,240,255,0.4);">🔗 Get Free Key (Google AI Studio)</a>
+                    </div>
+                  `;
+                  msgBubble.style.borderColor = '#ff4081';
+                  msgBubble.style.background = 'rgba(255, 64, 129, 0.08)';
+                  this.scrollToBottom();
+                } else if (parsed.chunk) {
                   fullText += parsed.chunk;
                   msgBubble.innerHTML = this.renderMarkdown(fullText);
                   this.scrollToBottom();
@@ -212,6 +223,11 @@ class ChatController {
         const data = await res.json();
         if (data.apiKeyRequired) {
           this.appendApiKeyRequiredCard();
+        } else if (data.quotaExhausted) {
+          this.appendQuotaExhaustedCard(data.content, data.modelsAttempted);
+          if (window.autoSpeakEnabled && window.voiceAssistant) {
+            window.voiceAssistant.speak('Aapka Google Gemini API quota pura ho gaya hai.');
+          }
         } else {
           const reply = data.content || data.error || 'No response received.';
           const astId = data.id || 'ast_' + Date.now();
@@ -247,6 +263,30 @@ class ChatController {
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="chip-btn" onclick="window.app.switchTab('settings')" style="background:var(--neon-cyan); color:#000; font-weight:700;">⚙️ Open Settings to Add Key</button>
             <a href="https://aistudio.google.com/app/apikey" target="_blank" class="chip-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;">🔗 Get Free Key (Google AI Studio)</a>
+          </div>
+        </div>
+        <div class="msg-timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+      </div>
+    `;
+    this.messagesContainer.appendChild(div);
+    this.scrollToBottom();
+  }
+
+  appendQuotaExhaustedCard(content, models = []) {
+    const cardId = 'quota_card_' + Date.now();
+    const div = document.createElement('div');
+    div.className = 'chat-message assistant';
+    div.id = cardId;
+    const formatted = this.renderMarkdown(content || 'Google Gemini API quota limit reached (HTTP 429 - RESOURCE_EXHAUSTED).');
+    div.innerHTML = `
+      <div class="msg-avatar">💖</div>
+      <div class="msg-bubble-wrap">
+        <div class="msg-bubble" style="border: 1px solid #ff4081; background: rgba(255, 64, 129, 0.08);">
+          <div style="font-size:1.05rem; font-weight:700; color:#ff4081; margin-bottom:8px;">⚠️ Google Gemini Quota Limit Exhausted (HTTP 429)</div>
+          <div>${formatted}</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+            <button class="chip-btn" onclick="window.app.switchTab('settings')" style="background:var(--neon-pink); color:#fff; font-weight:700;">⚙️ Open Settings to Add Key</button>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="chip-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px; color:#00f0ff; border-color:rgba(0,240,255,0.4);">🔗 Get Free Key (Google AI Studio)</a>
           </div>
         </div>
         <div class="msg-timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>

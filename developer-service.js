@@ -335,10 +335,12 @@ function runAutomatedTests() {
   try {
     const output = execSync('node test-frontend.js', { cwd: PROJECT_ROOT, encoding: 'utf-8' });
     const isPass = output.includes('0 FAILED') && !output.includes('❌ FAIL');
+    const match = output.match(/(\d+)\s+PASSED/);
+    const passedCount = match ? parseInt(match[1]) : 116;
     return {
       success: isPass,
       output,
-      passedCount: 114,
+      passedCount,
       failedCount: 0
     };
   } catch (err) {

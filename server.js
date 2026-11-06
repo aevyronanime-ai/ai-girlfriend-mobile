@@ -154,8 +154,25 @@ const server = http.createServer(async (req, res) => {
           continue; // skip masked placeholder
         }
         db.setSetting(key, val);
+        if (key === 'gemini_api_key' && val) {
+          aiService.clearCooldowns();
+        }
       }
       return sendJSON(res, 200, { success: true, message: 'Settings saved successfully' });
+    }
+
+    // Verify API Key and check Quota status (Secure server-side verification)
+    if (pathname === '/api/test-api-key' && method === 'POST') {
+      const body = await parseBody(req);
+      const key = (body.apiKey || '').trim();
+      const model = body.model || 'gemini-2.5-flash';
+
+      if (!key) {
+        return sendJSON(res, 400, { success: false, error: 'API key is required' });
+      }
+
+      const testResult = await aiService.verifyApiKey(key, model);
+      return sendJSON(res, 200, testResult);
     }
 
     // 3. Sessions (List / Create / Clear)
@@ -257,9 +274,10 @@ const server = http.createServer(async (req, res) => {
       // If no API key configured, check if simple utility (math/time) or return clear key required error
       if (!apiKey || apiKey.trim().length < 5) {
         const localReply = aiService.generateLocalResponse(userText, messagesHistory, Boolean(imageBase64));
-        const isUtility = localReply && (localReply.includes('time is') || localReply.includes('calculation of'));
+        const isDefaultFallback = localReply && (localReply.includes('To unleash my full Google Gemini') || localReply.includes('Mujhe poori internet-level AI power'));
+        const hasSpecificLocalReply = localReply && !isDefaultFallback;
 
-        if (isUtility) {
+        if (hasSpecificLocalReply) {
           const assistantMsgId = 'msg_ast_' + Date.now();
           db.addMessage(assistantMsgId, activeSessionId, 'assistant', localReply);
           return sendJSON(res, 200, {
@@ -309,17 +327,43 @@ const server = http.createServer(async (req, res) => {
             res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
           },
           onError: (err) => {
-            res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
-            res.write('data: [DONE]\n\n');
-            res.end();
+            if (err && (err.quotaExhausted || err.isQuota)) {
+              const quotaMsg = err.message || 'Google Gemini API quota limit reached.';
+              const astMsgId = 'msg_ast_' + Date.now();
+              db.addMessage(astMsgId, activeSessionId, 'assistant', quotaMsg);
+              res.write(`data: ${JSON.stringify({
+                quotaExhausted: true,
+                chunk: quotaMsg,
+                modelsAttempted: err.modelsAttempted
+              })}\n\n`);
+              res.write(`data: ${JSON.stringify({
+                done: true,
+                id: astMsgId,
+                fullContent: quotaMsg,
+                quotaExhausted: true,
+                modelsAttempted: err.modelsAttempted
+              })}\n\n`);
+              res.write('data: [DONE]\n\n');
+              res.end();
+            } else {
+              res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+              res.write('data: [DONE]\n\n');
+              res.end();
+            }
           },
-          onDone: () => {
+          onDone: (meta = {}) => {
             // Save completed assistant reply to database
             const astMsgId = 'msg_ast_' + Date.now();
             if (fullReply.trim()) {
               db.addMessage(astMsgId, activeSessionId, 'assistant', fullReply);
             }
-            res.write(`data: ${JSON.stringify({ done: true, id: astMsgId, fullContent: fullReply })}\n\n`);
+            res.write(`data: ${JSON.stringify({
+              done: true,
+              id: astMsgId,
+              fullContent: fullReply,
+              modelUsed: meta.modelUsed,
+              fallbackUsed: meta.fallbackUsed
+            })}\n\n`);
             res.write('data: [DONE]\n\n');
             res.end();
           }
@@ -328,16 +372,25 @@ const server = http.createServer(async (req, res) => {
       } else {
         // Non-streaming response
         try {
-          const reply = await aiService.callGemini({
+          const result = await aiService.callGemini({
             apiKey,
             model,
             messages: messagesHistory,
             imageBase64,
             imageMimeType: imageMime
           });
+          const reply = typeof result === 'string' ? result : (result.replyText || '');
           const astMsgId = 'msg_ast_' + Date.now();
           db.addMessage(astMsgId, activeSessionId, 'assistant', reply);
-          return sendJSON(res, 200, { id: astMsgId, role: 'assistant', content: reply });
+          return sendJSON(res, 200, {
+            id: astMsgId,
+            role: 'assistant',
+            content: reply,
+            quotaExhausted: Boolean(result?.quotaExhausted),
+            modelsAttempted: result?.modelsAttempted,
+            modelUsed: result?.modelUsed,
+            fallbackUsed: result?.fallbackUsed
+          });
         } catch (err) {
           return sendJSON(res, 500, { error: err.message });
         }
@@ -437,8 +490,12 @@ Here is a structured starter blueprint for your ${toolType}:
           messages: [{ role: 'user', content: specializedPrompt }],
           systemPrompt: 'You are an elite, world-class content writer and software architect assistant. Provide beautifully formatted markdown.'
         });
-        db.logToolHistory('write_' + Date.now(), toolType, body, { result });
-        return sendJSON(res, 200, { success: true, result });
+        const textResult = typeof result === 'string' ? result : (result.replyText || '');
+        if (result && result.quotaExhausted) {
+          return sendJSON(res, 200, { success: false, quotaExhausted: true, result: textResult, error: textResult });
+        }
+        db.logToolHistory('write_' + Date.now(), toolType, body, { result: textResult });
+        return sendJSON(res, 200, { success: true, result: textResult });
       } catch (err) {
         return sendJSON(res, 500, { error: err.message });
       }
@@ -470,12 +527,16 @@ Please output:
       }
 
       try {
-        const translated = await aiService.callGemini({
+        const result = await aiService.callGemini({
           apiKey,
           messages: [{ role: 'user', content: prompt }],
           systemPrompt: 'You are an expert bilingual translator specialized in Hindi, English, and world languages.'
         });
-        return sendJSON(res, 200, { success: true, translated });
+        const textResult = typeof result === 'string' ? result : (result.replyText || '');
+        if (result && result.quotaExhausted) {
+          return sendJSON(res, 200, { success: false, quotaExhausted: true, error: textResult, translated: textResult });
+        }
+        return sendJSON(res, 200, { success: true, translated: textResult });
       } catch (err) {
         return sendJSON(res, 500, { error: err.message });
       }
@@ -513,12 +574,16 @@ Provide:
       }
 
       try {
-        const analysis = await aiService.callGemini({
+        const result = await aiService.callGemini({
           apiKey,
           messages: [{ role: 'user', content: prompt }],
           systemPrompt: 'You are an advanced document intelligence system. Extract facts, summarize, and answer questions accurately.'
         });
-        return sendJSON(res, 200, { success: true, analysis });
+        const textResult = typeof result === 'string' ? result : (result.replyText || '');
+        if (result && result.quotaExhausted) {
+          return sendJSON(res, 200, { success: false, quotaExhausted: true, error: textResult, analysis: textResult });
+        }
+        return sendJSON(res, 200, { success: true, analysis: textResult });
       } catch (err) {
         return sendJSON(res, 500, { error: err.message });
       }

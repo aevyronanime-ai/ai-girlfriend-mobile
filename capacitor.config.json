@@ -1,6 +1,6 @@
 {
   "appId": "com.jarvis.ai",
-  "appName": "JARVIS AI",
+  "appName": "AI Girlfriend Mobile",
   "webDir": "public",
   "bundledWebRuntime": false,
   "server": {

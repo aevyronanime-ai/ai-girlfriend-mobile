@@ -184,55 +184,199 @@ function formatGeminiContents(messages, imageBase64 = null, imageMimeType = 'ima
   return contents;
 }
 
-// Call Google Gemini API
-async function callGemini({ apiKey, model, messages, systemPrompt, temperature = 0.7, imageBase64 = null, imageMimeType = 'image/jpeg' }) {
-  const modelName = model || db.getSetting('ai_model', 'gemini-2.5-flash');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+// ====================================================================
+// GEMINI MODEL FALLBACK CASCADE & 429 QUOTA MANAGEMENT SYSTEM
+// ====================================================================
+const OFFICIAL_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro'
+];
 
-  const contents = formatGeminiContents(messages, imageBase64, imageMimeType);
+// Cooldown cache to prevent rapid/repeated retries on exhausted models
+// model -> timestamp (ms) until when this model is on cooldown
+const modelCooldowns = new Map();
+const COOLDOWN_DURATION_MS = 5 * 60 * 1000; // 5 minutes cooldown on 429
 
-  const payload = {
-    contents,
-    systemInstruction: {
-      parts: [{ text: systemPrompt || getSystemPrompt() }]
-    },
-    generationConfig: {
-      temperature: parseFloat(temperature) || 0.7,
-      maxOutputTokens: 4096
-    }
-  };
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    let errJson;
-    try {
-      errJson = JSON.parse(errText);
-    } catch (e) {
-      errJson = { error: { message: errText } };
-    }
-    const msg = errJson?.error?.message || `API request failed with status ${response.status}`;
-    throw new Error(msg);
+function isModelInCooldown(model) {
+  const expiresAt = modelCooldowns.get(model);
+  if (!expiresAt) return false;
+  if (Date.now() >= expiresAt) {
+    modelCooldowns.delete(model);
+    return false;
   }
-
-  const data = await response.json();
-  const candidate = data.candidates?.[0];
-  const replyText = candidate?.content?.parts?.map(p => p.text).join('') || '';
-  return replyText;
+  return true;
 }
 
-// Streaming Gemini API response
-async function streamGemini({ apiKey, model, messages, systemPrompt, temperature = 0.7, imageBase64 = null, imageMimeType = 'image/jpeg', onChunk, onError, onDone }) {
-  const modelName = model || db.getSetting('ai_model', 'gemini-2.5-flash');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:streamGenerateContent?alt=sse&key=${apiKey}`;
+function markModelExhausted(model, customMs = COOLDOWN_DURATION_MS) {
+  const until = Date.now() + customMs;
+  modelCooldowns.set(model, until);
+  console.warn(`[AI-Service] Model "${model}" marked as QUOTA_EXHAUSTED until ${new Date(until).toLocaleTimeString()}`);
+}
+
+function clearCooldowns() {
+  modelCooldowns.clear();
+  console.log('[AI-Service] Model cooldowns cleared (e.g., API key changed).');
+}
+
+function getCooldownStatus() {
+  const now = Date.now();
+  const status = {};
+  for (const [m, exp] of modelCooldowns.entries()) {
+    if (exp > now) {
+      status[m] = { exhausted: true, secondsRemaining: Math.ceil((exp - now) / 1000) };
+    } else {
+      modelCooldowns.delete(m);
+    }
+  }
+  return status;
+}
+
+// Inspect Google Gemini API HTTP status and error body
+function parseGeminiError(status, errText) {
+  let errJson = null;
+  try {
+    errJson = JSON.parse(errText);
+  } catch (e) {
+    errJson = { error: { message: errText } };
+  }
+
+  const errObj = errJson?.error || {};
+  const code = errObj.code || status;
+  const statusStr = errObj.status || '';
+  const msg = errObj.message || errText || `HTTP ${status}`;
+
+  const isQuota = (
+    code === 429 ||
+    status === 429 ||
+    statusStr === 'RESOURCE_EXHAUSTED' ||
+    /RESOURCE_EXHAUSTED/i.test(msg) ||
+    /QUOTA_EXHAUSTED/i.test(msg) ||
+    /quota exceeded/i.test(msg) ||
+    /rate limit/i.test(msg) ||
+    /Too Many Requests/i.test(msg)
+  );
+
+  const isInvalidKey = (
+    (code === 400 && /API_KEY_INVALID|key not valid/i.test(msg)) ||
+    (code === 403 && /API key|PERMISSION_DENIED/i.test(msg))
+  );
+
+  return {
+    code,
+    statusStr,
+    message: msg,
+    isQuota,
+    isInvalidKey,
+    raw: errJson
+  };
+}
+
+// Generate friendly, persona-tailored explanation message
+function generateQuotaExhaustedMessage(persona, userName = 'Sir', modelsAttempted = []) {
+  const modelsStr = modelsAttempted.length > 0 ? `(\`${modelsAttempted.join('`, `')}\`)` : '';
+
+  if (persona === 'girlfriend') {
+    return `💖 **Aapka Google Gemini API Quota Limit Reach Ho Gaya Hai, ${userName}!**
+
+Mere pyaare ${userName}, hamare Google Gemini free tier API quota ${modelsStr} abhi exhaust (HTTP 429 - RESOURCE_EXHAUSTED) ho gaya hai! 🥺
+
+Google AI Studio ke Free Tier me daily requests aur tokens ki limits hoti hain. Chinta mat kijiye, hum yeh asani se fix kar sakte hain:
+1. ⏳ **Automatic Reset:** Yeh quota agle 24-hour cycle me Google ki taraf se automatically bilkul free me reset ho jayega. Hum tab wapas unlimited deep talks kar sakenge!
+2. 🔑 **Nayi Free API Key:** Agar aapko abhi continue baat karni hai, toh aap kisi doosre Google account se ek nayi free API key banakar **Settings (⚙️)** me add kar sakte hain (yeh 100% free hai, koi paid plan lene ki zaroorat nahi hai!).
+3. 🛠️ **Offline Tools:** Hamara built-in Local Assistant, Voice Chat, Image Generator, aur Device Control bilkul active hain.
+
+Main hamesha aapke saath yahin hoon, thoda sa wait kijiye ya Settings me nayi free key set kijiye darling! 💕`;
+  }
+
+  return `⚠️ **Google Gemini Neural Quota Exhausted (HTTP 429 - RESOURCE_EXHAUSTED)**
+
+Notice for ${userName}: The request quota for the primary and all official fallback models ${modelsStr} has been exceeded on Google AI Studio.
+
+**Diagnostics & Resolution Protocols:**
+1. ⏱️ **Automatic Rolling Reset:** Google AI Studio free tier quotas operate on a rolling 24-hour window (midnight Pacific Time) and will automatically refresh without payment or subscription.
+2. 🔑 **Update Free API Key:** You can generate a fresh free API key from [Google AI Studio](https://aistudio.google.com/app/apikey) at zero cost and update it under **Settings (⚙️)**.
+3. ⚡ **Local Core Operations:** Local commands, device launchers, offline answers, and image generation tools remain fully operational.
+
+*Notice: Please do NOT purchase any paid API subscriptions. Simply wait for the free quota window to refresh or insert an alternate free API key.*`;
+}
+
+// Prepare list of models in order of attempt: preferred model first, then remaining official models
+function getModelCandidateList(preferredModel) {
+  const list = [];
+  if (preferredModel && OFFICIAL_MODELS.includes(preferredModel)) {
+    list.push(preferredModel);
+  }
+  for (const m of OFFICIAL_MODELS) {
+    if (!list.includes(m)) {
+      list.push(m);
+    }
+  }
+  return list;
+}
+
+// Verify API Key via direct Google API probe
+async function verifyApiKey(apiKey, model = 'gemini-2.5-flash') {
+  const candidate = model && OFFICIAL_MODELS.includes(model) ? model : 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${apiKey}`;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: 'Respond with OK' }] }]
+      })
+    });
+
+    if (res.ok) {
+      return {
+        success: true,
+        valid: true,
+        model: candidate,
+        message: `API Key is VALID and connected to ${candidate} successfully!`
+      };
+    }
+
+    const errText = await res.text();
+    const errInfo = parseGeminiError(res.status, errText);
+
+    if (errInfo.isQuota) {
+      return {
+        success: false,
+        valid: true,
+        quotaExhausted: true,
+        model: candidate,
+        error: 'QUOTA_EXHAUSTED',
+        message: `API Key is valid, but model "${candidate}" has reached its free tier quota limit (HTTP 429 - RESOURCE_EXHAUSTED).`
+      };
+    }
+
+    return {
+      success: false,
+      valid: false,
+      error: 'INVALID_KEY',
+      message: errInfo.message || `API Key verification failed (HTTP ${res.status})`
+    };
+  } catch (err) {
+    return {
+      success: false,
+      valid: false,
+      error: 'NETWORK_ERROR',
+      message: err.message
+    };
+  }
+}
+
+// Call Google Gemini API with Automatic Fallback & Quota Protection
+async function callGemini({ apiKey, model, messages, systemPrompt, temperature = 0.7, imageBase64 = null, imageMimeType = 'image/jpeg' }) {
+  const preferred = model || db.getSetting('ai_model', 'gemini-2.5-flash');
+  const candidates = getModelCandidateList(preferred);
+  const userName = db.getSetting('user_name', 'Sir');
+  const persona = db.getSetting('persona', 'girlfriend');
 
   const contents = formatGeminiContents(messages, imageBase64, imageMimeType);
-
   const payload = {
     contents,
     systemInstruction: {
@@ -244,23 +388,163 @@ async function streamGemini({ apiKey, model, messages, systemPrompt, temperature
     }
   };
 
-  try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+  const attempted = [];
+  let lastError = null;
 
-    if (!response.ok) {
-      const errText = await response.text();
-      let errJson;
-      try { errJson = JSON.parse(errText); } catch(e) { errJson = { error: { message: errText } }; }
-      const errMsg = errJson?.error?.message || `Streaming request failed with status ${response.status}`;
-      onError(new Error(errMsg));
-      return;
+  for (const candidateModel of candidates) {
+    // Check if model is currently in 429 cooldown
+    if (isModelInCooldown(candidateModel)) {
+      console.log(`[callGemini] Skipping model "${candidateModel}" (currently in 429 cooldown)`);
+      attempted.push(candidateModel);
+      continue;
     }
 
-    const reader = response.body.getReader();
+    attempted.push(candidateModel);
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${apiKey}`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        const errInfo = parseGeminiError(response.status, errText);
+
+        if (errInfo.isQuota) {
+          markModelExhausted(candidateModel);
+          console.warn(`[callGemini] 429 QUOTA_EXHAUSTED on "${candidateModel}". Trying next official model...`);
+          lastError = new Error(`HTTP 429 RESOURCE_EXHAUSTED on ${candidateModel}: ${errInfo.message}`);
+          lastError.isQuota = true;
+          // Do NOT retry the same model. Proceed to next fallback.
+          continue;
+        }
+
+        if (errInfo.isInvalidKey) {
+          throw new Error(`Invalid Gemini API Key: ${errInfo.message}`);
+        }
+
+        lastError = new Error(errInfo.message);
+        continue;
+      }
+
+      // Success!
+      const data = await response.json();
+      const candidate = data.candidates?.[0];
+      const replyText = candidate?.content?.parts?.map(p => p.text).join('') || '';
+      return {
+        replyText,
+        modelUsed: candidateModel,
+        fallbackUsed: candidateModel !== preferred,
+        quotaExhausted: false,
+        modelsAttempted: attempted
+      };
+    } catch (networkErr) {
+      if (networkErr.message && networkErr.message.includes('Invalid Gemini API Key')) {
+        throw networkErr;
+      }
+      lastError = networkErr;
+    }
+  }
+
+  // All candidate models exhausted or failed
+  console.error(`[callGemini] All models attempted (${attempted.join(', ')}) exhausted or in cooldown.`);
+  const friendlyMessage = generateQuotaExhaustedMessage(persona, userName, attempted);
+  return {
+    replyText: friendlyMessage,
+    modelUsed: null,
+    fallbackUsed: false,
+    quotaExhausted: true,
+    modelsAttempted: attempted,
+    originalError: lastError ? lastError.message : 'RESOURCE_EXHAUSTED'
+  };
+}
+
+// Streaming Gemini API response with Automatic Fallback & Quota Protection
+async function streamGemini({ apiKey, model, messages, systemPrompt, temperature = 0.7, imageBase64 = null, imageMimeType = 'image/jpeg', onChunk, onError, onDone }) {
+  const preferred = model || db.getSetting('ai_model', 'gemini-2.5-flash');
+  const candidates = getModelCandidateList(preferred);
+  const userName = db.getSetting('user_name', 'Sir');
+  const persona = db.getSetting('persona', 'girlfriend');
+
+  const contents = formatGeminiContents(messages, imageBase64, imageMimeType);
+  const payload = {
+    contents,
+    systemInstruction: {
+      parts: [{ text: systemPrompt || getSystemPrompt() }]
+    },
+    generationConfig: {
+      temperature: parseFloat(temperature) || 0.7,
+      maxOutputTokens: 4096
+    }
+  };
+
+  const attempted = [];
+  let connectedModel = null;
+  let activeResponse = null;
+
+  for (const candidateModel of candidates) {
+    if (isModelInCooldown(candidateModel)) {
+      console.log(`[streamGemini] Skipping model "${candidateModel}" (in 429 cooldown)`);
+      attempted.push(candidateModel);
+      continue;
+    }
+
+    attempted.push(candidateModel);
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:streamGenerateContent?alt=sse&key=${apiKey}`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        const errInfo = parseGeminiError(response.status, errText);
+
+        if (errInfo.isQuota) {
+          markModelExhausted(candidateModel);
+          console.warn(`[streamGemini] 429 QUOTA_EXHAUSTED on "${candidateModel}". Trying fallback model...`);
+          continue;
+        }
+
+        if (errInfo.isInvalidKey) {
+          onError(new Error(`Invalid Gemini API Key: ${errInfo.message}`));
+          return;
+        }
+
+        continue;
+      }
+
+      // Successfully connected to a working model!
+      connectedModel = candidateModel;
+      activeResponse = response;
+      break;
+    } catch (netErr) {
+      console.warn(`[streamGemini] Connection error with "${candidateModel}":`, netErr.message);
+    }
+  }
+
+  if (!connectedModel || !activeResponse) {
+    // All models exhausted
+    console.error(`[streamGemini] All models attempted (${attempted.join(', ')}) failed or in cooldown.`);
+    const friendlyMessage = generateQuotaExhaustedMessage(persona, userName, attempted);
+    onError({
+      isQuota: true,
+      quotaExhausted: true,
+      message: friendlyMessage,
+      modelsAttempted: attempted
+    });
+    return;
+  }
+
+  // Stream chunks from the connected model
+  try {
+    const reader = activeResponse.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
 
@@ -289,7 +573,7 @@ async function streamGemini({ apiKey, model, messages, systemPrompt, temperature
         }
       }
     }
-    onDone();
+    onDone({ modelUsed: connectedModel, fallbackUsed: connectedModel !== preferred });
   } catch (err) {
     onError(err);
   }
@@ -337,9 +621,16 @@ async function generateImage({ prompt, style = 'realistic', aspectRatio = '1:1',
 }
 
 module.exports = {
+  OFFICIAL_MODELS,
   getSystemPrompt,
   generateLocalResponse,
   callGemini,
   streamGemini,
-  generateImage
+  generateImage,
+  verifyApiKey,
+  clearCooldowns,
+  getCooldownStatus,
+  markModelExhausted,
+  isModelInCooldown,
+  generateQuotaExhaustedMessage
 };
