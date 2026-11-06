@@ -1,12 +1,24 @@
 {
-  "name": "JARVIS AI - Personal Assistant",
-  "short_name": "JARVIS AI",
-  "description": "Advanced Personal AI Assistant with Voice, Multimodal Vision, and AI Tools",
+  "name": "AI Girlfriend Mobile App",
+  "short_name": "AI Girlfriend",
+  "description": "Your sweet, caring and loving Personal AI Companion & Assistant",
   "start_url": "/",
+  "id": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "fullscreen",
+    "window-controls-overlay"
+  ],
   "orientation": "portrait",
   "background_color": "#030712",
-  "theme_color": "#00f0ff",
+  "theme_color": "#ff2a85",
+  "categories": [
+    "lifestyle",
+    "entertainment",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/icons/icon.svg",

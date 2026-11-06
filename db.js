@@ -48,9 +48,9 @@ function initDatabase() {
   const defaultSettings = [
     ['gemini_api_key', process.env.GEMINI_API_KEY || ''],
     ['ai_model', 'gemini-2.5-flash'],
-    ['persona', 'jarvis'],
-    ['user_name', 'Sir'],
-    ['assistant_name', 'J.A.R.V.I.S.'],
+    ['persona', 'girlfriend'],
+    ['user_name', 'Darling'],
+    ['assistant_name', 'Maya (AI Girlfriend)'],
     ['custom_system_prompt', ''],
     ['voice_lang', 'hi-en'],
     ['voice_rate', '1.0'],

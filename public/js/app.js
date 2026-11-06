@@ -195,10 +195,45 @@ class App {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('PWA ServiceWorker registered:', reg.scope))
+          .then(reg => {
+            console.log('PWA ServiceWorker registered:', reg.scope);
+            try { reg.update(); } catch(e) {}
+          })
           .catch(err => console.log('ServiceWorker registration note:', err));
       });
     }
+
+    const installBtn = document.getElementById('btnPWAInstall');
+
+    // Check if already running in installed standalone mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isStandalone && installBtn) {
+      installBtn.style.display = 'none';
+    }
+
+    // Capture Chrome PWA Install Prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window.deferredPwaPrompt = e;
+      if (installBtn && !isStandalone) {
+        installBtn.style.display = 'inline-flex';
+        installBtn.onclick = async () => {
+          if (!window.deferredPwaPrompt) return;
+          window.deferredPwaPrompt.prompt();
+          const choice = await window.deferredPwaPrompt.userChoice;
+          if (choice && choice.outcome === 'accepted') {
+            installBtn.style.display = 'none';
+            if (window.app) window.app.showToast('💖 Installing AI Girlfriend to your Home Screen...');
+          }
+          window.deferredPwaPrompt = null;
+        };
+      }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      if (installBtn) installBtn.style.display = 'none';
+      if (window.app) window.app.showToast('💖 AI Girlfriend installed successfully on your device!');
+    });
   }
 }
 
