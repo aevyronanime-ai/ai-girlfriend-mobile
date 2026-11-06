@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>JARVIS AI - Advanced Personal Assistant</title>
+  
+  <!-- PWA & Android Meta Tags -->
+  <meta name="theme-color" content="#00f0ff">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="JARVIS AI">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+
+  <!-- Core Stylesheet -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div id="app">
+  <!-- Mobile Sidebar Drawer Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ==========================================================================
+       SIDEBAR NAVIGATION DRAWER
+       ========================================================================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand-container" onclick="window.app.switchTab('chat')">
+        <img src="/icons/icon.svg" alt="JARVIS" class="brand-logo-icon">
+        <div class="brand-text">
+          <h1>JARVIS</h1>
+          <span class="brand-badge">Neural OS v1.0</span>
+        </div>
+      </div>
+      <button class="btn-icon" id="btnToggleTheme" title="Toggle Dark/Light Mode">☀️</button>
+    </div>
+
+    <!-- Quick New Chat Action -->
+    <div class="sidebar-action-box">
+      <button class="btn-new-chat" id="btnSidebarNewChat">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>New Conversation</span>
+      </button>
+    </div>
+
+    <!-- Navigation Menu Items -->
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Core Intelligence</div>
+      <a href="#" class="nav-item active" data-tab="chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>AI Chat Assistant</span>
+      </a>
+
+      <a href="#" class="nav-item" data-tab="voice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+          <line x1="12" y1="19" x2="12" y2="23"></line>
+          <line x1="8" y1="23" x2="16" y2="23"></line>
+        </svg>
+        <span>Voice Assistant</span>
+      </a>
+
+      <div class="nav-section-title">AI Studios & Tools</div>
+      <a href="#" class="nav-item" data-tab="image">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <span>Image Generator</span>
+      </a>
+
+      <a href="#" class="nav-item" data-tab="writer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+        </svg>
+        <span>AI Writer Studio</span>
+      </a>
+
+      <a href="#" class="nav-item" data-tab="translator">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <span>AI Translator</span>
+      </a>
+
+      <a href="#" class="nav-item" data-tab="doc">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        <span>Document Analyzer</span>
+      </a>
+
+      <div class="nav-section-title">System & Storage</div>
+      <a href="#" class="nav-item" data-tab="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span>Chat History</span>
+      </a>
+
+      <a href="#" class="nav-item" data-tab="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span>Settings & API</span>
+      </a>
+    </nav>
+
+    <!-- Sidebar Footer with Status -->
+    <div class="sidebar-footer">
+      <div class="user-status-card">
+        <div class="status-avatar" id="sidebarAvatar">⚡</div>
+        <div class="user-status-text">
+          <div class="user-name-label" id="sidebarUserName">Sir</div>
+          <div class="system-status-indicator">
+            <span class="status-dot" id="systemStatusDot"></span>
+            <span id="systemStatusText">Checking Core...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==========================================================================
+       MAIN VIEWPORT
+       ========================================================================== -->
+  <main class="main-viewport">
+    <!-- Top Navigation Bar -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <button class="btn-icon" id="btnToggleSidebar" aria-label="Toggle Navigation">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <div class="top-bar-title">
+          <span id="topBarChatTitle">J.A.R.V.I.S. Chat</span>
+          <span class="persona-tag" id="activePersonaBadge">⚡ J.A.R.V.I.S.</span>
+        </div>
+      </div>
+
+      <div class="top-bar-actions">
+        <button class="btn-icon" id="btnTopNewChat" title="New Conversation">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Views Container -->
+    <div class="view-container">
+
+      <!-- ====================================================================
+           VIEW 1: AI CHAT PANE
+           ==================================================================== -->
+      <section class="tab-pane active chat-pane" id="tab-chat">
+        <!-- Messages List -->
+        <div class="chat-messages" id="chatMessages">
+          <!-- Rendered dynamically by chat.js -->
+        </div>
+
+        <!-- Chat Input Bar & Suggestion Chips -->
+        <div class="chat-input-bar">
+          <!-- Quick Suggestion Chips -->
+          <div class="quick-chips-row">
+            <button class="chip-btn" data-query="हेलो जार्विस, आप क्या-क्या कर सकते हैं?">🇮🇳 हेलो जार्विस</button>
+            <button class="chip-btn" data-query="Explain quantum computing in simple words">🔬 Quantum Computing</button>
+            <button class="chip-btn" data-query="Write a Python script to automate file organization">🐍 Python Automation</button>
+            <button class="chip-btn" data-query="Generate 5 viral YouTube video ideas about AI">🎬 YouTube Ideas</button>
+            <button class="chip-btn" data-query="एक प्यारी सी मोटिवेशनल शायरी सुनाओ">✨ शायरी</button>
+          </div>
+
+          <!-- Image Attachment Preview Box -->
+          <div class="input-preview-box" id="inputPreviewBox">
+            <img src="" id="previewThumbnail" alt="Attachment">
+            <span style="flex:1;">Image attached for vision analysis</span>
+            <button class="btn-icon" id="removeImgBtn" style="width:24px; height:24px; font-size:12px;">✕</button>
+          </div>
+
+          <!-- Input Row -->
+          <div class="chat-input-row">
+            <!-- Image Attachment Button -->
+            <label for="chatImageUpload" class="btn-icon" title="Attach Image for AI Vision Analysis" style="cursor:pointer; margin-right:4px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+              </svg>
+            </label>
+            <input type="file" id="chatImageUpload" accept="image/*" style="display:none;">
+
+            <!-- Text Area -->
+            <textarea class="chat-textarea" id="chatInput" placeholder="Ask J.A.R.V.I.S. anything in Hindi or English..." rows="1"></textarea>
+
+            <div class="chat-actions-group">
+              <!-- Voice Microphone Button -->
+              <button class="btn-icon" id="chatMicBtn" title="Speak to J.A.R.V.I.S.">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                  <line x1="12" y1="19" x2="12" y2="23"></line>
+                  <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+              </button>
+
+              <!-- Send Button -->
+              <button class="btn-send" id="chatSendBtn" title="Send Message">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VIEW 2: VOICE ASSISTANT PANE & ANIMATED AI ORB
+           ==================================================================== -->
+      <section class="tab-pane voice-pane" id="tab-voice">
+        <div class="voice-status-header">
+          <h2>J.A.R.V.I.S. AUDIO CORE</h2>
+          <div class="voice-subtitle">Voice Command Center (Hindi & English)</div>
+        </div>
+
+        <!-- Canvas Holographic Arc Reactor Orb -->
+        <div class="orb-stage-wrapper">
+          <canvas id="orbCanvas" width="280" height="280"></canvas>
+          <div class="orb-state-overlay" id="orbStateText">IDLE</div>
+        </div>
+
+        <!-- Real-time Voice Transcript Card -->
+        <div class="voice-transcript-card" id="voiceTranscriptDisplay">
+          Tap the microphone below and speak naturally in Hindi or English...
+        </div>
+
+        <!-- Voice Action Buttons -->
+        <div class="voice-controls-bar">
+          <button class="btn-voice-aux" id="btnStopVoice" title="Mute Speech">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <line x1="23" y1="9" x2="17" y2="15"></line>
+              <line x1="17" y1="9" x2="23" y2="15"></line>
+            </svg>
+          </button>
+
+          <!-- Main Pulsing Microphone Toggle -->
+          <button class="btn-mic-toggle" id="btnVoiceMicToggle" title="Start Listening">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+          </button>
+
+          <button class="btn-voice-aux" onclick="window.app.switchTab('settings')" title="Voice Settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </div>
+
+        <p style="font-size:0.78rem; color:var(--text-muted); margin-top:8px;">
+          Tip: Say "Open translator", "Photo banao [idea]", or ask anything!
+        </p>
+      </section>
+
+      <!-- ====================================================================
+           VIEW 3: AI IMAGE GENERATOR
+           ==================================================================== -->
+      <section class="tab-pane" id="tab-image">
+        <div class="tool-view-wrapper">
+          <div class="tool-header-card">
+            <h2>🎨 AI Image Generation Studio</h2>
+            <p>Synthesize ultra-realistic visuals, cyberpunk landscapes, and artistic portraits with state-of-the-art AI.</p>
+          </div>
+
+          <div class="form-group">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <label class="form-label" for="imagePromptInput">Visual Concept / Prompt</label>
+              <button class="chip-btn" id="btnEnhancePrompt" style="padding:2px 8px; font-size:0.72rem;">✨ Enhance Prompt</button>
+            </div>
+            <textarea class="form-control" id="imagePromptInput" rows="3" placeholder="e.g. Futuristic Iron Man suit glowing in a dark neon Mumbai street, hyper-realistic 8k..."></textarea>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label" for="imageStyleSelect">Artistic Style</label>
+              <select class="form-select" id="imageStyleSelect">
+                <option value="cyberpunk">Cyberpunk Neon</option>
+                <option value="realistic" selected>Photorealistic 8K</option>
+                <option value="anime">Anime / Manga</option>
+                <option value="fantasy">Epic Fantasy</option>
+                <option value="3d">3D Pixar Render</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="imageRatioSelect">Aspect Ratio</label>
+              <select class="form-select" id="imageRatioSelect">
+                <option value="1:1" selected>Square (1:1)</option>
+                <option value="16:9">Landscape (16:9)</option>
+                <option value="9:16">Mobile Story (9:16)</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn-primary-action" id="btnGenerateImage">
+            <span>✨ Synthesize AI Visual</span>
+          </button>
+
+          <!-- Generated Image Frame -->
+          <div class="tool-result-box" id="imageResultBox" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VIEW 4: AI WRITER STUDIO
+           ==================================================================== -->
+      <section class="tab-pane" id="tab-writer">
+        <div class="tool-view-wrapper">
+          <div class="tool-header-card">
+            <h2>✍️ AI Content & Code Studio</h2>
+            <p>Generate viral YouTube scripts, creative stories, production-ready code, social captions, and summaries.</p>
+          </div>
+
+          <!-- Writer Sub-Tabs -->
+          <div class="sub-tabs-bar">
+            <button class="sub-tab-btn writer-subtab active" data-type="story">📖 Story Writer</button>
+            <button class="sub-tab-btn writer-subtab" data-type="youtube">🎬 YouTube Script</button>
+            <button class="sub-tab-btn writer-subtab" data-type="coding">💻 Code Assistant</button>
+            <button class="sub-tab-btn writer-subtab" data-type="social">📱 Social Media</button>
+            <button class="sub-tab-btn writer-subtab" data-type="summary">📄 Summarizer</button>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="writerTopicInput">Subject / Topic / Problem</label>
+            <input type="text" class="form-control" id="writerTopicInput" placeholder="e.g. A thrilling sci-fi adventure in New Delhi 2050...">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="writerDetailsInput">Key Details & Specific Constraints</label>
+            <textarea class="form-control" id="writerDetailsInput" rows="3" placeholder="Target audience, main characters, programming frameworks, or specific requirements..."></textarea>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label class="form-label" for="writerToneSelect">Tone / Vibe</label>
+              <select class="form-select" id="writerToneSelect">
+                <option value="Engaging" selected>Engaging & Viral</option>
+                <option value="Professional">Professional & Formal</option>
+                <option value="Humorous">Humorous & Witty</option>
+                <option value="Dramatic">Dramatic & Emotional</option>
+                <option value="Technical">Technical & Precise</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="writerLangSelect">Language</label>
+              <select class="form-select" id="writerLangSelect">
+                <option value="English" selected>English</option>
+                <option value="Hindi">Hindi (हिंदी)</option>
+                <option value="Hinglish">Hinglish (Mix)</option>
+                <option value="Spanish">Spanish</option>
+                <option value="French">French</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn-primary-action" id="btnGenerateWriting">
+            <span>⚡ Generate Content</span>
+          </button>
+
+          <!-- Result Box -->
+          <div class="tool-result-box" id="writerResultBox" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VIEW 5: AI TRANSLATOR
+           ==================================================================== -->
+      <section class="tab-pane" id="tab-translator">
+        <div class="tool-view-wrapper">
+          <div class="tool-header-card">
+            <h2>🌐 Multi-Language AI Translator</h2>
+            <p>Translate seamlessly between Hindi, English, Hinglish, and world languages with pronunciation guidance.</p>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center;">
+            <div class="form-group">
+              <label class="form-label" for="translateFrom">From</label>
+              <select class="form-select" id="translateFrom">
+                <option value="Auto-Detect" selected>Auto-Detect</option>
+                <option value="English">English</option>
+                <option value="Hindi">Hindi (हिंदी)</option>
+                <option value="Hinglish">Hinglish</option>
+                <option value="Spanish">Spanish</option>
+                <option value="French">French</option>
+                <option value="German">German</option>
+                <option value="Japanese">Japanese</option>
+              </select>
+            </div>
+
+            <button class="btn-icon" id="btnSwapLang" style="margin-top:20px;" title="Swap Languages">⇄</button>
+
+            <div class="form-group">
+              <label class="form-label" for="translateTo">To</label>
+              <select class="form-select" id="translateTo">
+                <option value="Hindi" selected>Hindi (हिंदी)</option>
+                <option value="English">English</option>
+                <option value="Hinglish">Hinglish</option>
+                <option value="Spanish">Spanish</option>
+                <option value="French">French</option>
+                <option value="German">German</option>
+                <option value="Japanese">Japanese</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="translateInput">Text to Translate</label>
+            <textarea class="form-control" id="translateInput" rows="4" placeholder="Enter words, sentences, or paragraphs in Hindi or English..."></textarea>
+          </div>
+
+          <button class="btn-primary-action" id="btnTranslate">
+            <span>🌐 Translate Now</span>
+          </button>
+
+          <!-- Translation Output Box -->
+          <div class="tool-result-box" id="translateResultBox" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VIEW 6: DOCUMENT ANALYZER
+           ==================================================================== -->
+      <section class="tab-pane" id="tab-doc">
+        <div class="tool-view-wrapper">
+          <div class="tool-header-card">
+            <h2>📄 Document Intelligence & Analysis</h2>
+            <p>Upload or paste contracts, notes, research papers, or manuals to extract executive summaries, tables, and answers.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="docFileInput">Upload Document File (.txt, .md, .json, .csv)</label>
+            <input type="file" class="form-control" id="docFileInput" accept=".txt,.md,.json,.csv,.doc">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="docTextInput">Or Paste Document Text Directly</label>
+            <textarea class="form-control" id="docTextInput" rows="6" placeholder="Paste your document content here..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="docGoalSelect">Analysis Objective</label>
+            <select class="form-select" id="docGoalSelect">
+              <option value="Provide an executive summary and key findings" selected>Executive Summary & Key Findings</option>
+              <option value="Extract all actionable tasks and next steps">Extract Action Items & Next Steps</option>
+              <option value="Explain this document in simple non-technical terms">Explain in Simple Terms (ELI5)</option>
+              <option value="Analyze key risks and potential issues">Risk & Caution Analysis</option>
+              <option value="Translate this document to Hindi">Translate Entire Summary to Hindi</option>
+            </select>
+          </div>
+
+          <button class="btn-primary-action" id="btnAnalyzeDoc">
+            <span>🔍 Analyze Document</span>
+          </button>
+
+          <!-- Document Output Box -->
+          <div class="tool-result-box" id="docResultBox" style="display:none;"></div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VIEW 7: CHAT HISTORY
+           ==================================================================== -->
+      <section class="tab-pane" id="tab-history">
+        <div class="tool-view-wrapper">
+          <div class="tool-header-card">
+            <h2>📜 Conversation Memory Buffers</h2>
+            <p>Review past sessions, resume previous dialogues, or manage local storage.</p>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center;">
+            <input type="text" class="form-control" id="historySearchInput" placeholder="Search conversations...">
+            <button class="chip-btn" id="btnClearAllHistory" style="color:#ff0055; border-color:rgba(255,0,85,0.4);">
+              Clear All
+            </button>
+          </div>
+
+          <!-- Sessions List -->
+          <div id="historyListContainer" style="display:flex; flex-direction:column; margin-top:10px;">
+            <!-- Rendered by history.js -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           VIEW 8: SETTINGS & CONFIGURATION
+           ==================================================================== -->
+      <section class="tab-pane" id="tab-settings">
+        <div class="tool-view-wrapper">
+          <div class="tool-header-card">
+            <h2>⚙️ System Calibration & Neural Settings</h2>
+            <p>Configure your Google Gemini API key, customize J.A.R.V.I.S. or Girlfriend personas, tune voice synthesis, and UI preferences.</p>
+          </div>
+
+          <!-- Section 1: AI Provider & API Key -->
+          <div class="settings-section-card">
+            <div class="settings-section-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+              <span>Google Gemini API Key</span>
+            </div>
+            
+            <p style="font-size:0.84rem; color:var(--text-secondary);">
+              Get your free API key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--neon-cyan); text-decoration:underline;">Google AI Studio</a>. Keys are stored strictly on your local device server.
+            </p>
+
+            <div class="form-group">
+              <label class="form-label" for="settingApiKey">Gemini API Key</label>
+              <div style="display:flex; gap:8px;">
+                <input type="password" class="form-control" id="settingApiKey" placeholder="Enter AIzaSy... key">
+                <button class="chip-btn" id="btnTestApiKey" style="white-space:nowrap;">Verify Key</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="settingModel">Neural Model Engine</label>
+              <select class="form-select" id="settingModel">
+                <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash (Ultra Fast & Smart)</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Reasoning)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Section 2: Persona Customization -->
+          <div class="settings-section-card">
+            <div class="settings-section-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span>Persona & Identity Customization</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="settingPersona">Assistant Persona</label>
+              <select class="form-select" id="settingPersona">
+                <option value="jarvis" selected>⚡ J.A.R.V.I.S. (Intelligent, British Witty, Respectful)</option>
+                <option value="girlfriend">💖 AI Girlfriend / Companion (Loving, Caring, Sweet Hindi/English)</option>
+                <option value="custom">⚙️ Custom User Persona</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="settingUserName">Your Name / How Assistant Calls You</label>
+              <input type="text" class="form-control" id="settingUserName" placeholder="e.g. Sir, Boss, Rahul, Priya...">
+            </div>
+
+            <!-- Custom Prompt (shown if Persona is Custom) -->
+            <div class="form-group" id="customPromptGroup" style="display:none;">
+              <label class="form-label" for="settingCustomPrompt">Custom System Prompt</label>
+              <textarea class="form-control" id="settingCustomPrompt" rows="4" placeholder="Define exactly how your AI assistant should talk, respond, and behave..."></textarea>
+            </div>
+          </div>
+
+          <!-- Section 3: Voice & Speech Tuning -->
+          <div class="settings-section-card">
+            <div class="settings-section-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+              <span>Voice & Audio Calibration</span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="settingVoiceSelect">Text-to-Speech Voice</label>
+              <select class="form-select" id="settingVoiceSelect">
+                <option value="">System Default Voice</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between;">
+                <label class="form-label" for="settingVoiceRate">Speaking Rate</label>
+                <span id="voiceRateVal" style="color:var(--neon-cyan); font-weight:700;">1.0x</span>
+              </div>
+              <input type="range" id="settingVoiceRate" min="0.7" max="1.5" step="0.1" value="1.0" style="width:100%; accent-color:var(--neon-cyan);">
+            </div>
+
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between;">
+                <label class="form-label" for="settingVoicePitch">Voice Pitch</label>
+                <span id="voicePitchVal" style="color:var(--neon-cyan); font-weight:700;">1.0x</span>
+              </div>
+              <input type="range" id="settingVoicePitch" min="0.8" max="1.4" step="0.1" value="1.0" style="width:100%; accent-color:var(--neon-cyan);">
+            </div>
+
+            <button class="chip-btn" id="btnTestVoice" style="align-self:flex-start;">🔊 Test Voice Output</button>
+          </div>
+
+          <!-- Section 4: UI & Sound FX -->
+          <div class="settings-section-card">
+            <div class="settings-section-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+              <span>Interface & Audio FX</span>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <h4>Futuristic Sound FX</h4>
+                <p>Synthesized UI blips, radar activation, and notification chimes</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="settingSoundFx" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Save Button -->
+          <button class="btn-primary-action" id="btnSaveSettings">
+            <span>💾 Save Calibration</span>
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ==========================================================================
+         MOBILE BOTTOM NAVIGATION BAR (Android First Experience)
+         ========================================================================== -->
+    <nav class="mobile-bottom-nav">
+      <a href="#" class="bottom-nav-item active" data-tab="chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        <span>Chat</span>
+      </a>
+
+      <a href="#" class="bottom-nav-item" data-tab="voice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
+        <span>Voice</span>
+      </a>
+
+      <a href="#" class="bottom-nav-item" data-tab="image">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        <span>Image</span>
+      </a>
+
+      <a href="#" class="bottom-nav-item" data-tab="writer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+        <span>Writer</span>
+      </a>
+
+      <a href="#" class="bottom-nav-item" data-tab="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <span>Settings</span>
+      </a>
+    </nav>
+  </main>
+
+  <!-- Global Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+</div>
+
+<!-- Scripts -->
+<script src="/js/audio-fx.js"></script>
+<script src="/js/orb.js"></script>
+<script src="/js/voice.js"></script>
+<script src="/js/chat.js"></script>
+<script src="/js/tools.js"></script>
+<script src="/js/history.js"></script>
+<script src="/js/settings.js"></script>
+<script src="/js/app.js"></script>
+
+</body>
+</html>

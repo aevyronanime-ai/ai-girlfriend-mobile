@@ -1,0 +1,22 @@
+{
+  "appId": "com.jarvis.ai",
+  "appName": "JARVIS AI",
+  "webDir": "public",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#030712",
+      "androidSplashResourceName": "splash"
+    }
+  }
+}

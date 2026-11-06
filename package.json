@@ -1,0 +1,12 @@
+{
+  "name": "jarvis-ai",
+  "version": "1.0.0",
+  "description": "JARVIS AI - Advanced Personal AI Assistant with Voice, Multimodal Vision, and AI Tools",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["jarvis", "ai-assistant", "voice-assistant", "gemini", "android-pwa"],
+  "author": "Antigravity",
+  "license": "MIT"
+}
