@@ -202,12 +202,25 @@ class ChatController {
         // Attach action buttons
         this.addMessageActionButtons(assistantMsgId, fullText);
         if (window.soundFX) window.soundFX.success();
+
+        // Auto-speak in same language if enabled
+        if (window.autoSpeakEnabled && window.voiceAssistant && fullText.trim()) {
+          window.voiceAssistant.speak(fullText);
+        }
       } else {
-        // Normal JSON response (Local assistant or standard fallback)
+        // Normal JSON response
         const data = await res.json();
-        const reply = data.content || data.error || 'No response received.';
-        const astId = data.id || 'ast_' + Date.now();
-        this.appendMessage('assistant', reply, astId, Date.now());
+        if (data.apiKeyRequired) {
+          this.appendApiKeyRequiredCard();
+        } else {
+          const reply = data.content || data.error || 'No response received.';
+          const astId = data.id || 'ast_' + Date.now();
+          this.appendMessage('assistant', reply, astId, Date.now());
+
+          if (window.autoSpeakEnabled && window.voiceAssistant && reply) {
+            window.voiceAssistant.speak(reply);
+          }
+        }
         if (window.soundFX) window.soundFX.success();
       }
     } catch (err) {
@@ -218,6 +231,29 @@ class ChatController {
       if (this.sendBtn) this.sendBtn.disabled = false;
       this.scrollToBottom();
     }
+  }
+
+  appendApiKeyRequiredCard() {
+    const cardId = 'api_key_card_' + Date.now();
+    const div = document.createElement('div');
+    div.className = 'chat-message assistant';
+    div.id = cardId;
+    div.innerHTML = `
+      <div class="msg-avatar">🔑</div>
+      <div class="msg-bubble-wrap">
+        <div class="msg-bubble" style="border: 1px solid #ffaa00; background: rgba(255, 170, 0, 0.08);">
+          <div style="font-size:1.05rem; font-weight:700; color:#ffaa00; margin-bottom:6px;">⚠️ Google Gemini API Key Required</div>
+          <p style="margin-bottom:10px;">To enable real-time, live AI responses in all languages (Hindi, Assamese, Bengali, English, Urdu, Tamil, etc.), please configure your free Gemini API key.</p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="chip-btn" onclick="window.app.switchTab('settings')" style="background:var(--neon-cyan); color:#000; font-weight:700;">⚙️ Open Settings to Add Key</button>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="chip-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;">🔗 Get Free Key (Google AI Studio)</a>
+          </div>
+        </div>
+        <div class="msg-timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+      </div>
+    `;
+    this.messagesContainer.appendChild(div);
+    this.scrollToBottom();
   }
 
   createEmptyAssistantBubble(msgId) {

@@ -125,6 +125,8 @@ class App {
       window.settingsManager.loadSettings();
     } else if (tabName === 'voice' && window.orb) {
       window.orb.resize();
+    } else if (tabName === 'developer' && window.developerStudio) {
+      window.developerStudio.loadProjectTree();
     }
   }
 
@@ -210,6 +212,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.tools = new ToolsController();
   window.historyManager = new HistoryController();
   window.settingsManager = new SettingsController();
+  window.developerStudio = new DeveloperStudioController();
+
+  // Auto-speak audio toggle state & listener
+  window.autoSpeakEnabled = false;
+  const autoSpeakBtn = document.getElementById('btnToggleAutoSpeak');
+  if (autoSpeakBtn) {
+    autoSpeakBtn.addEventListener('click', () => {
+      window.autoSpeakEnabled = !window.autoSpeakEnabled;
+      autoSpeakBtn.textContent = window.autoSpeakEnabled ? '🔊' : '🔇';
+      autoSpeakBtn.style.color = window.autoSpeakEnabled ? 'var(--neon-cyan)' : 'var(--text-muted)';
+      if (window.soundFX) window.soundFX.click();
+      if (window.app) {
+        window.app.showToast(window.autoSpeakEnabled ? 'Auto-Speak Enabled (TTS ON)' : 'Auto-Speak Muted (TTS OFF)');
+      }
+    });
+  }
 
   // Load first active session into Chat view
   try {

@@ -1296,3 +1296,56 @@ input:checked + .slider:before {
   from { opacity: 0; transform: translateY(15px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ==========================================================================
+   DEVELOPER STUDIO STYLES & MOBILE OPTIMIZATIONS
+   ========================================================================== */
+.dev-studio-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 2.5fr;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .dev-studio-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.status-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tag-success {
+  background: rgba(0, 255, 170, 0.15);
+  color: #00ffaa;
+  border: 1px solid rgba(0, 255, 170, 0.4);
+}
+
+.tag-warning {
+  background: rgba(255, 170, 0, 0.15);
+  color: #ffaa00;
+  border: 1px solid rgba(255, 170, 0, 0.4);
+}
+
+.tag-error {
+  background: rgba(255, 0, 85, 0.15);
+  color: #ff0055;
+  border: 1px solid rgba(255, 0, 85, 0.4);
+}
+
+.dev-tree-item:hover {
+  background: rgba(0, 240, 255, 0.08) !important;
+}
+
+.dev-tree-item.selected {
+  background: rgba(0, 240, 255, 0.18) !important;
+  border-left: 2px solid var(--neon-cyan);
+}
+

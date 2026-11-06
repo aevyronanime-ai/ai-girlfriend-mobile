@@ -123,6 +123,14 @@
         </svg>
         <span>Settings & API</span>
       </a>
+
+      <a href="#" class="nav-item" data-tab="developer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="16 18 22 12 16 6"></polyline>
+          <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+        <span>Developer Studio</span>
+      </a>
     </nav>
 
     <!-- Sidebar Footer with Status -->
@@ -161,6 +169,7 @@
       </div>
 
       <div class="top-bar-actions">
+        <button class="btn-icon" id="btnToggleAutoSpeak" title="Auto-Speak Voice (TTS)">🔊</button>
         <button class="btn-icon" id="btnTopNewChat" title="New Conversation">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -243,7 +252,7 @@
       <section class="tab-pane voice-pane" id="tab-voice">
         <div class="voice-status-header">
           <h2>J.A.R.V.I.S. AUDIO CORE</h2>
-          <div class="voice-subtitle">Voice Command Center (Hindi & English)</div>
+          <div class="voice-subtitle">Universal Multilingual Voice Core (Auto-Detect Language)</div>
         </div>
 
         <!-- Canvas Holographic Arc Reactor Orb -->
@@ -647,6 +656,104 @@
         </div>
       </section>
 
+      <!-- ====================================================================
+           VIEW 8: IN-APP DEVELOPER STUDIO (Full Mobile IDE & Diagnostics)
+           ==================================================================== -->
+      <section class="tab-pane" id="tab-developer">
+        <div class="tool-view-wrapper">
+          <div class="tool-header-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <div>
+                <h2>🛠️ J.A.R.V.I.S. Developer Studio</h2>
+                <p>In-App Neural OS File Explorer, Safe Code Editor, Rollback Vault & Android Sync</p>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button class="chip-btn" id="btnDevRunTests" style="background:var(--neon-purple); color:#fff;">🧪 Run Tests</button>
+                <button class="chip-btn" id="btnDevSyncAndroid" style="background:var(--neon-cyan); color:#000; font-weight:700;">📱 Sync Android</button>
+                <button class="chip-btn" id="btnDevTogglePreview">👁️ Toggle Preview</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Test Results Box -->
+          <div id="devTestResults" style="display:none; background:#000; border:1px solid var(--neon-cyan); padding:10px; border-radius:var(--radius-md); font-family:monospace; font-size:0.75rem; white-space:pre-wrap; margin-bottom:12px; max-height:160px; overflow-y:auto; color:var(--neon-cyan);"></div>
+
+          <!-- Live Preview IFrame Container -->
+          <iframe id="devPreviewFrame" style="display:none; width:100%; height:320px; border:1px solid var(--border-subtle); border-radius:var(--radius-md); margin-bottom:12px; background:#fff;"></iframe>
+
+          <!-- Editor Stage Layout: Split Tree + Code Editor -->
+          <div class="dev-studio-grid" style="display:grid; grid-template-columns: minmax(180px, 1fr) 2.5fr; gap:12px; margin-bottom:16px;">
+            <!-- Left: File Tree Explorer -->
+            <div class="settings-section-card" style="padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-weight:700; font-size:0.82rem; color:var(--text-primary);">📂 Project Files</span>
+                <button class="chip-btn" onclick="window.developerStudio.loadProjectTree()" style="padding:1px 6px; font-size:0.68rem;">🔄</button>
+              </div>
+              <div id="devFileTree" style="max-height:360px; overflow-y:auto;">
+                <div style="color:var(--text-muted); font-size:0.75rem;">Loading tree...</div>
+              </div>
+            </div>
+
+            <!-- Right: Code Editor & Controls -->
+            <div class="settings-section-card" style="padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span id="devCurrentFile" style="font-family:monospace; font-size:0.8rem; font-weight:700; color:var(--neon-cyan);">Select a file to edit</span>
+                  <span id="devSyntaxStatus" class="status-tag tag-success" style="font-size:0.68rem;">Ready</span>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <button class="chip-btn" id="btnDevValidateSyntax" style="padding:3px 8px; font-size:0.75rem;">🧪 Check Syntax</button>
+                  <button class="chip-btn" id="btnDevSaveFile" style="padding:3px 10px; font-size:0.75rem; background:var(--neon-cyan); color:#000; font-weight:700;">💾 Save & Backup</button>
+                </div>
+              </div>
+
+              <!-- Find & Replace Toolbar -->
+              <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;">
+                <input type="text" id="devSearchInput" class="form-control" placeholder="Search text in file..." style="flex:1; min-width:110px; padding:4px 8px; font-size:0.75rem; height:30px;">
+                <input type="text" id="devReplaceInput" class="form-control" placeholder="Replace with..." style="flex:1; min-width:110px; padding:4px 8px; font-size:0.75rem; height:30px;">
+                <button class="chip-btn" id="btnDevFindReplace" style="height:30px; padding:0 8px; font-size:0.72rem;">Replace</button>
+              </div>
+
+              <!-- Code Editor with Line Numbers -->
+              <div class="dev-editor-container" style="display:flex; background:#080c14; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); height:320px; overflow:hidden;">
+                <div id="devLineNumbers" style="width:40px; background:#04060a; color:#4b5563; font-family:monospace; font-size:0.75rem; padding:10px 4px; text-align:right; user-select:none; overflow:hidden; line-height:1.4;">1</div>
+                <textarea id="devCodeEditor" spellcheck="false" placeholder="Select a file from the explorer on the left to inspect or edit code..." style="flex:1; background:transparent; color:#e2e8f0; font-family:monospace; font-size:0.75rem; padding:10px; border:none; outline:none; resize:none; line-height:1.4; white-space:pre; overflow:auto;"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Grid: Rollback Vault & AI Developer Assistant & Debug Console -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
+            <!-- Column 1: AI Developer Assistant -->
+            <div class="settings-section-card" style="padding:12px;">
+              <div style="font-weight:700; font-size:0.85rem; color:var(--neon-purple); margin-bottom:8px;">🤖 AI Developer Architect</div>
+              <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">Ask in Hindi or English to explain code, fix bugs, or optimize the active file.</p>
+              <div style="display:flex; gap:6px; margin-bottom:8px;">
+                <input type="text" id="devAiPromptInput" class="form-control" placeholder="e.g. Is code me bug kahan hai?..." style="flex:1; font-size:0.8rem;">
+                <button class="chip-btn" id="btnDevAskAi" style="background:var(--neon-purple); color:#fff; font-weight:700;">⚡ Consult</button>
+              </div>
+              <div id="devAiResponseBox" style="display:none; background:rgba(0,0,0,0.4); border:1px solid rgba(157,78,221,0.3); border-radius:var(--radius-sm); padding:10px; max-height:180px; overflow-y:auto; font-size:0.8rem;"></div>
+            </div>
+
+            <!-- Column 2: Rollback Vault -->
+            <div class="settings-section-card" style="padding:12px;">
+              <div style="font-weight:700; font-size:0.85rem; color:#ffaa00; margin-bottom:8px;">🔄 Rollback Vault (Automatic Snapshots)</div>
+              <div id="devBackupsList" style="max-height:180px; overflow-y:auto;">
+                <div style="color:var(--text-muted); font-size:0.75rem;">Open a file to see its version history.</div>
+              </div>
+            </div>
+
+            <!-- Column 3: Live Debug Console -->
+            <div class="settings-section-card" style="padding:12px;">
+              <div style="font-weight:700; font-size:0.85rem; color:var(--neon-cyan); margin-bottom:8px;">📟 Live Debug Console & Logs</div>
+              <div id="devDebugLogs" style="background:#04060a; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:8px; max-height:180px; overflow-y:auto;">
+                <div style="color:var(--text-muted); font-size:0.75rem;">Listening for runtime logs & errors...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
 
     <!-- ==========================================================================
@@ -693,6 +800,7 @@
 <script src="/js/tools.js"></script>
 <script src="/js/history.js"></script>
 <script src="/js/settings.js"></script>
+<script src="/js/developer.js"></script>
 <script src="/js/app.js"></script>
 
 </body>

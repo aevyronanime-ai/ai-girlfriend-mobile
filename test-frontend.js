@@ -33,6 +33,7 @@ const jsFiles = [
   'tools.js',
   'history.js',
   'settings.js',
+  'developer.js',
   'app.js'
 ];
 
@@ -70,7 +71,7 @@ for (const id of Array.from(requiredIds).sort()) {
 }
 
 // 4. Verify all navigation tabs exist
-const expectedTabs = ['chat', 'voice', 'image', 'writer', 'translator', 'doc', 'history', 'settings'];
+const expectedTabs = ['chat', 'voice', 'image', 'writer', 'translator', 'doc', 'history', 'settings', 'developer'];
 for (const tab of expectedTabs) {
   const paneExists = htmlContent.includes(`id="tab-${tab}"`);
   const navLinkExists = htmlContent.includes(`data-tab="${tab}"`);

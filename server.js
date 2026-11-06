@@ -1,9 +1,11 @@
 // JARVIS AI - Main HTTP Server & REST API
+try { process.loadEnvFile(); } catch (e) {}
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const db = require('./db.js');
 const aiService = require('./ai-service.js');
+const developerService = require('./developer-service.js');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -252,18 +254,33 @@ const server = http.createServer(async (req, res) => {
       const model = db.getSetting('ai_model', 'gemini-2.5-flash');
       const messagesHistory = db.getSessionMessages(activeSessionId);
 
-      // If no API key configured, use built-in intelligent engine
+      // If no API key configured, check if simple utility (math/time) or return clear key required error
       if (!apiKey || apiKey.trim().length < 5) {
         const localReply = aiService.generateLocalResponse(userText, messagesHistory, Boolean(imageBase64));
+        const isUtility = localReply && (localReply.includes('time is') || localReply.includes('calculation of'));
+
+        if (isUtility) {
+          const assistantMsgId = 'msg_ast_' + Date.now();
+          db.addMessage(assistantMsgId, activeSessionId, 'assistant', localReply);
+          return sendJSON(res, 200, {
+            id: assistantMsgId,
+            role: 'assistant',
+            content: localReply,
+            isLocal: true
+          });
+        }
+
+        // Return clear, non-simulated error notice
+        const errNotice = '⚠️ **Google Gemini API Key Required**\n\nTo enable live, real-time multilingual AI intelligence (Hindi, Assamese, Bengali, English, Urdu, Tamil, etc.), please configure your free Gemini API key under **Settings (⚙️)**.\n\n👉 [Click here to get your free key from Google AI Studio](https://aistudio.google.com/app/apikey)';
         const assistantMsgId = 'msg_ast_' + Date.now();
-        db.addMessage(assistantMsgId, activeSessionId, 'assistant', localReply);
+        db.addMessage(assistantMsgId, activeSessionId, 'assistant', errNotice);
 
         return sendJSON(res, 200, {
           id: assistantMsgId,
           role: 'assistant',
-          content: localReply,
-          isLocal: true,
-          notice: 'Operating in local offline mode. Add Gemini API key in Settings for live web neural capabilities.'
+          content: errNotice,
+          apiKeyRequired: true,
+          error: 'API_KEY_REQUIRED'
         });
       }
 
@@ -512,6 +529,73 @@ Provide:
       const type = parsedUrl.searchParams.get('type') || null;
       const history = db.getToolHistory(type);
       return sendJSON(res, 200, history);
+    }
+
+    // 11. In-App Developer Studio APIs
+    if (pathname === '/api/developer/tree' && method === 'GET') {
+      const tree = developerService.getProjectTree();
+      return sendJSON(res, 200, tree);
+    }
+
+    if (pathname === '/api/developer/read' && method === 'GET') {
+      const file = parsedUrl.searchParams.get('file');
+      if (!file) return sendJSON(res, 400, { error: 'File parameter is required' });
+      const data = developerService.readFile(file);
+      return sendJSON(res, 200, data);
+    }
+
+    if (pathname === '/api/developer/save' && method === 'POST') {
+      const body = await parseBody(req);
+      const { file, content, reason } = body;
+      if (!file || typeof content !== 'string') {
+        return sendJSON(res, 400, { error: 'File and content are required' });
+      }
+      const result = developerService.saveFile(file, content, reason);
+      return sendJSON(res, 200, result);
+    }
+
+    if (pathname === '/api/developer/validate' && method === 'POST') {
+      const body = await parseBody(req);
+      const { file, content } = body;
+      const check = developerService.validateSyntax(content, file || 'file.js');
+      return sendJSON(res, 200, check);
+    }
+
+    if (pathname === '/api/developer/search' && method === 'POST') {
+      const body = await parseBody(req);
+      const results = developerService.searchProject(body.query || '');
+      return sendJSON(res, 200, results);
+    }
+
+    if (pathname === '/api/developer/replace' && method === 'POST') {
+      const body = await parseBody(req);
+      const { file, search, replace } = body;
+      if (!file || !search) return sendJSON(res, 400, { error: 'File and search query are required' });
+      const result = developerService.replaceInFile(file, search, replace || '');
+      return sendJSON(res, 200, result);
+    }
+
+    if (pathname === '/api/developer/backups' && method === 'GET') {
+      const file = parsedUrl.searchParams.get('file');
+      const backups = developerService.listBackups(file);
+      return sendJSON(res, 200, backups);
+    }
+
+    if (pathname === '/api/developer/restore' && method === 'POST') {
+      const body = await parseBody(req);
+      if (!body.backupId) return sendJSON(res, 400, { error: 'Backup ID is required' });
+      const result = developerService.restoreBackup(body.backupId);
+      return sendJSON(res, 200, result);
+    }
+
+    if (pathname === '/api/developer/sync-android' && method === 'POST') {
+      const result = developerService.syncAndroidAssets();
+      return sendJSON(res, 200, result);
+    }
+
+    if (pathname === '/api/developer/test' && method === 'POST') {
+      const result = developerService.runAutomatedTests();
+      return sendJSON(res, 200, result);
     }
 
   } catch (apiErr) {

@@ -1,0 +1,16 @@
+# Environment & Secrets (Never commit actual API keys)
+.env
+.env.local
+
+# Database
+*.db
+*.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+
+# Android build outputs
+android/app/build/
+android/.gradle/
+android/app/release.jks
