@@ -76,6 +76,8 @@ class MediaStudioController {
     this.motionChips = document.querySelectorAll('.flow-motion-chip');
 
     // Video Settings
+    this.videoArtisticStyleSelect = document.getElementById('videoArtisticStyleSelect');
+    this.videoLightingSelect = document.getElementById('videoLightingSelect');
     this.videoQualitySelect = document.getElementById('videoQualitySelect');
     this.videoMotionStrength = document.getElementById('videoMotionStrengthSelect');
     this.videoCameraMovement = document.getElementById('videoCameraMovementSelect');
@@ -146,6 +148,7 @@ class MediaStudioController {
     this.charModalPhotoUpload = document.getElementById('charModalPhotoUpload');
     this.btnCharModalUploadPhoto = document.getElementById('btnCharModalUploadPhoto');
     this.charModalPhotoName = document.getElementById('charModalPhotoName');
+    this.charInputAccessories = document.getElementById('charInputAccessories');
 
     this.lightboxModal = document.getElementById('imageLightboxModal');
     this.lightboxImg = document.getElementById('lightboxImage');
@@ -850,6 +853,7 @@ class MediaStudioController {
     const hairInput = document.getElementById('charInputHair');
     const clothInput = document.getElementById('charInputClothing');
     const bodyInput = document.getElementById('charInputBody');
+    const accInput = document.getElementById('charInputAccessories');
     const voiceSelect = document.getElementById('charSelectVoice');
     const descInput = document.getElementById('charInputDesc');
 
@@ -879,6 +883,7 @@ class MediaStudioController {
       hairstyle: hairInput ? hairInput.value.trim() : '',
       clothing: clothInput ? clothInput.value.trim() : '',
       body_proportions: bodyInput ? bodyInput.value.trim() : '',
+      accessories: accInput ? accInput.value.trim() : '',
       voice: voiceSelect ? voiceSelect.value : 'female',
       description: descInput ? descInput.value.trim() : '',
       image_data: photoData
@@ -947,9 +952,16 @@ class MediaStudioController {
         this.vidProgressText.textContent = 'Animating character motion, facial expressions & lip sync...';
       }
 
+      const artisticStyle = this.videoArtisticStyleSelect ? this.videoArtisticStyleSelect.value : 'anime';
+      const lighting = this.videoLightingSelect ? this.videoLightingSelect.value : 'golden_hour';
+      const resolution = this.videoResolutionSelect ? this.videoResolutionSelect.value : '720p';
+
       const videoBlob = await this._renderFlowMotionClip({
         prompt,
         creationStyle: this.creationStyle,
+        artisticStyle,
+        lighting,
+        resolution,
         duration: this.videoDuration,
         aspectRatio: this.videoAspectRatio,
         motionTags: Array.from(this.selectedMotionTags),
@@ -981,7 +993,7 @@ class MediaStudioController {
       }
 
       if (this.vidResultMetaBadge) {
-        this.vidResultMetaBadge.textContent = `${this.videoDuration}s • ${this.videoAspectRatio} • ${this.creationStyle.toUpperCase()} Animation`;
+        this.vidResultMetaBadge.textContent = `${this.videoDuration}s • ${resolution} • ${this.videoAspectRatio} • ${this.creationStyle.toUpperCase()} • ${artisticStyle.toUpperCase()}`;
       }
 
       if (this.vidResultsSection) {
@@ -1004,14 +1016,29 @@ class MediaStudioController {
   }
 
   // --- Realtime Canvas & WebAudio Playable Video Synthesis Engine ---
-  async _renderFlowMotionClip({ prompt, creationStyle, duration, aspectRatio, motionTags, character, characterRef, sceneRef, dialogue, bgm, onProgress }) {
+  async _renderFlowMotionClip({ prompt, creationStyle, artisticStyle, lighting, resolution, duration, aspectRatio, motionTags, character, characterRef, sceneRef, dialogue, bgm, onProgress }) {
     const canvas = this.flowRenderCanvas || document.createElement('canvas');
     let width = 1280;
     let height = 720;
-    if (aspectRatio === '4:3') { width = 1024; height = 768; }
-    else if (aspectRatio === '1:1') { width = 720; height = 720; }
-    else if (aspectRatio === '3:4') { width = 720; height = 960; }
-    else if (aspectRatio === '9:16') { width = 720; height = 1280; }
+    if (resolution === '480p') {
+      if (aspectRatio === '4:3') { width = 640; height = 480; }
+      else if (aspectRatio === '1:1') { width = 480; height = 480; }
+      else if (aspectRatio === '3:4') { width = 480; height = 640; }
+      else if (aspectRatio === '9:16') { width = 480; height = 854; }
+      else { width = 854; height = 480; }
+    } else if (resolution === '1080p') {
+      if (aspectRatio === '4:3') { width = 1440; height = 1080; }
+      else if (aspectRatio === '1:1') { width = 1080; height = 1080; }
+      else if (aspectRatio === '3:4') { width = 1080; height = 1440; }
+      else if (aspectRatio === '9:16') { width = 1080; height = 1920; }
+      else { width = 1920; height = 1080; }
+    } else {
+      if (aspectRatio === '4:3') { width = 1024; height = 768; }
+      else if (aspectRatio === '1:1') { width = 720; height = 720; }
+      else if (aspectRatio === '3:4') { width = 720; height = 960; }
+      else if (aspectRatio === '9:16') { width = 720; height = 1280; }
+      else { width = 1280; height = 720; }
+    }
 
     canvas.width = width;
     canvas.height = height;
@@ -1184,7 +1211,25 @@ class MediaStudioController {
         ctx.restore();
       } else {
         const grad = ctx.createLinearGradient(0, 0, 0, height);
-        if (isSakura) {
+        if (lighting === 'golden_hour') {
+          grad.addColorStop(0, '#2d1200');
+          grad.addColorStop(0.4, '#a44200');
+          grad.addColorStop(0.75, '#ffb347');
+          grad.addColorStop(1, '#ffd194');
+        } else if (lighting === 'cinematic') {
+          grad.addColorStop(0, '#050811');
+          grad.addColorStop(0.6, '#0f172a');
+          grad.addColorStop(1, '#1e293b');
+        } else if (lighting === 'soft_daylight') {
+          grad.addColorStop(0, '#1e3a8a');
+          grad.addColorStop(0.4, '#38bdf8');
+          grad.addColorStop(1, '#e0f2fe');
+        } else if (lighting === 'neon') {
+          grad.addColorStop(0, '#0d0221');
+          grad.addColorStop(0.5, '#541388');
+          grad.addColorStop(0.85, '#ff007f');
+          grad.addColorStop(1, '#00f0ff');
+        } else if (lighting === 'twilight' || isSakura) {
           grad.addColorStop(0, is3D ? '#1a103c' : '#2d1b4e');
           grad.addColorStop(0.6, '#5b3266');
           grad.addColorStop(1, '#e8a5c8');
@@ -1237,7 +1282,7 @@ class MediaStudioController {
         ctx.restore();
       } else {
         // Procedural 2D Anime / 3D Stylized Character with Lip Sync
-        this._drawProceduralCharacter(ctx, charCenterX, charCenterY, height, is3D, t, dialogue);
+        this._drawProceduralCharacter(ctx, charCenterX, charCenterY, height, is3D, t, dialogue, character);
       }
 
       // Dialogue Subtitle Overlay
@@ -1278,14 +1323,60 @@ class MediaStudioController {
     return new Blob(recordedChunks, { type: selectedMime });
   }
 
-  // Draw procedural character with animated eyes, breathing, and real-time lip sync
-  _drawProceduralCharacter(ctx, cx, cy, canvasH, is3D, t, dialogue) {
+  // Draw procedural character with animated eyes, head tilt, gestures, breathing, accessories, and real-time lip sync
+  _drawProceduralCharacter(ctx, cx, cy, canvasH, is3D, t, dialogue, character) {
     ctx.save();
     const headRadius = canvasH * 0.12;
     const bodyWidth = headRadius * 1.8;
 
-    // Body / Kimono
-    ctx.fillStyle = is3D ? '#7c3aed' : '#a855f7';
+    // 1. Dynamic Head Tilt & Nod
+    const headTilt = Math.sin(t * 1.6) * 0.035;
+    const nodOffset = Math.cos(t * 3.2) * 2;
+
+    // 2. Animated Arms with Walking Swing & Conversational Hand Gestures
+    const leftArmSwing = Math.sin(t * 5.0) * 16;
+    const rightArmSwing = dialogue ? Math.sin(t * 7.5) * 20 : -Math.sin(t * 5.0) * 16;
+
+    // Left Arm (Sleeve & Hand)
+    ctx.save();
+    ctx.translate(cx - bodyWidth * 0.38, cy + headRadius * 1.1);
+    ctx.rotate((leftArmSwing * Math.PI) / 180);
+    ctx.fillStyle = is3D ? '#6d28d9' : '#9333ea';
+    ctx.beginPath();
+    ctx.ellipse(0, headRadius * 0.65, headRadius * 0.22, headRadius * 0.6, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+    // Left Hand
+    ctx.fillStyle = is3D ? '#fed7aa' : '#ffedd5';
+    ctx.beginPath();
+    ctx.arc(headRadius * 0.05, headRadius * 1.25, headRadius * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Right Arm (Sleeve & Hand) - expressive gesture when talking
+    ctx.save();
+    ctx.translate(cx + bodyWidth * 0.38, cy + headRadius * 1.1);
+    ctx.rotate((rightArmSwing * Math.PI) / 180);
+    ctx.fillStyle = is3D ? '#6d28d9' : '#9333ea';
+    ctx.beginPath();
+    ctx.ellipse(0, headRadius * 0.65, headRadius * 0.22, headRadius * 0.6, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+    // Right Hand
+    ctx.fillStyle = is3D ? '#fed7aa' : '#ffedd5';
+    ctx.beginPath();
+    ctx.arc(-headRadius * 0.05, headRadius * 1.25, headRadius * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 3. Body / Kimono Robe
+    if (is3D) {
+      const robeGrad = ctx.createLinearGradient(cx - bodyWidth / 2, cy, cx + bodyWidth / 2, cy + headRadius * 3);
+      robeGrad.addColorStop(0, '#7c3aed');
+      robeGrad.addColorStop(0.5, '#5b21b6');
+      robeGrad.addColorStop(1, '#3b0764');
+      ctx.fillStyle = robeGrad;
+    } else {
+      ctx.fillStyle = '#a855f7';
+    }
     ctx.beginPath();
     ctx.moveTo(cx - bodyWidth / 2, cy + headRadius * 2.8);
     ctx.lineTo(cx - bodyWidth * 0.4, cy + headRadius * 0.8);
@@ -1294,75 +1385,133 @@ class MediaStudioController {
     ctx.closePath();
     ctx.fill();
 
-    // Head / Face
-    ctx.fillStyle = is3D ? '#fed7aa' : '#ffedd5';
+    // 4. Waist Obi Sash Accessory (Golden / Ruby Accent Band)
+    const obiY = cy + headRadius * 1.6;
+    const obiH = headRadius * 0.42;
+    ctx.fillStyle = is3D ? '#f59e0b' : '#fbbf24';
+    ctx.fillRect(cx - bodyWidth * 0.36, obiY, bodyWidth * 0.72, obiH);
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(cx - bodyWidth * 0.36, obiY + obiH * 0.4, bodyWidth * 0.72, obiH * 0.2);
+
+    // 5. Head & Face with Tilt
+    ctx.save();
+    ctx.translate(cx, cy + nodOffset);
+    ctx.rotate(headTilt);
+
+    // Face Skin
+    if (is3D) {
+      const skinGrad = ctx.createRadialGradient(-headRadius * 0.2, -headRadius * 0.2, headRadius * 0.1, 0, 0, headRadius);
+      skinGrad.addColorStop(0, '#fff7ed');
+      skinGrad.addColorStop(0.7, '#fed7aa');
+      skinGrad.addColorStop(1, '#fba779');
+      ctx.fillStyle = skinGrad;
+    } else {
+      ctx.fillStyle = '#ffedd5';
+    }
     ctx.beginPath();
-    ctx.arc(cx, cy, headRadius, 0, Math.PI * 2);
+    ctx.arc(0, 0, headRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Hair (Long violet-black Anime hair)
-    ctx.fillStyle = is3D ? '#1e1b4b' : '#312e81';
+    // 6. Hair (Long anime hair with volume)
+    if (is3D) {
+      const hairGrad = ctx.createRadialGradient(0, -headRadius * 0.5, headRadius * 0.2, 0, 0, headRadius * 1.2);
+      hairGrad.addColorStop(0, '#312e81');
+      hairGrad.addColorStop(0.7, '#1e1b4b');
+      hairGrad.addColorStop(1, '#0f0b29');
+      ctx.fillStyle = hairGrad;
+    } else {
+      ctx.fillStyle = '#312e81';
+    }
     ctx.beginPath();
-    ctx.arc(cx, cy - headRadius * 0.15, headRadius * 1.08, Math.PI, Math.PI * 2);
-    ctx.lineTo(cx + headRadius * 1.15, cy + headRadius * 1.8);
-    ctx.lineTo(cx + headRadius * 0.75, cy + headRadius * 0.9);
-    ctx.lineTo(cx - headRadius * 0.75, cy + headRadius * 0.9);
-    ctx.lineTo(cx - headRadius * 1.15, cy + headRadius * 1.8);
+    ctx.arc(0, -headRadius * 0.15, headRadius * 1.08, Math.PI, Math.PI * 2);
+    ctx.lineTo(headRadius * 1.18, headRadius * 1.85);
+    ctx.lineTo(headRadius * 0.75, headRadius * 0.9);
+    ctx.lineTo(-headRadius * 0.75, headRadius * 0.9);
+    ctx.lineTo(-headRadius * 1.18, headRadius * 1.85);
     ctx.closePath();
     ctx.fill();
 
-    // Eyes with blinking
+    // 7. Hair Accessory: Sakura Flower Pin on Right Hair
+    const pinX = headRadius * 0.72;
+    const pinY = -headRadius * 0.55;
+    ctx.fillStyle = '#f472b6';
+    for (let pIdx = 0; pIdx < 5; pIdx++) {
+      const pAngle = (pIdx * Math.PI * 2) / 5;
+      ctx.beginPath();
+      ctx.ellipse(pinX + Math.cos(pAngle) * 7, pinY + Math.sin(pAngle) * 7, 5, 3, pAngle, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(pinX, pinY, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 8. Eyes with Blinking & Shading
     const isBlinking = (Math.sin(t * 3.5) > 0.92);
     const eyeSpacing = headRadius * 0.38;
-    const eyeY = cy - headRadius * 0.05;
+    const eyeY = -headRadius * 0.05;
 
     ctx.fillStyle = '#0f172a';
     if (isBlinking) {
-      // Closed eye line
       ctx.lineWidth = 2.5;
       ctx.strokeStyle = '#0f172a';
       ctx.beginPath();
-      ctx.moveTo(cx - eyeSpacing - 10, eyeY);
-      ctx.lineTo(cx - eyeSpacing + 10, eyeY);
-      ctx.moveTo(cx + eyeSpacing - 10, eyeY);
-      ctx.lineTo(cx + eyeSpacing + 10, eyeY);
+      ctx.moveTo(-eyeSpacing - 10, eyeY);
+      ctx.lineTo(-eyeSpacing + 10, eyeY);
+      ctx.moveTo(eyeSpacing - 10, eyeY);
+      ctx.lineTo(eyeSpacing + 10, eyeY);
       ctx.stroke();
     } else {
-      // Big Anime Eyes
+      // Big expressive anime eyes
       ctx.beginPath();
-      ctx.ellipse(cx - eyeSpacing, eyeY, 8, 11, 0, 0, Math.PI * 2);
-      ctx.ellipse(cx + eyeSpacing, eyeY, 8, 11, 0, 0, Math.PI * 2);
+      ctx.ellipse(-eyeSpacing, eyeY, 8, 11, 0, 0, Math.PI * 2);
+      ctx.ellipse(eyeSpacing, eyeY, 8, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eye Iris color
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(-eyeSpacing, eyeY + 2, 5, 0, Math.PI * 2);
+      ctx.arc(eyeSpacing, eyeY + 2, 5, 0, Math.PI * 2);
       ctx.fill();
 
       // Eye Highlights
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(cx - eyeSpacing - 2, eyeY - 3, 3, 0, Math.PI * 2);
-      ctx.arc(cx + eyeSpacing - 2, eyeY - 3, 3, 0, Math.PI * 2);
+      ctx.arc(-eyeSpacing - 2, eyeY - 3, 3, 0, Math.PI * 2);
+      ctx.arc(eyeSpacing - 2, eyeY - 3, 3, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Blush cheeks
-    ctx.fillStyle = 'rgba(255, 112, 166, 0.4)';
+    // 9. Blush Cheeks
+    ctx.fillStyle = 'rgba(255, 112, 166, 0.42)';
     ctx.beginPath();
-    ctx.ellipse(cx - eyeSpacing * 1.1, cy + headRadius * 0.18, 10, 5, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx + eyeSpacing * 1.1, cy + headRadius * 0.18, 10, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(-eyeSpacing * 1.1, headRadius * 0.18, 10, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(eyeSpacing * 1.1, headRadius * 0.18, 10, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Natural Lip Sync Mouth Animation
-    const mouthY = cy + headRadius * 0.38;
+    // 10. Natural Lip Sync Mouth Animation
+    const mouthY = headRadius * 0.38;
     let mouthOpen = 2; // resting smile
     if (dialogue) {
-      // Lip-sync modulation derived from speech rhythm & vowels
       mouthOpen = 3 + Math.abs(Math.sin(t * 12)) * 7;
     }
 
     ctx.fillStyle = '#be123c';
     ctx.beginPath();
-    ctx.ellipse(cx, mouthY, 6, mouthOpen, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, mouthY, 6, mouthOpen, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.restore();
+    // 3D Volumetric Specular Cheek & Forehead Highlight
+    if (is3D) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.beginPath();
+      ctx.ellipse(-headRadius * 0.25, -headRadius * 0.35, headRadius * 0.28, headRadius * 0.14, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore(); // restore head tilt
+    ctx.restore(); // restore character root
   }
 
   _loadImage(src) {

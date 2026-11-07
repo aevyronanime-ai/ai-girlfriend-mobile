@@ -642,9 +642,36 @@
               </div>
               <div class="flow-controls-grid">
                 <div class="flow-control-group">
+                  <label class="flow-label" for="videoArtisticStyleSelect">Artistic Style</label>
+                  <select class="flow-select" id="videoArtisticStyleSelect">
+                    <option value="anime" selected>Anime</option>
+                    <option value="hand-painted">Hand-Painted 2D</option>
+                    <option value="cartoon">Cartoon</option>
+                    <option value="cinematic-3d">Cinematic 3D</option>
+                    <option value="storybook">Storybook</option>
+                    <option value="fantasy">Fantasy</option>
+                    <option value="watercolor">Watercolor</option>
+                    <option value="pixar-3d">Pixar-Inspired Original 3D</option>
+                    <option value="realistic">Realistic</option>
+                  </select>
+                </div>
+
+                <div class="flow-control-group">
+                  <label class="flow-label" for="videoLightingSelect">Scene Lighting</label>
+                  <select class="flow-select" id="videoLightingSelect">
+                    <option value="golden_hour" selected>Golden Hour Sunset</option>
+                    <option value="cinematic">Cinematic Chiaroscuro</option>
+                    <option value="soft_daylight">Soft Natural Daylight</option>
+                    <option value="neon">Cyberpunk Neon</option>
+                    <option value="twilight">Twilight Moonlight</option>
+                    <option value="studio">Studio Softbox</option>
+                  </select>
+                </div>
+
+                <div class="flow-control-group">
                   <label class="flow-label" for="videoQualitySelect">Animation Quality</label>
                   <select class="flow-select" id="videoQualitySelect">
-                    <option value="standard">Standard (540p)</option>
+                    <option value="standard">Standard (480p)</option>
                     <option value="hd" selected>High Definition (720p)</option>
                     <option value="ultra">Ultra HD (1080p)</option>
                   </select>
@@ -685,6 +712,7 @@
                 <div class="flow-control-group">
                   <label class="flow-label" for="videoResolutionSelect">Video Resolution</label>
                   <select class="flow-select" id="videoResolutionSelect">
+                    <option value="480p">480p SD (Mobile Low Memory)</option>
                     <option value="720p" selected>720p HD</option>
                     <option value="1080p">1080p Full HD</option>
                   </select>
@@ -1647,8 +1675,8 @@
         </div>
 
         <div class="form-group" style="margin-bottom:4px;">
-          <label class="form-label" for="charInputFace">Face &amp; Appearance</label>
-          <input type="text" class="form-control" id="charInputFace" placeholder="e.g. Gentle emerald eyes, warm smile, radiant fair complexion">
+          <label class="form-label" for="charInputFace">Face Shape, Eyes &amp; Features</label>
+          <input type="text" class="form-control" id="charInputFace" placeholder="e.g. Oval face, almond-shaped emerald green eyes, radiant fair complexion">
         </div>
 
         <div class="form-group" style="margin-bottom:4px;">
@@ -1664,6 +1692,11 @@
         <div class="form-group" style="margin-bottom:4px;">
           <label class="form-label" for="charInputBody">Body Proportions</label>
           <input type="text" class="form-control" id="charInputBody" placeholder="e.g. Petite anime height, graceful posture">
+        </div>
+
+        <div class="form-group" style="margin-bottom:4px;">
+          <label class="form-label" for="charInputAccessories">Accessories &amp; Distinct Details</label>
+          <input type="text" class="form-control" id="charInputAccessories" placeholder="e.g. Sakura flower hair pin, gold earrings, reading glasses, pearl necklace">
         </div>
 
         <div class="form-group" style="margin-bottom:4px;">

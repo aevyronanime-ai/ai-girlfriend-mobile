@@ -18,3 +18,4 @@ android/app/release.jks
 # Backups & Archives
 .backups/
 *.zip
+*.webm

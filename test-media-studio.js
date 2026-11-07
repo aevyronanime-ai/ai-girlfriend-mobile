@@ -151,6 +151,8 @@ async function runStudioTests() {
     'btnRatio34',
     'btnRatio916',
     'flowMotionTagsGrid',
+    'videoArtisticStyleSelect',
+    'videoLightingSelect',
     'videoQualitySelect',
     'videoMotionStrengthSelect',
     'videoCameraMovementSelect',
@@ -215,6 +217,7 @@ async function runStudioTests() {
     'charInputHair',
     'charInputClothing',
     'charInputBody',
+    'charInputAccessories',
     'charSelectVoice',
     'charInputDesc',
     'charModalPhotoUpload',
@@ -227,6 +230,7 @@ async function runStudioTests() {
   for (const id of charModalElements) {
     assert(htmlContent.includes(`id="${id}"`), `Character modal element #${id} present in HTML`);
   }
+  assert(htmlContent.includes('value="480p"'), 'Resolution option 480p SD present in HTML');
 
   // ---------------------------------------------------------
   // SECTION 3: Archive Verification
