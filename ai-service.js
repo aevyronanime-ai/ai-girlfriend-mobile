@@ -777,44 +777,97 @@ async function streamGemini({ apiKey, model, messages, systemPrompt, temperature
   }
 }
 
-// Generate Image using Pollinations AI
-async function generateImage({ prompt, style = 'realistic', aspectRatio = '1:1', enhancePrompt = true }) {
-  let finalPrompt = prompt.trim();
+// Generate Image using Pollinations AI with multi-style & multi-ratio support
+async function generateImage({ prompt, style = 'realistic', aspectRatio = '1:1', quantity = 1, model = 'flux', enhancePrompt = true }) {
+  let finalPrompt = (prompt || '').trim();
 
-  // Style augmentation
+  // Style augmentation for all 9 supported styles
   const styleKeywords = {
-    cyberpunk: 'futuristic cyberpunk, neon glowing lights, highly detailed 8k octane render, cinematic lighting',
-    realistic: 'photorealistic, ultra realistic 8k, award winning photography, shot on 35mm lens, depth of field',
-    anime: 'anime aesthetic, makoto shinkai style, vibrant colors, stunning digital illustration',
-    fantasy: 'epic fantasy digital art, magical atmosphere, detailed concept art, dramatic lighting',
+    '2d-anime': 'vibrant 2D anime aesthetic, crisp cel-shaded lines, high quality Makoto Shinkai anime illustration, masterpiece',
+    'hand-drawn-anime': 'traditional hand-drawn anime animation cel, classic analog anime illustration, sketch details, retro anime film',
+    'ghibli': 'Studio Ghibli art style, lush hand-painted background, Hayao Miyazaki aesthetic, warm nostalgic lighting, whimsical feel',
+    '2d-cartoon': 'modern 2D cartoon animation style, clean vector strokes, expressive colorful cartoon art, Disney 2D animation',
+    '3d-pixar': '3D Pixar Disney animated film style, smooth subsurface scattering, expressive 3D character, raytraced lighting, 4k render',
+    '3d-cartoon': 'stylized 3D cartoon render, playful claymation textures, soft volumetric lighting, charming animated character',
+    'realistic-3d': 'hyper-realistic 3D CGI render, Unreal Engine 5, octane raytracing, photorealistic skin shaders, 8K volumetric lighting',
+    'cinematic': 'cinematic movie still, 35mm anamorphic lens, award-winning cinematography, atmospheric lighting, 8k depth of field',
+    'watercolor': 'traditional fluid watercolor painting, ink contour, wet-on-wet paper texture, delicate washes, artistic illustration',
+    // Backwards compatibility mappings
+    'anime': 'vibrant 2D anime aesthetic, crisp cel-shaded lines, high quality anime illustration',
+    'realistic': 'photorealistic, ultra realistic 8k, award winning photography, shot on 35mm lens, depth of field',
+    'cyberpunk': 'futuristic cyberpunk, neon glowing lights, highly detailed 8k octane render, cinematic lighting',
+    'fantasy': 'epic fantasy digital art, magical atmosphere, detailed concept art, dramatic lighting',
     '3d': '3d pixar disney style render, smooth clay textures, raytracing, cute detailed character'
   };
 
-  const styleSuffix = styleKeywords[style] || styleKeywords.realistic;
+  const styleSuffix = styleKeywords[style] || styleKeywords.cinematic;
   finalPrompt = `${finalPrompt}, ${styleSuffix}`;
 
   // Aspect ratio dimensions
   let width = 1024;
   let height = 1024;
-  if (aspectRatio === '16:9') {
-    width = 1280;
-    height = 720;
-  } else if (aspectRatio === '9:16') {
-    width = 720;
-    height = 1280;
+  switch (aspectRatio) {
+    case '16:9':
+      width = 1280;
+      height = 720;
+      break;
+    case '4:3':
+      width = 1024;
+      height = 768;
+      break;
+    case '1:1':
+      width = 1024;
+      height = 1024;
+      break;
+    case '3:4':
+      width = 768;
+      height = 1024;
+      break;
+    case '9:16':
+      width = 720;
+      height = 1280;
+      break;
+    default:
+      width = 1024;
+      height = 1024;
   }
 
-  const seed = Math.floor(Math.random() * 1000000);
-  const encodedPrompt = encodeURIComponent(finalPrompt);
-  const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}`;
+  // Pollinations model parameter
+  let pollinationsModel = 'flux';
+  const mLower = String(model).toLowerCase();
+  if (mLower.includes('turbo')) pollinationsModel = 'turbo';
+  else if (mLower.includes('anime')) pollinationsModel = 'flux-anime';
+  else if (mLower.includes('real')) pollinationsModel = 'flux-realism';
+
+  const count = Math.max(1, Math.min(4, parseInt(quantity, 10) || 1));
+  const images = [];
+
+  for (let i = 0; i < count; i++) {
+    const seed = Math.floor(Math.random() * 1000000);
+    const encodedPrompt = encodeURIComponent(finalPrompt);
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=${pollinationsModel}&nologo=true&seed=${seed}`;
+    images.push({
+      url,
+      imageUrl: url,
+      seed,
+      width,
+      height,
+      index: i
+    });
+  }
 
   return {
-    imageUrl,
+    success: true,
+    imageUrl: images[0].url,
+    images,
     prompt: finalPrompt,
+    originalPrompt: prompt,
+    style,
     aspectRatio,
     width,
     height,
-    seed
+    quantity: count,
+    seed: images[0].seed
   };
 }
 

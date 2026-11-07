@@ -6,7 +6,7 @@ const STATIC_ASSETS = [
   '/manifest.json',
   '/css/style.css',
   '/js/client-ai.js',
-  '/js/studio-engine.js',
+  '/js/media-studio.js',
   '/js/audio-fx.js',
   '/js/system-launcher.js',
   '/js/orb.js',

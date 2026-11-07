@@ -27,7 +27,7 @@ function assert(condition, testName, detail = '') {
 const jsFiles = [
   'client-ai.js',
   'dev-assistant.js',
-  'studio-engine.js',
+  'media-studio.js',
   'audio-fx.js',
   'system-launcher.js',
   'orb.js',
@@ -37,7 +37,6 @@ const jsFiles = [
   'history.js',
   'settings.js',
   'developer.js',
-  'video-studio.js',
   'app.js'
 ];
 

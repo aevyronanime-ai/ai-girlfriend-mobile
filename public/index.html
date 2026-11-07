@@ -328,249 +328,518 @@
            VIEW 3: AI MEDIA STUDIO (IMAGE, VIDEO & 2D ANIMATION)
            ==================================================================== -->
       <section class="tab-pane" id="tab-image">
-        <div class="tool-view-wrapper">
-          <div class="tool-header-card">
-            <h2>🎨 AI Media Studio (Image & Video)</h2>
-            <p>Generate high-definition AI images, cinematic AI videos, and offline 2D animations in one unified studio.</p>
+        <div class="tool-view-wrapper flow-studio-container">
+          <!-- Studio Header Banner -->
+          <div class="tool-header-card flow-header-card">
+            <div class="flow-pill-tag">Google Flow AI Studio</div>
+            <h2>✨ AI Media Studio</h2>
+            <p>Unified generative studio for high-definition visual arts and short animated video clips with voice &amp; character consistency.</p>
           </div>
 
-          <!-- Media Studio Sub-Tabs -->
-          <div class="sub-tabs-bar" id="mediaSubTabsBar" style="margin-bottom:16px;">
-            <button class="sub-tab-btn media-subtab active" id="subtabBtnImage" data-subtab="image">
-              🖼️ AI Image Studio
-            </button>
-            <button class="sub-tab-btn media-subtab" id="subtabBtnVideo" data-subtab="video">
-              🎬 Video & 2D Animation Studio
-            </button>
-          </div>
-
-          <!-- Sub-view 1: Image Studio (Preserves all original IDs & controls) -->
-          <div id="mediaPaneImage" class="media-pane">
-            <div class="form-group">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <label class="form-label" for="imagePromptInput">Visual Concept / Prompt</label>
-                <button class="chip-btn" id="btnEnhancePrompt" style="padding:2px 8px; font-size:0.72rem;">✨ Enhance Prompt</button>
+          <!-- Top Mode Selector: Two Equal-Sized Google Flow Cards -->
+          <div class="flow-mode-grid" id="mediaStudioModeGrid">
+            <div class="flow-mode-card active" id="subtabBtnImage" data-mode="image">
+              <div class="flow-mode-card-top">
+                <span class="flow-mode-icon">🎨</span>
+                <span class="flow-mode-status-pill">Active</span>
               </div>
-              <textarea class="form-control" id="imagePromptInput" rows="3" placeholder="e.g. Futuristic Iron Man suit glowing in a dark neon Mumbai street, hyper-realistic 8k..."></textarea>
+              <div class="flow-mode-card-body">
+                <h3 class="flow-mode-title">Image Generation</h3>
+                <p class="flow-mode-desc">Synthesize 2D Anime, 3D Pixar, Cinematic &amp; Artistic Stills</p>
+              </div>
             </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              <div class="form-group">
-                <label class="form-label" for="imageStyleSelect">Artistic Style</label>
-                <select class="form-select" id="imageStyleSelect">
-                  <option value="cyberpunk">Cyberpunk Neon</option>
-                  <option value="realistic" selected>Photorealistic 8K</option>
-                  <option value="anime">Anime / Manga</option>
-                  <option value="fantasy">Epic Fantasy</option>
-                  <option value="3d">3D Pixar Render</option>
+            <div class="flow-mode-card" id="subtabBtnVideo" data-mode="video">
+              <div class="flow-mode-card-top">
+                <span class="flow-mode-icon">🎬</span>
+                <span class="flow-mode-status-pill" style="display:none;">Active</span>
+              </div>
+              <div class="flow-mode-card-body">
+                <h3 class="flow-mode-title">Video Generation</h3>
+                <p class="flow-mode-desc">2D &amp; 3D Animation, Character Consistency &amp; Voice Lip Sync</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ================================================================
+               MODE 1: IMAGE GENERATION PANE
+               ================================================================ -->
+          <div id="mediaPaneImage" class="flow-studio-pane active">
+            <!-- 1. Visual Prompt Box -->
+            <div class="flow-card">
+              <div class="flow-card-header">
+                <label class="flow-label" for="imagePromptInput">Visual Concept &amp; Prompt</label>
+                <div style="display:flex; gap:6px;">
+                  <button type="button" class="flow-btn-ghost" id="btnClearImagePrompt" title="Clear Prompt">✕</button>
+                  <button type="button" class="flow-btn-accent" id="btnEnhancePrompt">✨ Enhance Prompt</button>
+                </div>
+              </div>
+              <textarea class="flow-textarea" id="imagePromptInput" rows="3" placeholder="Describe the scene, subject, lighting, mood, color palette, or artistic details..."></textarea>
+            </div>
+
+            <!-- 2. Controls Grid: Style, Aspect Ratio, Quantity, AI Model -->
+            <div class="flow-controls-grid">
+              <!-- Artistic Style Selector -->
+              <div class="flow-control-group">
+                <label class="flow-label" for="imageStyleSelect">Artistic Style</label>
+                <select class="flow-select" id="imageStyleSelect">
+                  <option value="2d-anime" selected>2D Anime</option>
+                  <option value="hand-drawn-anime">Hand-Drawn Anime</option>
+                  <option value="ghibli">Ghibli-Inspired</option>
+                  <option value="2d-cartoon">2D Cartoon</option>
+                  <option value="3d-pixar">3D Pixar-Like Animation</option>
+                  <option value="3d-cartoon">3D Cartoon</option>
+                  <option value="realistic-3d">Realistic 3D</option>
+                  <option value="cinematic">Cinematic</option>
+                  <option value="watercolor">Watercolor Illustration</option>
                 </select>
               </div>
 
-              <div class="form-group">
-                <label class="form-label" for="imageRatioSelect">Aspect Ratio</label>
-                <select class="form-select" id="imageRatioSelect">
-                  <option value="1:1" selected>Square (1:1)</option>
-                  <option value="16:9">Landscape (16:9)</option>
-                  <option value="9:16">Mobile Story (9:16)</option>
+              <!-- Aspect Ratio Selector -->
+              <div class="flow-control-group">
+                <label class="flow-label" for="imageRatioSelect">Aspect Ratio</label>
+                <select class="flow-select" id="imageRatioSelect">
+                  <option value="16:9">16:9 Landscape</option>
+                  <option value="4:3">4:3 Classic</option>
+                  <option value="1:1" selected>1:1 Square</option>
+                  <option value="3:4">3:4 Portrait</option>
+                  <option value="9:16">9:16 Mobile Story</option>
+                </select>
+              </div>
+
+              <!-- Image Quantity Selector -->
+              <div class="flow-control-group">
+                <label class="flow-label" for="imageQuantitySelect">Quantity</label>
+                <select class="flow-select" id="imageQuantitySelect">
+                  <option value="1" selected>x1 Image</option>
+                  <option value="2">x2 Variations</option>
+                  <option value="3">x3 Set</option>
+                  <option value="4">x4 Batch</option>
+                </select>
+              </div>
+
+              <!-- AI Model Selector -->
+              <div class="flow-control-group">
+                <label class="flow-label" for="imageModelSelect">AI Model</label>
+                <select class="flow-select" id="imageModelSelect">
+                  <option value="flux" selected>FLUX.1 Schnell (Fast &amp; Detailed)</option>
+                  <option value="flux-realism">FLUX.1 Dev (Ultra Realism)</option>
+                  <option value="turbo">SDXL Turbo (Instant Realtime)</option>
+                  <option value="flux-anime">Anime Diffusion XL (Vibrant 2D)</option>
+                  <option value="realistic">Realistic Vision 6.0</option>
                 </select>
               </div>
             </div>
 
-            <button class="btn-primary-action" id="btnGenerateImage">
-              <span>✨ Synthesize AI Visual</span>
+            <!-- Generate Image Action Button -->
+            <button type="button" class="flow-primary-btn" id="btnGenerateImage">
+              <span class="btn-icon">✨</span>
+              <span class="btn-text">Generate Image</span>
             </button>
 
-            <!-- Generated Image Frame -->
-            <div class="tool-result-box" id="imageResultBox" style="display:none;"></div>
+            <!-- Loading Animation & Generation Progress -->
+            <div id="imageGenerationProgress" class="flow-progress-box" style="display:none;">
+              <div class="flow-progress-shimmer"></div>
+              <div class="flow-progress-info">
+                <span id="imageProgressText">Synthesizing visual latents...</span>
+                <span id="imageProgressPercent">0%</span>
+              </div>
+              <div class="flow-progress-bar-bg">
+                <div id="imageProgressBar" class="flow-progress-bar-fill" style="width: 15%;"></div>
+              </div>
+            </div>
+
+            <!-- Image Preview Gallery & Result Box -->
+            <div class="flow-results-card" id="imageResultBox" style="display:none;">
+              <!-- Dynamic Gallery Rendered Here -->
+            </div>
           </div>
 
-          <!-- Sub-view 2: Video & 2D Animation Studio -->
-          <div id="mediaPaneVideo" class="media-pane hide" style="display:none;">
-            <div class="form-group" style="margin-bottom:6px;">
-              <label class="form-label" for="engine">Studio Engine Mode</label>
-              <select class="form-select" id="engine">
-                <option value="story" selected>Cartoon Story Maker (offline)</option>
-                <option value="animator">Quick 2D Animator (offline)</option>
-                <option value="photo2video">Photo to Video (offline)</option>
-                <option value="ai">AI Video (experimental, online)</option>
-              </select>
-            </div>
-            <div id="engineDescription" class="engine-desc-text">
-              ✨ Offline multi-scene cartoon creator with dialogue, sound effects &amp; characters. (100% Offline)
-            </div>
-
-            <!-- Panel 1: Cartoon Story Maker (Offline Default) -->
-            <div id="panelStoryMaker" class="studio-subpanel">
-              <iframe id="storyMakerFrame" src="/story/index.html" class="story-iframe" title="Cartoon Story Maker"></iframe>
-            </div>
-
-            <!-- Panel 2: Quick 2D Animator (Offline) -->
-            <div id="panelQuickAnimator" class="studio-subpanel hide" style="display:none;">
-              <div class="form-group">
-                <label class="form-label" for="prompt">What would you like to animate? (English or Hindi)</label>
-                <textarea class="form-control" id="prompt" rows="3" placeholder="Long-haired anime girl under blooming sakura trees with pink falling petals..."></textarea>
-              </div>
-
-              <!-- Offline 2D Animator Options -->
-              <div id="localOpts">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                  <div class="form-group">
-                    <label class="form-label" for="dur">Duration</label>
-                    <select class="form-select" id="dur">
-                      <option value="4">4 seconds</option>
-                      <option value="6" selected>6 seconds</option>
-                      <option value="10">10 seconds</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" for="ratio">Aspect Ratio</label>
-                    <select class="form-select" id="ratio">
-                      <option value="p" selected>Vertical (9:16)</option>
-                      <option value="l">Horizontal (16:9)</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="caption">Subtitle / Caption Overlay</label>
-                  <input type="text" class="form-control" id="caption" placeholder="e.g. Hello Commander">
-                </div>
-              </div>
-
-              <button class="btn-primary-action" id="go" style="margin-top:14px;">
-                <span>🎬 Render 2D Animation</span>
-              </button>
-
-              <!-- Status & Progress Log -->
-              <div id="log" style="font-size:14px; color:var(--text-secondary); margin-top:10px; white-space:pre-wrap; min-height:22px; text-align:center;"></div>
-
-              <!-- Video Stage: Live Canvas / Output Player -->
-              <div id="stage" class="video-stage">
-                <canvas id="cv"></canvas>
-                <video id="out" class="hide" controls playsinline style="display:none;"></video>
-              </div>
-
-              <!-- Video Editing Controls (Preview & Adjustment) -->
-              <div id="videoEditorControls" class="video-editor-panel hide" style="display:none;">
-                <div style="font-size:0.85rem; font-weight:600; color:var(--accent-sakura); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                  <span>✂️ Video Playback &amp; Filters:</span>
-                </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                  <div class="form-group" style="margin-bottom:6px;">
-                    <label class="form-label" for="videoSpeedSelect" style="font-size:0.75rem;">Playback Speed</label>
-                    <select class="form-select" id="videoSpeedSelect" style="padding:6px 10px; font-size:0.82rem;">
-                      <option value="0.5">0.5x Slow Motion</option>
-                      <option value="1" selected>1.0x Normal</option>
-                      <option value="1.25">1.25x Fast</option>
-                      <option value="1.5">1.5x Turbo</option>
-                      <option value="2">2.0x Double</option>
-                    </select>
-                  </div>
-                  <div class="form-group" style="margin-bottom:6px;">
-                    <label class="form-label" for="videoFilterSelect" style="font-size:0.75rem;">Visual Filter</label>
-                    <select class="form-select" id="videoFilterSelect" style="padding:6px 10px; font-size:0.82rem;">
-                      <option value="none" selected>Original</option>
-                      <option value="sakura">🌸 Sakura Dream</option>
-                      <option value="cyberpunk">⚡ Cyberpunk Glow</option>
-                      <option value="vintage">🎞️ Vintage B&amp;W</option>
-                      <option value="warm">🌅 Golden Sunset</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Download Button -->
-              <a id="dl" class="dl-video-btn hide" download="animation.webm" style="display:none;">
-                <span>⬇️ Download Animation Video</span>
-              </a>
-            </div>
-
-            <!-- Panel 3: Photo to Video (Offline) -->
-            <div id="panelPhotoToVideo" class="studio-subpanel hide" style="display:none;">
-              <div class="form-group">
-                <label class="form-label">Pick Gallery Photos (1 to 10 Images)</label>
-                <input type="file" id="p2vFileInput" accept="image/*" multiple style="display:none;">
-                <button type="button" class="chip-btn" id="btnP2VPickPhotos" style="width:100%; padding:12px; font-size:0.9rem; display:flex; align-items:center; justify-content:center; gap:8px;">
-                  <span>📸 Select Photos (1 - 10)</span>
+          <!-- ================================================================
+               MODE 2: VIDEO GENERATION PANE
+               ================================================================ -->
+          <div id="mediaPaneVideo" class="flow-studio-pane" style="display:none;">
+            <!-- 1. Creation Style Switch at Top (2D Animation vs 3D Animation) -->
+            <div class="flow-style-toggle-card">
+              <div class="flow-style-toggle-label">Creation Style</div>
+              <div class="flow-pills-row">
+                <button type="button" class="flow-pill-btn active" id="btnStyle2D" data-style="2d">
+                  <span class="pill-icon">🎨</span>
+                  <span>2D Animation</span>
                 </button>
-                <div id="p2vPhotoCountText" style="font-size:0.8rem; color:var(--text-secondary); margin-top:8px;">0 photos selected</div>
-                <div id="p2vThumbnailsContainer" class="p2v-thumbnails-grid"></div>
+                <button type="button" class="flow-pill-btn" id="btnStyle3D" data-style="3d">
+                  <span class="pill-icon">🧊</span>
+                  <span>3D Animation</span>
+                </button>
               </div>
-
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-                <div class="form-group">
-                  <label class="form-label" for="p2vDurationSelect">Duration per Photo</label>
-                  <select class="form-select" id="p2vDurationSelect">
-                    <option value="2">2 seconds</option>
-                    <option value="3" selected>3 seconds</option>
-                    <option value="4">4 seconds</option>
-                    <option value="5">5 seconds</option>
-                    <option value="6">6 seconds</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="p2vMotionSelect">Motion Effect</label>
-                  <select class="form-select" id="p2vMotionSelect">
-                    <option value="kenburns" selected>Ken Burns (Pan &amp; Zoom)</option>
-                    <option value="crossfade">Smooth Crossfade</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="p2vCaptionInput">Video Subtitle / Title</label>
-                <input type="text" class="form-control" id="p2vCaptionInput" placeholder="e.g. Golden Memories">
-              </div>
-
-              <button type="button" class="btn-primary-action" id="btnP2VGenerate" style="margin-top:14px;">
-                <span>🎬 Create Video from Photos</span>
-              </button>
-
-              <div id="p2vLog" style="font-size:14px; color:var(--text-secondary); margin-top:10px; white-space:pre-wrap; min-height:22px; text-align:center;"></div>
-
-              <div id="p2vStage" class="video-stage hide" style="display:none;">
-                <canvas id="p2vCanvas"></canvas>
-                <video id="p2vVideo" class="hide" controls playsinline style="display:none;"></video>
-              </div>
-
-              <a id="p2vDownload" class="dl-video-btn hide" download="photo-slideshow.webm" style="display:none;">
-                <span>⬇️ Download Slideshow Video</span>
-              </a>
             </div>
 
-            <!-- Panel 4: AI Video Generator (Online) -->
-            <div id="aiOpts" class="studio-subpanel hide" style="display:none;">
-              <div class="form-group">
-                <label class="form-label" for="aiPrompt">Prompt Description</label>
-                <textarea class="form-control" id="aiPrompt" rows="3" placeholder="A futuristic city in the rain with floating cars, 4k cinematic..."></textarea>
+            <!-- 2. Video Prompt Box -->
+            <div class="flow-card">
+              <div class="flow-card-header">
+                <label class="flow-label" for="videoPromptInput">Scene, Action &amp; Camera Prompt</label>
+                <button type="button" class="flow-btn-accent" id="btnEnhanceVideoPrompt">✨ Enhance Prompt</button>
+              </div>
+              <textarea class="flow-textarea" id="videoPromptInput" rows="3" placeholder="Describe the scene, characters, movements, actions, camera angles, background, and visual mood..."></textarea>
+
+              <!-- Negative Prompt Collapsible -->
+              <div style="margin-top:8px;">
+                <button type="button" class="flow-link-btn" id="btnToggleNegativePrompt">
+                  <span>+ Negative Prompt (Optional)</span>
+                </button>
+                <div id="videoNegativePromptContainer" style="display:none; margin-top:6px;">
+                  <textarea class="flow-textarea-sm" id="videoNegativePromptInput" rows="2" placeholder="e.g. blurry, low quality, deformed anatomy, flickering, extra limbs, distorted face..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Character Consistency & Recurring Identity System -->
+            <div class="flow-card">
+              <div class="flow-card-header">
+                <div>
+                  <label class="flow-label">👤 Character Consistency</label>
+                  <span class="flow-sublabel">Maintain recurring faces, clothes &amp; proportions</span>
+                </div>
+                <button type="button" class="flow-btn-accent-sm" id="btnOpenCreateCharacterModal">+ New Character</button>
               </div>
 
-              <div class="form-group">
-                <label class="form-label" for="mid">Model ID</label>
-                <select class="form-select" id="mid">
-                  <option value="Wan-AI/Wan2.1-T2V-1.3B" selected>Wan 2.1 (1.3B)</option>
-                  <option value="Lightricks/LTX-Video">LTX-Video</option>
-                  <option value="THUDM/CogVideoX-2b">CogVideoX-2b</option>
-                </select>
+              <!-- Saved Characters Carousel -->
+              <div class="flow-character-carousel" id="flowCharacterCarousel">
+                <!-- Dynamically populated character cards -->
               </div>
 
-              <div class="form-group">
-                <label class="form-label" for="token">Hugging Face Token</label>
-                <input type="password" class="form-control" id="token" placeholder="Auto-loaded from Settings (hf_...)">
+              <!-- Active Character Badge & Consistency Lock Button -->
+              <div class="flow-consistency-bar" id="flowConsistencyBar">
+                <div class="flow-active-char-info" id="flowActiveCharInfo">
+                  <span class="char-avatar-dot"></span>
+                  <span id="flowActiveCharName">No character selected (Generates unique actor)</span>
+                </div>
+                <button type="button" class="flow-lock-btn" id="btnToggleConsistencyLock" title="Lock Character Features Across Generations">
+                  <span id="flowLockIcon">🔓</span>
+                  <span id="flowLockText">Lock Consistency</span>
+                </button>
               </div>
 
-              <div style="margin:8px 0;">
-                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:var(--text-secondary); cursor:pointer;">
-                  <input id="fb" type="checkbox" checked style="width:auto; margin:0;">
-                  <span>Auto-try fallback models if busy</span>
+              <!-- Reference Uploads (Character & Scene) -->
+              <div class="flow-ref-uploads-grid">
+                <!-- Character Reference Upload -->
+                <div class="flow-upload-tile" id="tileCharRef">
+                  <input type="file" id="videoCharRefUpload" accept="image/*" style="display:none;">
+                  <div class="upload-content" id="boxCharRefEmpty">
+                    <span class="upload-icon">👤</span>
+                    <span class="upload-title">Character Reference</span>
+                    <span class="upload-hint">Upload face / outfit reference</span>
+                  </div>
+                  <div class="upload-preview" id="boxCharRefPreview" style="display:none;">
+                    <img id="imgCharRefPreview" src="" alt="Character Reference">
+                    <button type="button" class="upload-remove-btn" id="btnRemoveCharRef">✕</button>
+                  </div>
+                </div>
+
+                <!-- Scene Reference Upload -->
+                <div class="flow-upload-tile" id="tileSceneRef">
+                  <input type="file" id="videoSceneRefUpload" accept="image/*" style="display:none;">
+                  <div class="upload-content" id="boxSceneRefEmpty">
+                    <span class="upload-icon">🏞️</span>
+                    <span class="upload-title">Reference Image Upload</span>
+                    <span class="upload-hint">Upload background / scene image</span>
+                  </div>
+                  <div class="upload-preview" id="boxSceneRefPreview" style="display:none;">
+                    <img id="imgSceneRefPreview" src="" alt="Scene Reference">
+                    <button type="button" class="upload-remove-btn" id="btnRemoveSceneRef">✕</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Video Duration Selector (Short Clips Only: 10s, 15s, 30s) -->
+            <div class="flow-card">
+              <label class="flow-label">⏱️ Video Duration (Short Clips Only)</label>
+              <div class="flow-duration-row">
+                <button type="button" class="flow-duration-btn" id="btnDuration10" data-duration="10">
+                  <span class="dur-val">10</span>
+                  <span class="dur-unit">Seconds</span>
+                </button>
+                <button type="button" class="flow-duration-btn active" id="btnDuration15" data-duration="15">
+                  <span class="dur-val">15</span>
+                  <span class="dur-unit">Seconds</span>
+                </button>
+                <button type="button" class="flow-duration-btn" id="btnDuration30" data-duration="30">
+                  <span class="dur-val">30</span>
+                  <span class="dur-unit">Seconds</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 5. Video Aspect Ratio Selector (16:9, 4:3, 1:1, 3:4, 9:16) -->
+            <div class="flow-card">
+              <label class="flow-label">📐 Video Aspect Ratio</label>
+              <div class="flow-aspect-row">
+                <button type="button" class="flow-aspect-btn active" id="btnRatio169" data-ratio="16:9">
+                  <span class="aspect-rect rect-16-9"></span>
+                  <span class="aspect-label">16:9</span>
+                </button>
+                <button type="button" class="flow-aspect-btn" id="btnRatio43" data-ratio="4:3">
+                  <span class="aspect-rect rect-4-3"></span>
+                  <span class="aspect-label">4:3</span>
+                </button>
+                <button type="button" class="flow-aspect-btn" id="btnRatio11" data-ratio="1:1">
+                  <span class="aspect-rect rect-1-1"></span>
+                  <span class="aspect-label">1:1</span>
+                </button>
+                <button type="button" class="flow-aspect-btn" id="btnRatio34" data-ratio="3:4">
+                  <span class="aspect-rect rect-3-4"></span>
+                  <span class="aspect-label">3:4</span>
+                </button>
+                <button type="button" class="flow-aspect-btn" id="btnRatio916" data-ratio="9:16">
+                  <span class="aspect-rect rect-9-16"></span>
+                  <span class="aspect-label">9:16</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 6. Animation Options (Preset Motion Tags) -->
+            <div class="flow-card">
+              <label class="flow-label">🎭 Animation Motion Tags</label>
+              <div class="flow-motion-tags-grid" id="flowMotionTagsGrid">
+                <button type="button" class="flow-motion-chip active" data-motion="walking">Character Walking</button>
+                <button type="button" class="flow-motion-chip" data-motion="running">Running</button>
+                <button type="button" class="flow-motion-chip" data-motion="jumping">Jumping</button>
+                <button type="button" class="flow-motion-chip active" data-motion="gestures">Hand Gestures</button>
+                <button type="button" class="flow-motion-chip active" data-motion="blinking">Blinking Eyes</button>
+                <button type="button" class="flow-motion-chip active" data-motion="expressions">Facial Expressions</button>
+                <button type="button" class="flow-motion-chip active" data-motion="lipsync">Lip Sync</button>
+                <button type="button" class="flow-motion-chip" data-motion="talking">Talking Animation</button>
+                <button type="button" class="flow-motion-chip active" data-motion="body_movement">Natural Body Movement</button>
+                <button type="button" class="flow-motion-chip active" data-motion="camera_pan_zoom">Camera Pan &amp; Zoom</button>
+                <button type="button" class="flow-motion-chip active" data-motion="background_anim">Background Animation</button>
+              </div>
+            </div>
+
+            <!-- 7. Video Settings Grid -->
+            <div class="flow-card">
+              <div class="flow-card-header">
+                <label class="flow-label">⚙️ Studio Video Settings</label>
+              </div>
+              <div class="flow-controls-grid">
+                <div class="flow-control-group">
+                  <label class="flow-label" for="videoQualitySelect">Animation Quality</label>
+                  <select class="flow-select" id="videoQualitySelect">
+                    <option value="standard">Standard (540p)</option>
+                    <option value="hd" selected>High Definition (720p)</option>
+                    <option value="ultra">Ultra HD (1080p)</option>
+                  </select>
+                </div>
+
+                <div class="flow-control-group">
+                  <label class="flow-label" for="videoMotionStrengthSelect">Motion Strength</label>
+                  <select class="flow-select" id="videoMotionStrengthSelect">
+                    <option value="low">Low (Gentle)</option>
+                    <option value="medium" selected>Medium (Dynamic)</option>
+                    <option value="high">High (Energetic)</option>
+                  </select>
+                </div>
+
+                <div class="flow-control-group">
+                  <label class="flow-label" for="videoCameraMovementSelect">Camera Movement</label>
+                  <select class="flow-select" id="videoCameraMovementSelect">
+                    <option value="static">Static Camera</option>
+                    <option value="pan_left">Pan Left</option>
+                    <option value="pan_right">Pan Right</option>
+                    <option value="zoom_in" selected>Slow Zoom In</option>
+                    <option value="zoom_out">Slow Zoom Out</option>
+                    <option value="orbit">Cinematic Orbit</option>
+                  </select>
+                </div>
+
+                <div class="flow-control-group">
+                  <label class="flow-label" for="videoFpsSelect">Frame Rate</label>
+                  <select class="flow-select" id="videoFpsSelect">
+                    <option value="24">24 FPS (Cinematic)</option>
+                    <option value="30" selected>30 FPS (Standard)</option>
+                    <option value="60">60 FPS (Ultra Smooth)</option>
+                  </select>
+                </div>
+
+                <div class="flow-control-group">
+                  <label class="flow-label" for="videoResolutionSelect">Video Resolution</label>
+                  <select class="flow-select" id="videoResolutionSelect">
+                    <option value="720p" selected>720p HD</option>
+                    <option value="1080p">1080p Full HD</option>
+                  </select>
+                </div>
+
+                <div class="flow-control-group">
+                  <label class="flow-label" for="videoModelSelect">AI Video Model</label>
+                  <select class="flow-select" id="videoModelSelect">
+                    <option value="flowmotion" selected>FlowMotion Engine (Playable &amp; Lip-Synced)</option>
+                    <option value="wan">Wan 2.1 Video Diffusion</option>
+                    <option value="ltx">LTX-Video Cinema</option>
+                    <option value="cogvideox">CogVideoX Dynamic</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Audio Toggle -->
+              <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
+                <span class="flow-label" style="margin:0;">Audio Generation</span>
+                <label class="switch">
+                  <input type="checkbox" id="chkAudioGeneration" checked>
+                  <span class="slider"></span>
                 </label>
-                <small style="color:var(--text-muted); font-size:0.75rem;">AI video inference availability depends on external server load.</small>
+              </div>
+            </div>
+
+            <!-- 8. Hindi Dialogue, Voice & Lip Sync System -->
+            <div class="flow-card" id="cardDialogueVoice">
+              <div class="flow-card-header">
+                <div>
+                  <label class="flow-label">🎙️ Dialogue &amp; Lip-Synchronization</label>
+                  <span class="flow-sublabel">Character mouth animates naturally to speech</span>
+                </div>
+                <!-- No Dialogue / ASMR Option -->
+                <label style="display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--text-muted); cursor:pointer;">
+                  <input type="checkbox" id="chkNoDialogue" style="width:auto; margin:0;">
+                  <span>No Dialogue (ASMR Only)</span>
+                </label>
               </div>
 
-              <button class="btn-primary-action" id="btnAIVideo" style="margin-top:14px;">
-                <span>🎬 Generate AI Video</span>
-              </button>
+              <div id="dialogueInputArea">
+                <!-- Dialogue Textarea with Hindi/English quick presets -->
+                <div style="margin-bottom:8px;">
+                  <textarea class="flow-textarea" id="videoDialogueInput" rows="2" placeholder="Write dialogue in Hindi or English (e.g. नमस्ते! मैं आपकी नई दोस्त हूँ।)..."></textarea>
+                  <div class="flow-dialogue-samples">
+                    <span style="font-size:0.7rem; color:var(--text-muted);">Quick presets:</span>
+                    <button type="button" class="flow-sample-btn" data-text="नमस्ते! आज का दिन बहुत खूबसूरत है, हम कहाँ चलें?">नमस्ते! आज का दिन...</button>
+                    <button type="button" class="flow-sample-btn" data-text="सावधानी से चलो, आगे का रास्ता बहुत रहस्यमयी है!">सावधानी से चलो...</button>
+                    <button type="button" class="flow-sample-btn" data-text="Hello Commander! Everything is ready for our mission today.">Hello Commander...</button>
+                  </div>
+                </div>
 
-              <div id="aiLog" style="font-size:14px; color:var(--text-secondary); margin-top:10px; white-space:pre-wrap; min-height:22px; text-align:center;"></div>
+                <div class="flow-controls-grid">
+                  <div class="flow-control-group">
+                    <label class="flow-label" for="videoLanguageSelect">Language</label>
+                    <select class="flow-select" id="videoLanguageSelect">
+                      <option value="hi" selected>Hindi (हिन्दी)</option>
+                      <option value="en">English (US)</option>
+                    </select>
+                  </div>
+
+                  <div class="flow-control-group">
+                    <label class="flow-label" for="videoVoiceGenderSelect">Voice Type</label>
+                    <select class="flow-select" id="videoVoiceGenderSelect">
+                      <option value="female" selected>Female Voice (Sweet &amp; Clear)</option>
+                      <option value="male">Male Voice (Deep &amp; Calm)</option>
+                      <option value="child">Child Voice (Playful &amp; Cute)</option>
+                    </select>
+                  </div>
+
+                  <div class="flow-control-group">
+                    <label class="flow-label" for="videoEmotionSelect">Emotion</label>
+                    <select class="flow-select" id="videoEmotionSelect">
+                      <option value="neutral">Neutral</option>
+                      <option value="happy" selected>Happy &amp; Cheerful</option>
+                      <option value="romantic">Romantic &amp; Warm</option>
+                      <option value="serious">Serious</option>
+                      <option value="dramatic">Dramatic</option>
+                      <option value="whispering">Soft Whisper</option>
+                    </select>
+                  </div>
+
+                  <div class="flow-control-group">
+                    <label class="flow-label" for="videoBgmSelect">Background Music</label>
+                    <select class="flow-select" id="videoBgmSelect">
+                      <option value="none">None</option>
+                      <option value="sakura" selected>Sakura Lofi Ambient</option>
+                      <option value="cinematic">Cinematic Piano</option>
+                      <option value="fantasy">Fantasy Whimsical</option>
+                      <option value="rain">Gentle Rain &amp; Calm</option>
+                    </select>
+                  </div>
+
+                  <div class="flow-control-group">
+                    <label class="flow-label" for="videoSfxSelect">Sound Effects</label>
+                    <select class="flow-select" id="videoSfxSelect">
+                      <option value="none" selected>None</option>
+                      <option value="footsteps">Footsteps</option>
+                      <option value="wind">Wind Chimes</option>
+                      <option value="birds">Birds Chirping</option>
+                      <option value="sparkle">Magic Sparkle</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Pitch & Speed Sliders -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px;">
+                  <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">
+                      <span>Voice Speed</span>
+                      <span id="lblVoiceSpeed">1.0x</span>
+                    </div>
+                    <input type="range" class="form-range" id="videoVoiceSpeed" min="0.75" max="1.5" step="0.05" value="1.0">
+                  </div>
+                  <div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary); margin-bottom:4px;">
+                      <span>Voice Pitch</span>
+                      <span id="lblVoicePitch">1.2x</span>
+                    </div>
+                    <input type="range" class="form-range" id="videoVoicePitch" min="0.75" max="1.5" step="0.05" value="1.2">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Generate Video Action Button -->
+            <button type="button" class="flow-primary-btn" id="btnGenerateVideo" style="background:linear-gradient(135deg, #a855f7, #00f0ff);">
+              <span class="btn-icon">🎬</span>
+              <span class="btn-text">Generate Video</span>
+            </button>
+
+            <!-- Video Generation Progress -->
+            <div id="videoGenerationProgress" class="flow-progress-box" style="display:none;">
+              <div class="flow-progress-shimmer"></div>
+              <div class="flow-progress-info">
+                <span id="videoProgressText">Rendering frames &amp; synchronizing lip audio...</span>
+                <span id="videoProgressPercent">0%</span>
+              </div>
+              <div class="flow-progress-bar-bg">
+                <div id="videoProgressBar" class="flow-progress-bar-fill" style="width: 10%;"></div>
+              </div>
+              <div style="margin-top:8px; text-align:center;">
+                <button type="button" class="flow-btn-ghost-sm" id="btnCancelVideoGeneration">Cancel Render</button>
+              </div>
+            </div>
+
+            <!-- 9. Video Results Section & Player -->
+            <div class="flow-results-card" id="videoResultsSection" style="display:none;">
+              <div class="flow-card-header">
+                <label class="flow-label">🎥 Video Preview</label>
+                <span id="videoResultMetaBadge" class="persona-tag" style="background:rgba(0,240,255,0.15); color:var(--neon-cyan);">15s • 720p</span>
+              </div>
+
+              <!-- Hidden Canvas for frame generation -->
+              <canvas id="flowRenderCanvas" style="display:none;"></canvas>
+
+              <!-- HTML5 Video Player -->
+              <div class="flow-video-player-frame">
+                <video id="videoPreviewPlayer" playsinline controls style="width:100%; max-height:480px; border-radius:10px; background:#000;"></video>
+              </div>
+
+              <!-- Action Buttons: Download MP4, Regenerate, New Clip, Save Gallery -->
+              <div class="flow-video-actions-grid">
+                <a id="btnDownloadVideo" class="flow-action-btn flow-download-btn" download="ai-generated-video.mp4" href="#">
+                  <span>⬇️ Download MP4</span>
+                </a>
+                <button type="button" class="flow-action-btn" id="btnRegenerateVideo">
+                  <span>🔄 Regenerate</span>
+                </button>
+                <button type="button" class="flow-action-btn" id="btnNewClip">
+                  <span>✨ New Clip</span>
+                </button>
+                <button type="button" class="flow-action-btn" id="btnSaveToGallery">
+                  <span>💾 Save to Gallery</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1325,6 +1594,86 @@
     </div>
   </div>
 
+  <!-- Character Creation Modal (Recurring Identity) -->
+  <div id="characterCreationModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; align-items:center; justify-content:center; padding:14px; overflow-y:auto;">
+    <div style="background:var(--bg-card); border:1px solid var(--neon-cyan); border-radius:var(--radius-md); padding:18px; max-width:440px; width:100%; text-align:left; box-shadow:0 0 30px rgba(0,240,255,0.25); max-height:92vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.4rem;">👤</span>
+          <h3 style="font-size:1.1rem; color:var(--neon-cyan); margin:0;">Create Recurring Character</h3>
+        </div>
+        <button type="button" class="chip-btn" id="btnCloseCharModal" style="padding:2px 8px; font-size:1rem; line-height:1;">✕</button>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="form-group" style="margin-bottom:4px;">
+          <label class="form-label" for="charInputName">Character Name *</label>
+          <input type="text" class="form-control" id="charInputName" placeholder="e.g. Maya, Anya, Akira">
+        </div>
+
+        <div class="form-group" style="margin-bottom:4px;">
+          <label class="form-label" for="charInputFace">Face &amp; Appearance</label>
+          <input type="text" class="form-control" id="charInputFace" placeholder="e.g. Gentle emerald eyes, warm smile, radiant fair complexion">
+        </div>
+
+        <div class="form-group" style="margin-bottom:4px;">
+          <label class="form-label" for="charInputHair">Hairstyle &amp; Color</label>
+          <input type="text" class="form-control" id="charInputHair" placeholder="e.g. Long flowing violet-black hair with twin pink ribbons">
+        </div>
+
+        <div class="form-group" style="margin-bottom:4px;">
+          <label class="form-label" for="charInputClothing">Clothing &amp; Outfit</label>
+          <input type="text" class="form-control" id="charInputClothing" placeholder="e.g. Traditional white and lavender kimono with floral obi">
+        </div>
+
+        <div class="form-group" style="margin-bottom:4px;">
+          <label class="form-label" for="charInputBody">Body Proportions</label>
+          <input type="text" class="form-control" id="charInputBody" placeholder="e.g. Petite anime height, graceful posture">
+        </div>
+
+        <div class="form-group" style="margin-bottom:4px;">
+          <label class="form-label" for="charSelectVoice">Preferred Voice</label>
+          <select class="form-select" id="charSelectVoice">
+            <option value="female" selected>Sweet Female Voice</option>
+            <option value="male">Deep Male Voice</option>
+            <option value="child">Playful Child Voice</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:4px;">
+          <label class="form-label" for="charInputDesc">Character Lore &amp; Personality</label>
+          <textarea class="form-control" id="charInputDesc" rows="2" placeholder="e.g. Loyal companion, kind-hearted, loves cherry blossoms..."></textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom:4px;">
+          <label class="form-label">Reference Image (Optional)</label>
+          <input type="file" id="charModalPhotoUpload" accept="image/*" style="display:none;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button type="button" class="chip-btn" id="btnCharModalUploadPhoto">📷 Choose Photo</button>
+            <span id="charModalPhotoName" style="font-size:0.75rem; color:var(--text-muted);">No image uploaded</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+        <button type="button" class="chip-btn" id="btnCancelCharModal" style="background:rgba(255,255,255,0.08);">Cancel</button>
+        <button type="button" class="chip-btn" id="btnSaveCharacter" style="background:var(--neon-cyan); color:#000; font-weight:700;">Save Character</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Lightbox Modal -->
+  <div id="imageLightboxModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+    <div style="position:relative; max-width:92vw; max-height:92vh; text-align:center;">
+      <button type="button" id="btnCloseLightbox" class="chip-btn" style="position:absolute; top:-40px; right:0; font-size:1.4rem; padding:4px 10px;">✕</button>
+      <img id="lightboxImage" src="" alt="Full view" style="max-width:100%; max-height:75vh; border-radius:10px; box-shadow:0 0 30px rgba(0,240,255,0.3); object-fit:contain;">
+      <div style="margin-top:12px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+        <a id="btnLightboxDownload" class="chip-btn" download="ai-generated-image.jpg" href="#" style="background:var(--neon-cyan); color:#000; font-weight:700;">⬇️ Download HD</a>
+        <button type="button" id="btnLightboxCopy" class="chip-btn">🔗 Copy URL</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Global Toast Notification Container -->
   <div class="toast-container" id="toastContainer"></div>
 </div>
@@ -1332,7 +1681,6 @@
 <!-- Scripts -->
 <script src="/js/client-ai.js"></script>
 <script src="/js/dev-assistant.js"></script>
-<script src="/js/studio-engine.js"></script>
 <script src="/js/audio-fx.js"></script>
 <script src="/js/system-launcher.js"></script>
 <script src="/js/orb.js"></script>
@@ -1343,7 +1691,7 @@
 <script src="/js/settings.js"></script>
 <script src="/js/developer.js"></script>
 <script src="/js/sakura-petals.js"></script>
-<script src="/js/video-studio.js"></script>
+<script src="/js/media-studio.js"></script>
 <script src="/js/app.js"></script>
 
 </body>

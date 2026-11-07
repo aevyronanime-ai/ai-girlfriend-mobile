@@ -302,9 +302,8 @@ async function runTests() {
       'settings.js',
       'developer.js',
       'sakura-petals.js',
-      'video-studio.js',
+      'media-studio.js',
       'client-ai.js',
-      'studio-engine.js',
       'system-launcher.js',
       'app.js'
     ];

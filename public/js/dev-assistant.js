@@ -690,7 +690,7 @@
         recentErrors: rawLogs,
         appVersion: '1.2.0',
         activeModules: [
-          'chat.js', 'voice.js', 'video-studio.js', 'system-launcher.js',
+          'chat.js', 'voice.js', 'media-studio.js', 'system-launcher.js',
           'settings.js', 'story/parser.js', 'dev-assistant.js'
         ]
       };

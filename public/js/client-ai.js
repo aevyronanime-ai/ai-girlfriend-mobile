@@ -723,10 +723,10 @@ Always include a friendly spokenText in Hindi explaining what you are doing.`;
     // ----------------------------------------------------
     // Direct Tools: Image, Writer, Translator, Doc Analysis
     // ----------------------------------------------------
-    generateImageUrl(prompt, width = 1024, height = 1024) {
+    generateImageUrl(prompt, width = 1024, height = 1024, model = 'flux') {
       const seed = Math.floor(Math.random() * 999999);
       const cleanPrompt = encodeURIComponent((prompt || 'Beautiful cyberpunk girl companion').trim());
-      return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=${width}&height=${height}&seed=${seed}&nologo=true`;
+      return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=${width}&height=${height}&seed=${seed}&model=${model}&nologo=true`;
     }
 
     async generateWriting({ topic, details, tone, format, lang }) {

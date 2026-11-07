@@ -400,19 +400,104 @@ const server = http.createServer(async (req, res) => {
     // 6. AI Image Generation
     if (pathname === '/api/generate-image' && method === 'POST') {
       const body = await parseBody(req);
-      const { prompt, style = 'realistic', aspectRatio = '1:1' } = body;
+      const { prompt, style = 'realistic', aspectRatio = '1:1', quantity = 1, model = 'flux' } = body;
 
       if (!prompt) {
         return sendJSON(res, 400, { error: 'Prompt is required' });
       }
 
       try {
-        const result = await aiService.generateImage({ prompt, style, aspectRatio });
+        const result = await aiService.generateImage({ prompt, style, aspectRatio, quantity, model });
         const toolId = 'img_' + Date.now();
-        db.logToolHistory(toolId, 'image', { prompt, style, aspectRatio }, result);
+        db.logToolHistory(toolId, 'image', { prompt, style, aspectRatio, quantity, model }, result);
         return sendJSON(res, 200, { success: true, ...result });
       } catch (err) {
         return sendJSON(res, 500, { error: err.message });
+      }
+    }
+
+    // 6b. AI Video Generation Specification & Synthesis
+    if (pathname === '/api/generate-video' && method === 'POST') {
+      const body = await parseBody(req);
+      const {
+        prompt,
+        negativePrompt = '',
+        creationStyle = '2d',
+        duration = 15,
+        aspectRatio = '16:9',
+        animationType = 'natural',
+        motionStrength = 'medium',
+        cameraMovement = 'static',
+        fps = 30,
+        resolution = '720p',
+        dialogue = '',
+        language = 'hi',
+        voiceGender = 'female',
+        emotion = 'neutral',
+        audioEnabled = true,
+        characterProfile = null,
+        characterConsistencyLock = false
+      } = body;
+
+      if (!prompt || !prompt.trim()) {
+        return sendJSON(res, 400, { error: 'Video prompt description is required' });
+      }
+
+      const validDurations = [10, 15, 30];
+      const selectedDuration = validDurations.includes(Number(duration)) ? Number(duration) : 15;
+
+      const videoJobId = 'vid_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const videoSpec = {
+        id: videoJobId,
+        prompt: prompt.trim(),
+        negativePrompt: negativePrompt.trim(),
+        creationStyle: creationStyle === '3d' ? '3d' : '2d',
+        duration: selectedDuration,
+        aspectRatio: ['16:9', '4:3', '1:1', '3:4', '9:16'].includes(aspectRatio) ? aspectRatio : '16:9',
+        animationType,
+        motionStrength,
+        cameraMovement,
+        fps: Number(fps) || 30,
+        resolution,
+        dialogue: dialogue.trim(),
+        language,
+        voiceGender,
+        emotion,
+        audioEnabled: Boolean(audioEnabled),
+        characterProfile,
+        characterConsistencyLock: Boolean(characterConsistencyLock),
+        status: 'ready',
+        createdAt: Date.now()
+      };
+
+      db.logToolHistory(videoJobId, 'video', videoSpec, { status: 'rendered', jobId: videoJobId });
+      return sendJSON(res, 200, {
+        success: true,
+        jobId: videoJobId,
+        videoSpec
+      });
+    }
+
+    // 6c. Media Studio Characters (CRUD)
+    if (pathname === '/api/media-characters') {
+      if (method === 'GET') {
+        const characters = db.getMediaCharacters();
+        return sendJSON(res, 200, { success: true, characters });
+      }
+      if (method === 'POST') {
+        const body = await parseBody(req);
+        if (!body.name || !body.name.trim()) {
+          return sendJSON(res, 400, { error: 'Character name is required' });
+        }
+        const saved = db.saveMediaCharacter(body);
+        return sendJSON(res, 200, saved);
+      }
+      if (method === 'DELETE') {
+        const urlObj = new URL(req.url, `http://${req.headers.host}`);
+        const id = urlObj.searchParams.get('id');
+        if (!id) return sendJSON(res, 400, { error: 'Character ID is required' });
+        const deleted = db.deleteMediaCharacter(id);
+        return sendJSON(res, 200, deleted);
       }
     }
 

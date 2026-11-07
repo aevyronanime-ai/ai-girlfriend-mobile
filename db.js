@@ -83,6 +83,20 @@ function initDatabase() {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS media_characters (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      image_data TEXT DEFAULT '',
+      appearance TEXT DEFAULT '',
+      hairstyle TEXT DEFAULT '',
+      clothing TEXT DEFAULT '',
+      body_proportions TEXT DEFAULT '',
+      voice TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id);
     CREATE INDEX IF NOT EXISTS idx_tools_type ON tools_history(tool_type);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
@@ -367,6 +381,65 @@ function getAuditLogs(limit = 50) {
   return db.prepare('SELECT * FROM admin_audit_logs ORDER BY created_at DESC LIMIT ?').all(limit);
 }
 
+// Media Studio Characters
+function getMediaCharacters() {
+  try {
+    const stmt = db.prepare('SELECT * FROM media_characters ORDER BY updated_at DESC');
+    return stmt.all();
+  } catch (err) {
+    console.error('getMediaCharacters error:', err.message);
+    return [];
+  }
+}
+
+function saveMediaCharacter(char) {
+  try {
+    const now = Date.now();
+    const id = char.id || ('char_' + now + '_' + Math.floor(Math.random() * 1000));
+    const stmt = db.prepare(`
+      INSERT INTO media_characters (id, name, image_data, appearance, hairstyle, clothing, body_proportions, voice, description, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name=excluded.name,
+        image_data=excluded.image_data,
+        appearance=excluded.appearance,
+        hairstyle=excluded.hairstyle,
+        clothing=excluded.clothing,
+        body_proportions=excluded.body_proportions,
+        voice=excluded.voice,
+        description=excluded.description,
+        updated_at=excluded.updated_at
+    `);
+    stmt.run(
+      id,
+      char.name || 'Unnamed Character',
+      char.image_data || '',
+      char.appearance || '',
+      char.hairstyle || '',
+      char.clothing || '',
+      char.body_proportions || '',
+      char.voice || 'female',
+      char.description || '',
+      char.created_at || now,
+      now
+    );
+    return { id, success: true };
+  } catch (err) {
+    console.error('saveMediaCharacter error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+function deleteMediaCharacter(id) {
+  try {
+    const stmt = db.prepare('DELETE FROM media_characters WHERE id = ?');
+    stmt.run(id);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
 // Initialize on module load
 initDatabase();
 
@@ -405,5 +478,9 @@ module.exports = {
   recordLoginAttempt,
   getRecentFailedAttempts,
   logAuditAction,
-  getAuditLogs
+  getAuditLogs,
+  // Media Studio Characters
+  getMediaCharacters,
+  saveMediaCharacter,
+  deleteMediaCharacter
 };
