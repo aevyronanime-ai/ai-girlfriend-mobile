@@ -243,13 +243,58 @@ class SettingsController {
       });
     }
 
-    const btnOpenAcc = document.getElementById('btnOpenAccessibilitySettings');
-    if (btnOpenAcc) {
-      btnOpenAcc.addEventListener('click', () => {
-        if (window.systemLauncher) window.systemLauncher.openAccessibilitySettings();
-        if (window.app) window.app.showToast('Accessibility Settings खुल रहा है…');
+    const openGuide = () => {
+      const permModal = document.getElementById('phoneControlPermModal');
+      if (permModal) permModal.style.display = 'none';
+      this.openSetupGuide();
+    };
+
+    const btnOpenGuide = document.getElementById('btnOpenPhoneControlGuide');
+    if (btnOpenGuide) btnOpenGuide.addEventListener('click', openGuide);
+
+    const btnWarningGuide = document.getElementById('btnWarningOpenGuide');
+    if (btnWarningGuide) btnWarningGuide.addEventListener('click', openGuide);
+
+    const btnPermGuide = document.getElementById('btnPermModalGuide');
+    if (btnPermGuide) btnPermGuide.addEventListener('click', openGuide);
+
+    const btnCloseGuide = document.getElementById('btnClosePhoneControlGuide');
+    if (btnCloseGuide) btnCloseGuide.addEventListener('click', () => this.closeSetupGuide());
+
+    const btnGuideCloseBottom = document.getElementById('btnGuideCloseBottom');
+    if (btnGuideCloseBottom) btnGuideCloseBottom.addEventListener('click', () => this.closeSetupGuide());
+
+    const btnGuideRefresh = document.getElementById('btnGuideRefreshStatus');
+    if (btnGuideRefresh) {
+      btnGuideRefresh.addEventListener('click', async () => {
+        const isRunning = await this.checkAccessibilityStatus();
+        if (window.app) window.app.showToast(isRunning ? '🟢 Accessibility Service चालू है!' : '🔴 Accessibility Service अभी बंद है।');
       });
     }
+
+    const openAppInfoHandler = () => {
+      if (window.systemLauncher && typeof window.systemLauncher.openAppInfoSettings === 'function') {
+        window.systemLauncher.openAppInfoSettings();
+      }
+      if (window.app) window.app.showToast('App Info सेटिंग्स खुल रही है…');
+    };
+
+    const btnOpenAppInfo = document.getElementById('btnOpenAppInfoSettings');
+    if (btnOpenAppInfo) btnOpenAppInfo.addEventListener('click', openAppInfoHandler);
+
+    const btnGuideAppInfo = document.getElementById('btnGuideOpenAppInfo');
+    if (btnGuideAppInfo) btnGuideAppInfo.addEventListener('click', openAppInfoHandler);
+
+    const openAccHandler = () => {
+      if (window.systemLauncher) window.systemLauncher.openAccessibilitySettings();
+      if (window.app) window.app.showToast('Accessibility Settings खुल रहा है…');
+    };
+
+    const btnOpenAcc = document.getElementById('btnOpenAccessibilitySettings');
+    if (btnOpenAcc) btnOpenAcc.addEventListener('click', openAccHandler);
+
+    const btnGuideAcc = document.getElementById('btnGuideOpenAccessibility');
+    if (btnGuideAcc) btnGuideAcc.addEventListener('click', openAccHandler);
 
     const btnExplanation = document.getElementById('btnShowPhoneControlExplanation');
     if (btnExplanation) {
@@ -627,6 +672,26 @@ class SettingsController {
       // Show warning if user wants Phone Control ON, but AccessibilityService is NOT active in Android Settings
       this.phoneControlWarning.style.display = (isToggleOn && !running) ? 'block' : 'none';
     }
+
+    const guideStatusText = document.getElementById('phoneControlGuideStatusText');
+    if (guideStatusText) {
+      if (running) {
+        guideStatusText.innerHTML = '🟢 <span style="color:#4ade80;">सर्विस चालू है (Active)</span>';
+      } else {
+        guideStatusText.innerHTML = '🔴 <span style="color:#ffaa00;">सर्विस अभी बंद है (Inactive)</span>';
+      }
+    }
+  }
+
+  openSetupGuide() {
+    const guideModal = document.getElementById('phoneControlSetupGuideModal');
+    if (guideModal) guideModal.style.display = 'flex';
+    this.checkAccessibilityStatus();
+  }
+
+  closeSetupGuide() {
+    const guideModal = document.getElementById('phoneControlSetupGuideModal');
+    if (guideModal) guideModal.style.display = 'none';
   }
 
   async checkAccessibilityStatus() {

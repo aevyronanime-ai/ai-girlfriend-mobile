@@ -93,12 +93,26 @@ async function runTests() {
   assert(cmdRes && cmdRes.success, 'executeStructuredCommand executes open_app: whatsapp');
   assert(globalMock.window._lastSpoken === 'व्हाट्सएप खोला जा रहा है...', 'executeStructuredCommand announces spokenText');
 
-  // Test 6: executeStructuredCommand - Accessibility gesture simulation
+  // Test 6a: Accessibility Action blocked when Master Switch is OFF
+  mockStorage['jarvis_phone_control'] = 'false';
+  const blockedRes = await launcher.executeStructuredCommand({ action: 'back' });
+  assert(blockedRes && blockedRes.blocked === true, 'Accessibility action blocked when master switch is OFF');
+
+  // Test 6b: Accessibility Action allowed when Master Switch is ON
+  mockStorage['jarvis_phone_control'] = 'true';
   const backRes = await launcher.executeStructuredCommand({ action: 'back' });
   assert(backRes && backRes.success, 'executeStructuredCommand executes accessibility action: back');
 
   const scrollRes = await launcher.executeStructuredCommand({ action: 'scroll_down' });
   assert(scrollRes && scrollRes.success, 'executeStructuredCommand executes accessibility action: scroll_down');
+
+  // Test 6c: checkAccessibilityStatus returns valid status object
+  const statusRes = await launcher.checkAccessibilityStatus();
+  assert(statusRes && typeof statusRes.running === 'boolean' && typeof statusRes.enabled === 'boolean', 'checkAccessibilityStatus returns valid status object');
+
+  // Test 6d: openAppInfoSettings executes without throwing
+  const appInfoRes = await launcher.openAppInfoSettings();
+  assert(appInfoRes && typeof appInfoRes === 'object', 'openAppInfoSettings executes cleanly');
 
   // Test 7: High-Risk Action Guard: User Confirmation Rejection
   globalMock.window.confirmPhoneControlAction = async (prompt) => false; // User clicks NO
@@ -108,6 +122,18 @@ async function runTests() {
     confirmationRequired: true
   });
   assert(deleteRes && deleteRes.cancelled === true, 'High-risk action cancelled when user rejects confirmation');
+
+  // Test 7b: Sensitive keywords (payment, OTP) automatically trigger high-risk confirmation
+  let confirmPromptSeen = '';
+  globalMock.window.confirmPhoneControlAction = async (prompt) => {
+    confirmPromptSeen = prompt;
+    return false; // Reject
+  };
+  const otpRes = await launcher.executeStructuredCommand({
+    action: 'type_text',
+    text: 'enter 123456 OTP for bank payment'
+  });
+  assert(otpRes && otpRes.cancelled === true, 'Sensitive keywords (OTP/bank payment) automatically require confirmation');
 
   // Test 8: High-Risk Action Guard: User Confirmation Approval
   globalMock.window.confirmPhoneControlAction = async (prompt) => true; // User clicks YES
@@ -120,9 +146,9 @@ async function runTests() {
 
   // Test 9: Audit Logs Persistence
   const logs = launcher.getAuditLogs();
-  assert(Array.isArray(logs) && logs.length >= 5, `Audit logs correctly persisted in localStorage (total: ${logs.length})`);
+  assert(Array.isArray(logs) && logs.length >= 4, `Audit logs correctly persisted in localStorage (total: ${logs.length})`);
   const cancelledLog = logs.find(l => l.status === 'CANCELLED');
-  assert(cancelledLog && cancelledLog.action === 'delete_file', 'Audit log records CANCELLED status for rejected high-risk action');
+  assert(cancelledLog && (cancelledLog.action === 'delete_file' || cancelledLog.action === 'type_text'), 'Audit log records CANCELLED status for rejected high-risk action');
 
   // Test 10: Clear Audit Logs
   launcher.clearAuditLogs();

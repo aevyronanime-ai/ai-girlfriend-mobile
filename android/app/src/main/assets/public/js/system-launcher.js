@@ -177,12 +177,39 @@ class SystemLauncher {
       return { success: false, message: 'No action specified in command' };
     }
 
-    // 1. High-Risk Action Guard: Require explicit user confirmation
-    const highRiskActions = ['call', 'call_phone', 'send_message', 'delete', 'delete_file', 'pay', 'payment', 'make_payment'];
-    const isHighRisk = highRiskActions.includes(action) || Boolean(cmd.confirmationRequired);
+    // Master Switch Check for accessibility/automation actions
+    const isMasterOn = (typeof localStorage !== 'undefined') ? (localStorage.getItem('jarvis_phone_control') === 'true') : true;
+    const isAccessibilityAction = [
+      'back', 'home', 'recents', 'scroll_down', 'scroll_up', 'scroll_forward', 'scroll_backward',
+      'click_text', 'type_text', 'read_screen', 'youtube_control', 'youtube_first', 'youtube_next', 'youtube_toggle'
+    ].includes(action);
+
+    if (isAccessibilityAction && !isMasterOn) {
+      const msg = '⚠️ फ़ोन कंट्रोल बंद है। कृपया सेटिंग्स में जाकर "Enable Phone Control" चालू करें।';
+      if (window.app) window.app.showToast(msg);
+      return { success: false, blocked: true, message: msg };
+    }
+
+    // 1. High-Risk Action Guard: Require explicit user confirmation for sensitive tasks
+    // (money/payments, passwords, OTP, banking, deleting files, calling, sending messages)
+    const highRiskActions = [
+      'call', 'call_phone', 'make_call',
+      'send_message', 'send_sms',
+      'delete', 'delete_file', 'remove_file',
+      'pay', 'payment', 'make_payment', 'transfer_money', 'send_money', 'banking',
+      'otp', 'enter_otp', 'password', 'enter_password'
+    ];
+    const sensitiveWords = [
+      'pay', 'payment', 'money', 'रुपये', 'पैसे', 'bank', 'banking', 'बैंक',
+      'otp', 'ओटीपी', 'password', 'पासवर्ड', 'pin', 'पिन', 'cvv',
+      'delete', 'हटाओ', 'डिलीट', 'send_message', 'मैसेज', 'call', 'कॉल'
+    ];
+    const combinedStr = `${action} ${target} ${text}`.toLowerCase();
+    const hasSensitiveWord = sensitiveWords.some(w => combinedStr.includes(w));
+    const isHighRisk = highRiskActions.includes(action) || hasSensitiveWord || Boolean(cmd.confirmationRequired);
 
     if (isHighRisk) {
-      const promptText = cmd.prompt || cmd.confirmationPrompt || `कार्रवाई: ${action} ${target ? '("' + target + '")' : ''}\n\nक्या आप यह क्रिया जारी रखना चाहते हैं?`;
+      const promptText = cmd.prompt || cmd.confirmationPrompt || `सुरक्षा पुष्टि:\nकार्रवाई: ${action} ${target ? '("' + target + '")' : ''}\n\nक्या आप यह क्रिया जारी रखना चाहते हैं?`;
       const confirmed = (typeof window.confirmPhoneControlAction === 'function')
         ? await window.confirmPhoneControlAction(promptText)
         : (window.confirm ? window.confirm(promptText) : true);
@@ -351,13 +378,49 @@ class SystemLauncher {
     if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.isAccessibilityServiceEnabled) {
       try {
         const res = await window.Capacitor.Plugins.SystemLauncher.isAccessibilityServiceEnabled();
-        return Boolean(res && (res.running || res.enabled));
+        return Boolean(res && (res.running || res.isRunning || res.enabled));
       } catch (e) {
         console.warn('isAccessibilityServiceEnabled error:', e);
       }
     }
     // Web fallback simulator flag
     return Boolean(window._mockAccessibilityServiceEnabled);
+  }
+
+  // Query detailed Accessibility Service status (returns { running, isRunning, enabled, isConfigured })
+  async checkAccessibilityStatus() {
+    if (this.isNative && window.Capacitor.Plugins.SystemLauncher) {
+      try {
+        const fn = window.Capacitor.Plugins.SystemLauncher.checkAccessibilityStatus ||
+                   window.Capacitor.Plugins.SystemLauncher.isAccessibilityServiceEnabled;
+        if (fn) {
+          const res = await fn.call(window.Capacitor.Plugins.SystemLauncher);
+          return {
+            running: Boolean(res && (res.running || res.isRunning)),
+            isRunning: Boolean(res && (res.running || res.isRunning)),
+            enabled: Boolean(res && (res.enabled || res.running || res.isRunning)),
+            isConfigured: Boolean(res && res.isConfigured)
+          };
+        }
+      } catch (e) {
+        console.warn('checkAccessibilityStatus error:', e);
+      }
+    }
+    const mock = Boolean(window._mockAccessibilityServiceEnabled);
+    return { running: mock, isRunning: mock, enabled: mock, isConfigured: mock };
+  }
+
+  // Open Android App Info Settings (to allow restricted settings on Android 13/14/15)
+  async openAppInfoSettings() {
+    if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.openAppInfoSettings) {
+      try {
+        return await window.Capacitor.Plugins.SystemLauncher.openAppInfoSettings();
+      } catch (e) {
+        console.warn('openAppInfoSettings error:', e);
+      }
+    }
+    if (window.app) window.app.showToast('ℹ️ Android Settings → Apps → AI Girlfriend Mobile खोलें');
+    return { success: false, message: 'Platform not native or intent failed' };
   }
 
   // Open Android Accessibility Settings
@@ -376,6 +439,11 @@ class SystemLauncher {
   // Execute Accessibility automation action (back, home, scroll, click, type, youtube, etc.)
   async executeAccessibilityCommand({ action, target = '', text = '' }) {
     if (!action) return { success: false, message: 'Action required' };
+
+    // Master Switch Check
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('jarvis_phone_control') !== 'true') {
+      return { success: false, blocked: true, message: 'फ़ोन कंट्रोल बंद है। पहले Settings में Enable Phone Control चालू करें।' };
+    }
 
     let res = null;
     if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.executeAccessibilityCommand) {
@@ -409,6 +477,11 @@ class SystemLauncher {
   async readScreenContent(userExplicit = true) {
     if (!userExplicit) {
       return { success: false, message: 'Screen reading requires explicit user command' };
+    }
+
+    // Master Switch Check
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('jarvis_phone_control') !== 'true') {
+      return { success: false, blocked: true, message: 'फ़ोन कंट्रोल बंद है। स्क्रीन पढ़ने के लिए Settings में Enable Phone Control चालू करें।' };
     }
 
     if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.readScreenContent) {

@@ -441,8 +441,35 @@ public class SystemLauncherPlugin extends Plugin {
 
         JSObject ret = new JSObject();
         ret.put("running", isRunning);
+        ret.put("isRunning", isRunning);
+        ret.put("isConfigured", isConfigured);
         ret.put("enabled", isRunning || isConfigured);
         call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void checkAccessibilityStatus(PluginCall call) {
+        isAccessibilityServiceEnabled(call);
+    }
+
+    /**
+     * Open Android App Info Settings (to allow restricted settings on Android 13/14/15)
+     */
+    @PluginMethod
+    public void openAppInfoSettings(PluginCall call) {
+        try {
+            Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+
+            JSObject ret = new JSObject();
+            ret.put("success", true);
+            ret.put("message", "Opened App Info Settings");
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Could not open App Info Settings: " + e.getMessage());
+        }
     }
 
     /**

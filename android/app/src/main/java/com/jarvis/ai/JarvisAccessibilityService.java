@@ -79,19 +79,31 @@ public class JarvisAccessibilityService extends AccessibilityService {
 
     @Override
     protected void onServiceConnected() {
-        super.onServiceConnected();
-        sInstance = this;
-        Log.i(TAG, "JarvisAccessibilityService connected");
-        showControlNotification();
-        showToast("J.A.R.V.I.S. Phone Control सर्विस चालू हो गई है");
+        try {
+            super.onServiceConnected();
+            sInstance = this;
+            Log.i(TAG, "JarvisAccessibilityService connected");
+            try {
+                showControlNotification();
+            } catch (Exception e) {
+                Log.w(TAG, "Notification error: " + e.getMessage());
+            }
+            showToast("J.A.R.V.I.S. Phone Control सर्विस चालू हो गई है");
+        } catch (Exception ex) {
+            Log.e(TAG, "Error in onServiceConnected: " + ex.getMessage());
+        }
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null) return;
-        CharSequence pkg = event.getPackageName();
-        if (pkg != null) {
-            currentPackageName = pkg.toString();
+        try {
+            CharSequence pkg = event.getPackageName();
+            if (pkg != null) {
+                currentPackageName = pkg.toString();
+            }
+        } catch (Exception ex) {
+            Log.w(TAG, "Error in onAccessibilityEvent: " + ex.getMessage());
         }
     }
 
@@ -138,6 +150,20 @@ public class JarvisAccessibilityService extends AccessibilityService {
         if (viewId != null) {
             String lower = viewId.toLowerCase(Locale.ROOT);
             if (lower.contains("password") || lower.contains("pin") || lower.contains("cvv") || lower.contains("otp")) {
+                return true;
+            }
+        }
+        CharSequence hint = node.getHintText();
+        if (hint != null) {
+            String lowerHint = hint.toString().toLowerCase(Locale.ROOT);
+            if (lowerHint.contains("password") || lowerHint.contains("pin") || lowerHint.contains("cvv") || lowerHint.contains("otp") || lowerHint.contains("पासवर्ड") || lowerHint.contains("पिन")) {
+                return true;
+            }
+        }
+        CharSequence desc = node.getContentDescription();
+        if (desc != null) {
+            String lowerDesc = desc.toString().toLowerCase(Locale.ROOT);
+            if (lowerDesc.contains("password") || lowerDesc.contains("pin") || lowerDesc.contains("cvv") || lowerDesc.contains("otp") || lowerDesc.contains("पासवर्ड") || lowerDesc.contains("पिन")) {
                 return true;
             }
         }

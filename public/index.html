@@ -933,12 +933,17 @@
             <!-- Warning notice if accessibility service is disabled on device -->
             <div id="phoneControlWarning" style="display:none; background:rgba(255, 170, 0, 0.12); border:1px solid #ffaa00; border-radius:var(--radius-sm); padding:10px 12px; margin:10px 0; font-size:0.8rem; color:#ffaa00;">
               ⚠️ <strong>Accessibility Service बंद है!</strong><br>
-              फोन कंट्रोल के लिए Android Accessibility Settings में जाकर <strong>J.A.R.V.I.S. Phone Control Service</strong> को चालू करें।
+              फोन कंट्रोल के लिए Android Accessibility Settings में जाकर <strong>J.A.R.V.I.S. Phone Control Service</strong> को चालू करें। (यदि स्विच ऑन न हो, तो नीचे सेटअप गाइड देखें)
+              <div style="margin-top:6px;">
+                <button class="chip-btn" id="btnWarningOpenGuide" style="background:#ffaa00; color:#000; font-weight:700; font-size:0.75rem; padding:4px 10px;">📖 सेटअप गाइड (स्विच ऑन करने का तरीका)</button>
+              </div>
             </div>
 
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+              <button class="chip-btn" id="btnOpenPhoneControlGuide" style="background:linear-gradient(135deg, #a855f7, #00f0ff); color:#000; font-weight:700;">📖 सेटअप गाइड</button>
+              <button class="chip-btn" id="btnOpenAppInfoSettings">ℹ️ App Info खोलें</button>
               <button class="chip-btn" id="btnOpenAccessibilitySettings" style="background:var(--neon-cyan); color:#000; font-weight:700;">⚙️ Open Accessibility Settings</button>
-              <button class="chip-btn" id="btnShowPhoneControlExplanation">ℹ️ परमिशन व सुरक्षा जानकारी</button>
+              <button class="chip-btn" id="btnShowPhoneControlExplanation">🛡️ परमिशन व सुरक्षा जानकारी</button>
               <button class="chip-btn" id="btnSettingsEmergencyStop" style="background:rgba(255,64,129,0.15); color:#ff4081; border-color:rgba(255,64,129,0.4);">🛑 Emergency Stop All</button>
             </div>
 
@@ -1231,9 +1236,77 @@
         </ul>
       </div>
 
-      <div style="display:flex; gap:10px; justify-content:flex-end;">
-        <button class="chip-btn" id="btnPermModalCancel" style="padding:8px 14px;">रद्द करें</button>
-        <button class="chip-btn" id="btnPermModalProceed" style="background:var(--neon-cyan); color:#000; font-weight:700; padding:8px 16px;">समझ गया, सेटिंग्स खोलें ⚙️</button>
+      <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+        <button class="chip-btn" id="btnPermModalCancel" style="padding:8px 12px;">रद्द करें</button>
+        <button class="chip-btn" id="btnPermModalGuide" style="background:linear-gradient(135deg, #a855f7, #00f0ff); color:#000; font-weight:700; padding:8px 14px;">📖 सेटअप गाइड</button>
+        <button class="chip-btn" id="btnPermModalProceed" style="background:var(--neon-cyan); color:#000; font-weight:700; padding:8px 14px;">सेटिंग्स खोलें ⚙️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phone Control Setup Guide Modal (Android 13/14/15 Restricted Settings Solution) -->
+  <div id="phoneControlSetupGuideModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; align-items:center; justify-content:center; padding:14px; overflow-y:auto;">
+    <div style="background:var(--bg-card); border:1px solid var(--neon-cyan); border-radius:var(--radius-md); padding:18px; max-width:440px; width:100%; text-align:left; box-shadow:0 0 30px rgba(0,240,255,0.25); max-height:92vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.4rem;">📱⚙️</span>
+          <h3 style="font-size:1.1rem; color:var(--neon-cyan); margin:0;">फोन कंट्रोल सेटअप गाइड</h3>
+        </div>
+        <button class="chip-btn" id="btnClosePhoneControlGuide" style="padding:2px 8px; font-size:1rem; line-height:1;">✕</button>
+      </div>
+
+      <!-- Real-Time Service Status Banner -->
+      <div id="phoneControlGuideStatusCard" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:10px 12px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">वर्तमान स्थिति (Current Status)</div>
+          <div id="phoneControlGuideStatusText" style="font-weight:700; font-size:0.92rem; color:#ffaa00; margin-top:2px;">🔴 सर्विस अभी बंद है (Inactive)</div>
+        </div>
+        <button class="chip-btn" id="btnGuideRefreshStatus" style="font-size:0.75rem; padding:4px 10px; background:rgba(0,240,255,0.1); border-color:var(--neon-cyan); color:var(--neon-cyan);">🔄 रिफ्रेश करें</button>
+      </div>
+
+      <!-- Problem Explanation -->
+      <div style="background:rgba(255,170,0,0.1); border-left:3px solid #ffaa00; padding:8px 10px; border-radius:4px; margin-bottom:14px; font-size:0.78rem; color:#ffaa00; line-height:1.4;">
+        <strong>Android 13 / 14 / 15 पर स्विच ऑन क्यों नहीं हो रहा?</strong><br>
+        बाहर से इंस्टॉल किए गए APKs में Android सुरक्षा कारणों से Accessibility स्विच को 'Restricted' (धूसर) कर देता है। इसे चालू करने के लिए नीचे दिए गए 2 स्टेप्स करें:
+      </div>
+
+      <!-- Step 1 -->
+      <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+          <span style="background:var(--neon-cyan); color:#000; font-weight:800; font-size:0.75rem; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;">1</span>
+          <strong style="color:var(--text-primary); font-size:0.85rem;">प्रतिबंधित सेटिंग्स (Restricted Settings) की अनुमति दें</strong>
+        </div>
+        <ol style="margin:0 0 10px 20px; padding:0; font-size:0.78rem; line-height:1.45; color:var(--text-secondary);">
+          <li>नीचे <strong>"1. ऐप जानकारी खोलें"</strong> बटन दबाएं।</li>
+          <li>ऊपर दाएँ कोने में <strong>तीन डॉट्स (⋮)</strong> पर टैप करें।</li>
+          <li><strong>"प्रतिबंधित सेटिंग्स की अनुमति दें"</strong> (Allow restricted settings) चुनें।</li>
+          <li>अपने फोन का फिंगरप्रिंट या स्क्रीन लॉक पिन दर्ज करें।</li>
+        </ol>
+        <button class="chip-btn" id="btnGuideOpenAppInfo" style="width:100%; background:rgba(0,240,255,0.15); border-color:var(--neon-cyan); color:var(--neon-cyan); font-weight:700; padding:8px;">ℹ️ 1. ऐप जानकारी खोलें (Open App Info)</button>
+      </div>
+
+      <!-- Step 2 -->
+      <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+          <span style="background:var(--neon-cyan); color:#000; font-weight:800; font-size:0.75rem; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;">2</span>
+          <strong style="color:var(--text-primary); font-size:0.85rem;">एक्सेसिबिलिटी सर्विस चालू (ON) करें</strong>
+        </div>
+        <ol style="margin:0 0 10px 20px; padding:0; font-size:0.78rem; line-height:1.45; color:var(--text-secondary);">
+          <li>नीचे <strong>"2. एक्सेसिबिलिटी खोलें"</strong> बटन दबाएं।</li>
+          <li><strong>Downloaded apps</strong> (डाउनलोड किए गए ऐप्स) में जाएं।</li>
+          <li><strong>"AI Girlfriend Mobile"</strong> / <strong>"J.A.R.V.I.S. Phone Control Service"</strong> पर टैप करें।</li>
+          <li>स्विच को <strong>चालू (ON)</strong> करें और <strong>Allow</strong> दबाएं।</li>
+        </ol>
+        <button class="chip-btn" id="btnGuideOpenAccessibility" style="width:100%; background:var(--neon-cyan); color:#000; font-weight:700; padding:8px;">⚙️ 2. एक्सेसिबिलिटी सेटिंग्स खोलें (Open Settings)</button>
+      </div>
+
+      <!-- Security guarantee footer -->
+      <div style="font-size:0.74rem; color:var(--text-muted); line-height:1.4; border-top:1px solid rgba(255,255,255,0.08); padding-top:8px; margin-bottom:12px;">
+        🔒 <strong>सुरक्षा गारंटी:</strong> पासवर्ड, OTP, UPI पिन और बैंक ऐप्स कभी नहीं पढ़े जाते। संवेदनशील कार्यों से पहले स्क्रीन पर हाँ/नहीं पूछा जाता है।
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="chip-btn" id="btnGuideCloseBottom" style="background:rgba(255,255,255,0.1); padding:8px 16px;">समझ गया (Close)</button>
       </div>
     </div>
   </div>

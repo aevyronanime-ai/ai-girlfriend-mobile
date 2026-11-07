@@ -82,6 +82,8 @@
         <!-- J.A.R.V.I.S. Phone Control Accessibility Service -->
         <service
             android:name=".JarvisAccessibilityService"
+            android:label="@string/accessibility_service_name"
+            android:description="@string/accessibility_service_description"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>
