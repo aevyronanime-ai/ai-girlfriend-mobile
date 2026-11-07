@@ -1,0 +1,8 @@
+Fix the AccessibilityService in my Android app:
+1. Add a label "J.A.R.V.I.S. Phone Control" and a clear description in strings.xml. Use them in AndroidManifest (android:label) and accessibility_service_config.xml (android:description) so the name shows in Settings > Accessibility > Downloaded apps.
+2. When the Phone Control toggle is turned ON, show a guide screen with:
+   (a) "Open App Info" button -> Settings.ACTION_APPLICATION_DETAILS_SETTINGS for this app,
+   (b) text: "Tap the three dots at top right, then Allow restricted settings",
+   (c) "Open Accessibility Settings" button -> Settings.ACTION_ACCESSIBILITY_SETTINGS.
+3. On app start and on return from the guide, check whether the service is enabled (Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) and show a green or red status next to the toggle.
+4. At the end list the changed files and give one Termux command to build the APK.

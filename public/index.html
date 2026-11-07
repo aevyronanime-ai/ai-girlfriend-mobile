@@ -386,111 +386,192 @@
 
           <!-- Sub-view 2: Video & 2D Animation Studio -->
           <div id="mediaPaneVideo" class="media-pane hide" style="display:none;">
-            <div class="form-group">
-              <label class="form-label" for="engine">मॉडल चुनें (Engine Selection)</label>
+            <div class="form-group" style="margin-bottom:6px;">
+              <label class="form-label" for="engine">Studio Engine Mode</label>
               <select class="form-select" id="engine">
-                <option value="local">1) 2D Animator: ऑफ़लाइन, हमेशा फ्री, कोई key नहीं</option>
-                <option value="Wan-AI/Wan2.1-T2V-1.3B">2) AI वीडियो: Wan 2.1 (1.3B)</option>
-                <option value="Lightricks/LTX-Video">3) AI वीडियो: LTX-Video</option>
-                <option value="THUDM/CogVideoX-2b">4) AI वीडियो: CogVideoX-2b</option>
+                <option value="story" selected>Cartoon Story Maker (offline)</option>
+                <option value="animator">Quick 2D Animator (offline)</option>
+                <option value="photo2video">Photo to Video (offline)</option>
+                <option value="ai">AI Video (experimental, online)</option>
               </select>
             </div>
-
-            <div class="form-group">
-              <label class="form-label" for="prompt">क्या बनाना है? (Prompt: हिंदी या English)</label>
-              <textarea class="form-control" id="prompt" rows="3" placeholder="साकुरा के पेड़ों के नीचे लंबे बालों वाली लड़की, झरती गुलाबी पंखुड़ियाँ"></textarea>
+            <div id="engineDescription" class="engine-desc-text">
+              ✨ Offline multi-scene cartoon creator with dialogue, sound effects &amp; characters. (100% Offline)
             </div>
 
-            <!-- Offline 2D Animator Options -->
-            <div id="localOpts">
+            <!-- Panel 1: Cartoon Story Maker (Offline Default) -->
+            <div id="panelStoryMaker" class="studio-subpanel">
+              <iframe id="storyMakerFrame" src="/story/index.html" class="story-iframe" title="Cartoon Story Maker"></iframe>
+            </div>
+
+            <!-- Panel 2: Quick 2D Animator (Offline) -->
+            <div id="panelQuickAnimator" class="studio-subpanel hide" style="display:none;">
+              <div class="form-group">
+                <label class="form-label" for="prompt">What would you like to animate? (English or Hindi)</label>
+                <textarea class="form-control" id="prompt" rows="3" placeholder="Long-haired anime girl under blooming sakura trees with pink falling petals..."></textarea>
+              </div>
+
+              <!-- Offline 2D Animator Options -->
+              <div id="localOpts">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                  <div class="form-group">
+                    <label class="form-label" for="dur">Duration</label>
+                    <select class="form-select" id="dur">
+                      <option value="4">4 seconds</option>
+                      <option value="6" selected>6 seconds</option>
+                      <option value="10">10 seconds</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="ratio">Aspect Ratio</label>
+                    <select class="form-select" id="ratio">
+                      <option value="p" selected>Vertical (9:16)</option>
+                      <option value="l">Horizontal (16:9)</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="caption">Subtitle / Caption Overlay</label>
+                  <input type="text" class="form-control" id="caption" placeholder="e.g. Hello Commander">
+                </div>
+              </div>
+
+              <button class="btn-primary-action" id="go" style="margin-top:14px;">
+                <span>🎬 Render 2D Animation</span>
+              </button>
+
+              <!-- Status & Progress Log -->
+              <div id="log" style="font-size:14px; color:var(--text-secondary); margin-top:10px; white-space:pre-wrap; min-height:22px; text-align:center;"></div>
+
+              <!-- Video Stage: Live Canvas / Output Player -->
+              <div id="stage" class="video-stage">
+                <canvas id="cv"></canvas>
+                <video id="out" class="hide" controls playsinline style="display:none;"></video>
+              </div>
+
+              <!-- Video Editing Controls (Preview & Adjustment) -->
+              <div id="videoEditorControls" class="video-editor-panel hide" style="display:none;">
+                <div style="font-size:0.85rem; font-weight:600; color:var(--accent-sakura); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                  <span>✂️ Video Playback &amp; Filters:</span>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  <div class="form-group" style="margin-bottom:6px;">
+                    <label class="form-label" for="videoSpeedSelect" style="font-size:0.75rem;">Playback Speed</label>
+                    <select class="form-select" id="videoSpeedSelect" style="padding:6px 10px; font-size:0.82rem;">
+                      <option value="0.5">0.5x Slow Motion</option>
+                      <option value="1" selected>1.0x Normal</option>
+                      <option value="1.25">1.25x Fast</option>
+                      <option value="1.5">1.5x Turbo</option>
+                      <option value="2">2.0x Double</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom:6px;">
+                    <label class="form-label" for="videoFilterSelect" style="font-size:0.75rem;">Visual Filter</label>
+                    <select class="form-select" id="videoFilterSelect" style="padding:6px 10px; font-size:0.82rem;">
+                      <option value="none" selected>Original</option>
+                      <option value="sakura">🌸 Sakura Dream</option>
+                      <option value="cyberpunk">⚡ Cyberpunk Glow</option>
+                      <option value="vintage">🎞️ Vintage B&amp;W</option>
+                      <option value="warm">🌅 Golden Sunset</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Download Button -->
+              <a id="dl" class="dl-video-btn hide" download="animation.webm" style="display:none;">
+                <span>⬇️ Download Animation Video</span>
+              </a>
+            </div>
+
+            <!-- Panel 3: Photo to Video (Offline) -->
+            <div id="panelPhotoToVideo" class="studio-subpanel hide" style="display:none;">
+              <div class="form-group">
+                <label class="form-label">Pick Gallery Photos (1 to 10 Images)</label>
+                <input type="file" id="p2vFileInput" accept="image/*" multiple style="display:none;">
+                <button type="button" class="chip-btn" id="btnP2VPickPhotos" style="width:100%; padding:12px; font-size:0.9rem; display:flex; align-items:center; justify-content:center; gap:8px;">
+                  <span>📸 Select Photos (1 - 10)</span>
+                </button>
+                <div id="p2vPhotoCountText" style="font-size:0.8rem; color:var(--text-secondary); margin-top:8px;">0 photos selected</div>
+                <div id="p2vThumbnailsContainer" class="p2v-thumbnails-grid"></div>
+              </div>
+
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div class="form-group">
-                  <label class="form-label" for="dur">समय (Duration)</label>
-                  <select class="form-select" id="dur">
-                    <option value="4">4 सेकंड</option>
-                    <option value="6" selected>6 सेकंड</option>
-                    <option value="10">10 सेकंड</option>
+                  <label class="form-label" for="p2vDurationSelect">Duration per Photo</label>
+                  <select class="form-select" id="p2vDurationSelect">
+                    <option value="2">2 seconds</option>
+                    <option value="3" selected>3 seconds</option>
+                    <option value="4">4 seconds</option>
+                    <option value="5">5 seconds</option>
+                    <option value="6">6 seconds</option>
                   </select>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="ratio">साइज़ (Aspect Ratio)</label>
-                  <select class="form-select" id="ratio">
-                    <option value="p" selected>खड़ा (9:16 Portrait)</option>
-                    <option value="l">आड़ा (16:9 Landscape)</option>
+                  <label class="form-label" for="p2vMotionSelect">Motion Effect</label>
+                  <select class="form-select" id="p2vMotionSelect">
+                    <option value="kenburns" selected>Ken Burns (Pan &amp; Zoom)</option>
+                    <option value="crossfade">Smooth Crossfade</option>
                   </select>
                 </div>
               </div>
+
               <div class="form-group">
-                <label class="form-label" for="caption">वीडियो पर लिखा टेक्स्ट (Subtitle / Caption)</label>
-                <input type="text" class="form-control" id="caption" placeholder="जैसे: नमस्ते कमांडर">
+                <label class="form-label" for="p2vCaptionInput">Video Subtitle / Title</label>
+                <input type="text" class="form-control" id="p2vCaptionInput" placeholder="e.g. Golden Memories">
               </div>
+
+              <button type="button" class="btn-primary-action" id="btnP2VGenerate" style="margin-top:14px;">
+                <span>🎬 Create Video from Photos</span>
+              </button>
+
+              <div id="p2vLog" style="font-size:14px; color:var(--text-secondary); margin-top:10px; white-space:pre-wrap; min-height:22px; text-align:center;"></div>
+
+              <div id="p2vStage" class="video-stage hide" style="display:none;">
+                <canvas id="p2vCanvas"></canvas>
+                <video id="p2vVideo" class="hide" controls playsinline style="display:none;"></video>
+              </div>
+
+              <a id="p2vDownload" class="dl-video-btn hide" download="photo-slideshow.webm" style="display:none;">
+                <span>⬇️ Download Slideshow Video</span>
+              </a>
             </div>
 
-            <!-- AI Video Generator Options -->
-            <div id="aiOpts" class="hide" style="display:none;">
+            <!-- Panel 4: AI Video Generator (Online) -->
+            <div id="aiOpts" class="studio-subpanel hide" style="display:none;">
               <div class="form-group">
-                <label class="form-label" for="token">Hugging Face token</label>
-                <input type="password" class="form-control" id="token" placeholder="hf_...">
+                <label class="form-label" for="aiPrompt">Prompt Description</label>
+                <textarea class="form-control" id="aiPrompt" rows="3" placeholder="A futuristic city in the rain with floating cars, 4k cinematic..."></textarea>
               </div>
+
               <div class="form-group">
-                <label class="form-label" for="mid">मॉडल ID (Model ID)</label>
-                <input type="text" class="form-control" id="mid">
+                <label class="form-label" for="mid">Model ID</label>
+                <select class="form-select" id="mid">
+                  <option value="Wan-AI/Wan2.1-T2V-1.3B" selected>Wan 2.1 (1.3B)</option>
+                  <option value="Lightricks/LTX-Video">LTX-Video</option>
+                  <option value="THUDM/CogVideoX-2b">CogVideoX-2b</option>
+                </select>
               </div>
+
+              <div class="form-group">
+                <label class="form-label" for="token">Hugging Face Token</label>
+                <input type="password" class="form-control" id="token" placeholder="Auto-loaded from Settings (hf_...)">
+              </div>
+
               <div style="margin:8px 0;">
                 <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:var(--text-secondary); cursor:pointer;">
                   <input id="fb" type="checkbox" checked style="width:auto; margin:0;">
-                  <span>फेल हो तो अगला मॉडल अपने आप आज़माओ (Auto-failover)</span>
+                  <span>Auto-try fallback models if busy</span>
                 </label>
-                <small style="color:var(--text-muted); font-size:0.75rem;">AI मॉडल की उपलब्धता सर्वर लोड के अनुसार बदल सकती है।</small>
+                <small style="color:var(--text-muted); font-size:0.75rem;">AI video inference availability depends on external server load.</small>
               </div>
+
+              <button class="btn-primary-action" id="btnAIVideo" style="margin-top:14px;">
+                <span>🎬 Generate AI Video</span>
+              </button>
+
+              <div id="aiLog" style="font-size:14px; color:var(--text-secondary); margin-top:10px; white-space:pre-wrap; min-height:22px; text-align:center;"></div>
             </div>
-
-            <button class="btn-primary-action" id="go" style="margin-top:14px;">
-              <span>🎬 वीडियो बनाओ (Generate Video)</span>
-            </button>
-
-            <!-- Status & Progress Log -->
-            <div id="log" style="font-size:14px; color:var(--text-secondary); margin-top:10px; white-space:pre-wrap; min-height:22px; text-align:center;"></div>
-
-            <!-- Video Stage: Live Canvas / Output Player -->
-            <div id="stage" class="video-stage">
-              <canvas id="cv"></canvas>
-              <video id="out" class="hide" controls playsinline style="display:none;"></video>
-            </div>
-
-            <!-- Video Editing Controls (Preview & Adjustment) -->
-            <div id="videoEditorControls" class="video-editor-panel hide" style="display:none;">
-              <div style="font-size:0.85rem; font-weight:600; color:var(--accent-sakura); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                <span>✂️ Video Studio Editor & Controls:</span>
-              </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                <div class="form-group" style="margin-bottom:6px;">
-                  <label class="form-label" for="videoSpeedSelect" style="font-size:0.75rem;">गति (Playback Speed)</label>
-                  <select class="form-select" id="videoSpeedSelect" style="padding:6px 10px; font-size:0.82rem;">
-                    <option value="0.5">0.5x Slow Motion</option>
-                    <option value="1" selected>1.0x Normal</option>
-                    <option value="1.25">1.25x Fast</option>
-                    <option value="1.5">1.5x Turbo</option>
-                    <option value="2">2.0x Double</option>
-                  </select>
-                </div>
-                <div class="form-group" style="margin-bottom:6px;">
-                  <label class="form-label" for="videoFilterSelect" style="font-size:0.75rem;">इफेक्ट / फिल्टर (Visual Filter)</label>
-                  <select class="form-select" id="videoFilterSelect" style="padding:6px 10px; font-size:0.82rem;">
-                    <option value="none" selected>Original</option>
-                    <option value="sakura">🌸 Sakura Dream</option>
-                    <option value="cyberpunk">⚡ Cyberpunk Glow</option>
-                    <option value="vintage">🎞️ Vintage B&W</option>
-                    <option value="warm">🌅 Golden Sunset</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <!-- Download Button -->
-            <a id="dl" class="dl-video-btn hide" download="video.webm" style="display:none;">
-              <span>⬇️ वीडियो डाउनलोड करो (Download Video)</span>
-            </a>
           </div>
         </div>
       </section>

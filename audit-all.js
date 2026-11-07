@@ -83,7 +83,8 @@ if (fs.existsSync(manifestPath)) {
     'android.permission.INTERNET',
     'android.permission.RECORD_AUDIO',
     'android.permission.CAMERA',
-    'android.permission.FLASHLIGHT'
+    'android.permission.FLASHLIGHT',
+    'android.permission.CALL_PHONE'
   ];
   for (const perm of requiredPerms) {
     if (manifest.includes(perm)) {

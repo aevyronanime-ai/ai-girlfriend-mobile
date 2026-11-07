@@ -269,6 +269,48 @@ public class SystemLauncherPlugin extends Plugin {
     }
 
     /**
+     * Make phone call or open dialer
+     */
+    @PluginMethod
+    public void makeCall(PluginCall call) {
+        String phone = call.getString("phone", "").trim();
+        if (phone.isEmpty()) {
+            phone = call.getString("target", "").trim();
+        }
+        try {
+            Intent intent;
+            if (!phone.isEmpty()) {
+                intent = new Intent(Intent.ACTION_CALL, Uri.parse("tel:" + Uri.encode(phone)));
+            } else {
+                intent = new Intent(Intent.ACTION_DIAL);
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+
+            JSObject ret = new JSObject();
+            ret.put("success", true);
+            ret.put("message", phone.isEmpty() ? "डायलर खोला गया" : "कॉल किया जा रहा है: " + phone);
+            call.resolve(ret);
+        } catch (SecurityException se) {
+            // Fallback to dialer if direct call permission not yet granted by OS prompt
+            try {
+                Intent fallback = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(phone)));
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(fallback);
+
+                JSObject ret = new JSObject();
+                ret.put("success", true);
+                ret.put("message", "डायलर खोला गया: " + phone);
+                call.resolve(ret);
+            } catch (Exception ex) {
+                call.reject("कॉल नहीं लग सकी: " + ex.getMessage());
+            }
+        } catch (Exception e) {
+            call.reject("कॉल एरर: " + e.getMessage());
+        }
+    }
+
+    /**
      * Launch application by name or package
      */
     @PluginMethod

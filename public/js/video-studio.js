@@ -1,7 +1,10 @@
 // =============================================================================
 // Free Video & 2D Animation Studio Controller
-// Integrates AI Video Generation (Wan 2.1, LTX, CogVideoX),
-// Offline 2D Anime Canvas Animation Studio, and Video Preview/Editing/Download
+// Integrates:
+// 1) Cartoon Story Maker (Offline iframe loader with dialogue & sound)
+// 2) Quick 2D Animator (Offline canvas anime character generator)
+// 3) Photo to Video (Offline gallery photo slideshow with Ken Burns & transitions)
+// 4) AI Video (Online Wan 2.1, LTX-Video, CogVideoX synthesis)
 // =============================================================================
 
 class VideoStudioController {
@@ -78,6 +81,11 @@ class VideoStudioController {
     this.recording = false;
     this.activeBlobUrl = null;
 
+    // Photo to Video State
+    this.p2vImages = [];
+    this.p2vRecording = false;
+    this.p2vBlobUrl = null;
+
     if (typeof document !== 'undefined') {
       this.init();
     }
@@ -94,21 +102,29 @@ class VideoStudioController {
   }
 
   init() {
+    // Navigation Sub-tabs
     this.subtabBtnImage = document.getElementById('subtabBtnImage');
     this.subtabBtnVideo = document.getElementById('subtabBtnVideo');
     this.mediaPaneImage = document.getElementById('mediaPaneImage');
     this.mediaPaneVideo = document.getElementById('mediaPaneVideo');
 
+    // Engine Selector & Description
     this.engineEl = document.getElementById('engine');
+    this.engineDescription = document.getElementById('engineDescription');
+
+    // Panels
+    this.panelStoryMaker = document.getElementById('panelStoryMaker');
+    this.storyMakerFrame = document.getElementById('storyMakerFrame');
+    this.panelQuickAnimator = document.getElementById('panelQuickAnimator');
+    this.panelPhotoToVideo = document.getElementById('panelPhotoToVideo');
+    this.aiOptsEl = document.getElementById('aiOpts');
+
+    // Quick 2D Animator Elements
     this.promptEl = document.getElementById('prompt');
     this.localOptsEl = document.getElementById('localOpts');
     this.durEl = document.getElementById('dur');
     this.ratioEl = document.getElementById('ratio');
     this.captionEl = document.getElementById('caption');
-    this.aiOptsEl = document.getElementById('aiOpts');
-    this.tokenEl = document.getElementById('token');
-    this.midEl = document.getElementById('mid');
-    this.fbEl = document.getElementById('fb');
     this.goBtn = document.getElementById('go');
     this.logEl = document.getElementById('log');
     this.stageEl = document.getElementById('stage');
@@ -119,13 +135,39 @@ class VideoStudioController {
     this.videoSpeedSelect = document.getElementById('videoSpeedSelect');
     this.videoFilterSelect = document.getElementById('videoFilterSelect');
 
-    if (!this.engineEl || !this.cvEl) return;
+    // Photo to Video Elements
+    this.p2vFileInput = document.getElementById('p2vFileInput');
+    this.btnP2VPickPhotos = document.getElementById('btnP2VPickPhotos');
+    this.p2vPhotoCountText = document.getElementById('p2vPhotoCountText');
+    this.p2vThumbnailsContainer = document.getElementById('p2vThumbnailsContainer');
+    this.p2vDurationSelect = document.getElementById('p2vDurationSelect');
+    this.p2vMotionSelect = document.getElementById('p2vMotionSelect');
+    this.p2vCaptionInput = document.getElementById('p2vCaptionInput');
+    this.btnP2VGenerate = document.getElementById('btnP2VGenerate');
+    this.p2vLog = document.getElementById('p2vLog');
+    this.p2vStage = document.getElementById('p2vStage');
+    this.p2vCanvas = document.getElementById('p2vCanvas');
+    this.p2vVideo = document.getElementById('p2vVideo');
+    this.p2vDownload = document.getElementById('p2vDownload');
 
-    this.cx = this.cvEl.getContext ? this.cvEl.getContext('2d') : null;
+    // AI Video Elements
+    this.aiPrompt = document.getElementById('aiPrompt');
+    this.tokenEl = document.getElementById('token');
+    this.midEl = document.getElementById('mid');
+    this.fbEl = document.getElementById('fb');
+    this.btnAIVideo = document.getElementById('btnAIVideo');
+    this.aiLog = document.getElementById('aiLog');
+
+    if (!this.engineEl) return;
+
+    if (this.cvEl && this.cvEl.getContext) {
+      this.cx = this.cvEl.getContext('2d');
+    }
 
     this.bindSubTabs();
     this.bindEngine();
     this.bind2DControls();
+    this.bindPhotoToVideo();
     this.bindAI();
     this.bindEditorControls();
 
@@ -155,9 +197,65 @@ class VideoStudioController {
           this.mediaPaneVideo.style.display = 'block';
           this.mediaPaneVideo.classList.remove('hide');
         }
+        this.syncEngineMode();
+      });
+    }
+  }
+
+  syncEngineMode() {
+    if (!this.engineEl) return;
+    const mode = this.engineEl.value;
+
+    const descriptions = {
+      story: '✨ Offline multi-scene cartoon creator with dialogue, sound effects & characters. (100% Offline)',
+      animator: '🌸 Offline 2D anime character animation with dynamic particle effects & themes. (100% Offline)',
+      photo2video: '📸 Offline photo slideshow generator with Ken Burns pan/zoom & smooth crossfades. (100% Offline)',
+      ai: '⚡ Online AI text-to-video synthesis powered by Wan 2.1, LTX, and CogVideoX models.'
+    };
+
+    if (this.engineDescription) {
+      this.engineDescription.textContent = descriptions[mode] || descriptions.story;
+    }
+
+    // Toggle panels
+    if (this.panelStoryMaker) {
+      const show = mode === 'story';
+      this.panelStoryMaker.classList.toggle('hide', !show);
+      this.panelStoryMaker.style.display = show ? 'block' : 'none';
+      if (show) this.syncStoryToken();
+    }
+
+    if (this.panelQuickAnimator) {
+      const show = mode === 'animator' || mode === 'local';
+      this.panelQuickAnimator.classList.toggle('hide', !show);
+      this.panelQuickAnimator.style.display = show ? 'block' : 'none';
+      if (show) {
         this.setSize();
         this.build();
-      });
+      }
+    }
+
+    if (this.panelPhotoToVideo) {
+      const show = mode === 'photo2video';
+      this.panelPhotoToVideo.classList.toggle('hide', !show);
+      this.panelPhotoToVideo.style.display = show ? 'block' : 'none';
+    }
+
+    if (this.aiOptsEl) {
+      const show = mode === 'ai' || (!['story', 'animator', 'local', 'photo2video'].includes(mode));
+      this.aiOptsEl.classList.toggle('hide', !show);
+      this.aiOptsEl.style.display = show ? 'block' : 'none';
+    }
+  }
+
+  syncStoryToken() {
+    const token = this.ls('hf_token') || this.ls('jarvis_setting_hf_token') || '';
+    if (token && this.storyMakerFrame && this.storyMakerFrame.contentWindow) {
+      try {
+        this.storyMakerFrame.contentWindow.localStorage.setItem('hf_token', token);
+        const tokInput = this.storyMakerFrame.contentDocument.getElementById('token');
+        if (tokInput) tokInput.value = token;
+      } catch (e) {}
     }
   }
 
@@ -166,33 +264,17 @@ class VideoStudioController {
       this.tokenEl.value = this.ls('hf_token') || '';
       this.tokenEl.addEventListener('change', () => {
         this.ls('hf_token', this.tokenEl.value.trim());
+        this.syncStoryToken();
       });
     }
 
-    const syncEngine = () => {
-      if (!this.engineEl) return;
-      const e = this.engineEl.value;
-      const isLocal = e === 'local';
-
-      if (this.localOptsEl) {
-        this.localOptsEl.classList.toggle('hide', !isLocal);
-        this.localOptsEl.style.display = isLocal ? 'block' : 'none';
-      }
-      if (this.aiOptsEl) {
-        this.aiOptsEl.classList.toggle('hide', isLocal);
-        this.aiOptsEl.style.display = isLocal ? 'none' : 'block';
-      }
-      if (this.midEl) {
-        this.midEl.value = isLocal ? '' : e;
-      }
-    };
-
     if (this.engineEl) {
-      this.engineEl.addEventListener('change', syncEngine);
-      syncEngine();
+      this.engineEl.addEventListener('change', () => this.syncEngineMode());
+      this.syncEngineMode();
     }
   }
 
+  // --- 2D QUICK ANIMATOR ---
   bind2DControls() {
     if (this.ratioEl) {
       this.ratioEl.addEventListener('change', () => {
@@ -207,6 +289,43 @@ class VideoStudioController {
 
     if (this.captionEl) {
       this.captionEl.addEventListener('input', () => this.build());
+    }
+
+    if (this.goBtn) {
+      this.goBtn.addEventListener('click', async () => {
+        this.goBtn.disabled = true;
+        if (this.dlEl) {
+          this.dlEl.classList.add('hide');
+          this.dlEl.style.display = 'none';
+        }
+        if (this.videoEditorControls) {
+          this.videoEditorControls.classList.add('hide');
+          this.videoEditorControls.style.display = 'none';
+        }
+        if (this.outEl) {
+          this.outEl.classList.add('hide');
+          this.outEl.style.display = 'none';
+          this.outEl.pause();
+        }
+        if (this.cvEl) {
+          this.cvEl.classList.remove('hide');
+          this.cvEl.style.display = 'block';
+        }
+
+        if (window.soundFX) window.soundFX.click();
+
+        try {
+          const blob = await this.record2D();
+          this.show(blob);
+          if (this.logEl) this.logEl.textContent = '2D animation ready! ✓';
+          if (window.soundFX) window.soundFX.success();
+        } catch (e) {
+          if (this.logEl) this.logEl.textContent = 'Error: ' + e.message;
+          if (window.soundFX) window.soundFX.error();
+        } finally {
+          this.goBtn.disabled = false;
+        }
+      });
     }
   }
 
@@ -239,45 +358,6 @@ class VideoStudioController {
         }
       });
     }
-  }
-
-  bindAI() {
-    if (!this.goBtn) return;
-
-    this.goBtn.addEventListener('click', async () => {
-      this.goBtn.disabled = true;
-      if (this.dlEl) {
-        this.dlEl.classList.add('hide');
-        this.dlEl.style.display = 'none';
-      }
-      if (this.videoEditorControls) {
-        this.videoEditorControls.classList.add('hide');
-        this.videoEditorControls.style.display = 'none';
-      }
-      if (this.outEl) {
-        this.outEl.classList.add('hide');
-        this.outEl.style.display = 'none';
-        this.outEl.pause();
-      }
-      if (this.cvEl) {
-        this.cvEl.classList.remove('hide');
-        this.cvEl.style.display = 'block';
-      }
-
-      if (window.soundFX) window.soundFX.click();
-
-      try {
-        const blob = this.engineEl.value === 'local' ? await this.record2D() : await this.runAI();
-        this.show(blob);
-        if (this.logEl) this.logEl.textContent = 'तैयार ✓ (Video Ready)';
-        if (window.soundFX) window.soundFX.success();
-      } catch (e) {
-        if (this.logEl) this.logEl.textContent = 'एरर: ' + e.message;
-        if (window.soundFX) window.soundFX.error();
-      } finally {
-        this.goBtn.disabled = false;
-      }
-    });
   }
 
   pickTheme(p) {
@@ -421,7 +501,6 @@ class VideoStudioController {
     cx.fillStyle = g;
     cx.fillRect(0, 0, W, H);
 
-    // Special background elements per theme
     if (this.scene.key === 'ocean') {
       cx.fillStyle = 'rgba(255,255,255,.18)';
       for (let r = 0; r < 4; r++) {
@@ -513,7 +592,7 @@ class VideoStudioController {
 
   startLoop() {
     const loop = () => {
-      if (!this.recording && this.scene) {
+      if (!this.recording && this.scene && this.engineEl && (this.engineEl.value === 'animator' || this.engineEl.value === 'local')) {
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         this.drawFrame(((now - this.t0) / 1000) % 60);
       }
@@ -527,7 +606,9 @@ class VideoStudioController {
   record2D() {
     return new Promise((resolve, reject) => {
       if (!this.cvEl || !this.cvEl.captureStream || typeof MediaRecorder === 'undefined') {
-        return reject(new Error('इस ब्राउज़र/WebView में MediaRecorder उपलब्ध नहीं है। कृपया आधुनिक Chrome में खोलें।'));
+        const msg = 'MediaRecorder / canvas.captureStream is not supported in this WebView. Please use modern Chrome or update Android System WebView.';
+        if (window.app && window.app.showToast) window.app.showToast('⚠️ ' + msg);
+        return reject(new Error(msg));
       }
 
       this.setSize();
@@ -557,7 +638,7 @@ class VideoStudioController {
 
       mr.onerror = e => {
         this.recording = false;
-        reject(e.error || new Error('2D वीडियो रिकॉर्डिंग विफल हुई।'));
+        reject(e.error || new Error('2D video recording failed.'));
       };
 
       const dur = this.durEl ? parseFloat(this.durEl.value) || 6 : 6;
@@ -570,7 +651,7 @@ class VideoStudioController {
         const t = (now - startTime) / 1000;
         this.drawFrame(t);
         if (this.logEl) {
-          this.logEl.textContent = '2D एनिमेशन बन रहा है… ' + Math.min(100, Math.round((t / dur) * 100)) + '%';
+          this.logEl.textContent = 'Rendering 2D animation… ' + Math.min(100, Math.round((t / dur) * 100)) + '%';
         }
         if (t < dur) {
           requestAnimationFrame(step);
@@ -581,58 +662,6 @@ class VideoStudioController {
 
       requestAnimationFrame(step);
     });
-  }
-
-  async aiVideo(model, prompt, token) {
-    const res = await fetch('https://router.huggingface.co/hf-inference/models/' + model, {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ inputs: prompt })
-    });
-
-    if (!res.ok) {
-      const errMsg = (await res.text()).slice(0, 160);
-      throw new Error(model + ' → HTTP ' + res.status + ' ' + errMsg);
-    }
-
-    const blob = await res.blob();
-    if (!/video/.test(blob.type)) {
-      throw new Error(model + ' ने वीडियो नहीं लौटाया (' + (blob.type || 'खाली') + ')');
-    }
-    return blob;
-  }
-
-  async runAI() {
-    const token = this.tokenEl ? this.tokenEl.value.trim() : '';
-    const prompt = this.promptEl ? this.promptEl.value.trim() : '';
-
-    if (!token) {
-      throw new Error('कृपया पहले Hugging Face token दर्ज करें (Settings या फील्ड में)।');
-    }
-    this.ls('hf_token', token);
-
-    const firstModel = (this.midEl ? this.midEl.value.trim() : '') || this.models[0];
-    const isAutoFailover = this.fbEl ? this.fbEl.checked : true;
-    const modelList = isAutoFailover
-      ? [firstModel, ...this.models.filter(m => m !== firstModel)]
-      : [firstModel];
-
-    const errors = [];
-    for (const m of modelList) {
-      try {
-        if (this.logEl) {
-          this.logEl.textContent = 'AI वीडियो बन रहा है (' + m + ')… 1 से 3 मिनट लग सकते हैं';
-        }
-        return await this.aiVideo(m, prompt, token);
-      } catch (err) {
-        errors.push(err.message);
-      }
-    }
-
-    throw new Error(errors.join('\n') + '\n\nसभी AI मॉडल व्यस्त हैं। 2D Animator चुनकर तुरंत वीडियो बनाएं।');
   }
 
   show(blob) {
@@ -665,6 +694,393 @@ class VideoStudioController {
       const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
       this.dlEl.download = 'jarvis-video.' + ext;
     }
+  }
+
+  // --- PHOTO TO VIDEO (OFFLINE) ---
+  bindPhotoToVideo() {
+    if (this.btnP2VPickPhotos && this.p2vFileInput) {
+      this.btnP2VPickPhotos.addEventListener('click', () => {
+        this.p2vFileInput.click();
+      });
+
+      this.p2vFileInput.addEventListener('change', async e => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+
+        const maxPhotos = 10;
+        const selectedFiles = files.slice(0, maxPhotos);
+
+        for (const file of selectedFiles) {
+          if (this.p2vImages.length >= maxPhotos) break;
+          const dataUrl = await this.readFileAsDataURL(file);
+          const img = await this.loadImage(dataUrl);
+          this.p2vImages.push({
+            img,
+            name: file.name,
+            caption: ''
+          });
+        }
+
+        this.renderP2VThumbnails();
+      });
+    }
+
+    if (this.btnP2VGenerate) {
+      this.btnP2VGenerate.addEventListener('click', async () => {
+        if (!this.p2vImages || this.p2vImages.length === 0) {
+          const errText = 'Please select at least 1 photo (1 to 10 photos) to create a video.';
+          if (this.p2vLog) this.p2vLog.textContent = '⚠️ ' + errText;
+          if (window.app && window.app.showToast) window.app.showToast('⚠️ ' + errText);
+          return;
+        }
+
+        this.btnP2VGenerate.disabled = true;
+        if (this.p2vLog) this.p2vLog.textContent = 'Preparing Photo Video rendering…';
+        if (this.p2vStage) {
+          this.p2vStage.classList.remove('hide');
+          this.p2vStage.style.display = 'flex';
+        }
+        if (this.p2vCanvas) {
+          this.p2vCanvas.classList.remove('hide');
+          this.p2vCanvas.style.display = 'block';
+        }
+        if (this.p2vVideo) {
+          this.p2vVideo.classList.add('hide');
+          this.p2vVideo.style.display = 'none';
+        }
+        if (this.p2vDownload) {
+          this.p2vDownload.classList.add('hide');
+          this.p2vDownload.style.display = 'none';
+        }
+
+        try {
+          const blob = await this.renderPhotoVideo();
+          this.showP2VResult(blob);
+          if (this.p2vLog) this.p2vLog.textContent = 'Photo Video ready! ✓';
+          if (window.soundFX) window.soundFX.success();
+        } catch (err) {
+          if (this.p2vLog) this.p2vLog.textContent = 'Error: ' + err.message;
+          if (window.soundFX) window.soundFX.error();
+        } finally {
+          this.btnP2VGenerate.disabled = false;
+        }
+      });
+    }
+  }
+
+  readFileAsDataURL(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+  loadImage(src) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = rej;
+      img.src = src;
+    });
+  }
+
+  renderP2VThumbnails() {
+    if (!this.p2vThumbnailsContainer) return;
+    this.p2vThumbnailsContainer.innerHTML = '';
+
+    if (this.p2vPhotoCountText) {
+      this.p2vPhotoCountText.textContent = `${this.p2vImages.length} photo(s) selected (Max 10)`;
+    }
+
+    this.p2vImages.forEach((item, idx) => {
+      const card = document.createElement('div');
+      card.className = 'p2v-thumbnail-item';
+      card.innerHTML = `
+        <img src="${item.img.src}" alt="photo-${idx + 1}" />
+        <button type="button" class="p2v-del-btn" title="Remove">&times;</button>
+      `;
+
+      card.querySelector('.p2v-del-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        this.p2vImages.splice(idx, 1);
+        this.renderP2VThumbnails();
+      });
+
+      this.p2vThumbnailsContainer.appendChild(card);
+    });
+  }
+
+  renderPhotoVideo() {
+    return new Promise((resolve, reject) => {
+      if (!this.p2vCanvas || !this.p2vCanvas.captureStream || typeof MediaRecorder === 'undefined') {
+        const notSupportedMsg = 'MediaRecorder / canvas.captureStream is not supported in this WebView. Please use modern Chrome or update Android System WebView.';
+        if (window.app && window.app.showToast) window.app.showToast('⚠️ ' + notSupportedMsg);
+        return reject(new Error(notSupportedMsg));
+      }
+
+      const canvas = this.p2vCanvas;
+      const ctx = canvas.getContext('2d');
+      const W = 540;
+      const H = 960;
+      canvas.width = W;
+      canvas.height = H;
+
+      const durPerPhoto = this.p2vDurationSelect ? parseFloat(this.p2vDurationSelect.value) || 3 : 3;
+      const totalDur = this.p2vImages.length * durPerPhoto;
+      const transDur = 0.6; // Crossfade transition duration
+      const globalCaption = this.p2vCaptionInput ? this.p2vCaptionInput.value.trim() : '';
+
+      const candidateMimes = [
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm',
+        'video/mp4'
+      ];
+      const mime = candidateMimes.find(m => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m));
+      const mr = new MediaRecorder(
+        canvas.captureStream(30),
+        mime ? { mimeType: mime, videoBitsPerSecond: 4e6 } : {}
+      );
+      const chunks = [];
+
+      mr.ondataavailable = e => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      mr.onstop = () => {
+        this.p2vRecording = false;
+        resolve(new Blob(chunks, { type: mr.mimeType || 'video/webm' }));
+      };
+
+      mr.onerror = e => {
+        this.p2vRecording = false;
+        reject(e.error || new Error('Photo video recording failed'));
+      };
+
+      this.p2vRecording = true;
+      mr.start(250);
+
+      const startTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+      const drawCoverImage = (img, progress, alpha = 1.0) => {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        // Ken Burns effect: scale smoothly from 1.0 to 1.15 with gentle pan
+        const scale = 1.0 + progress * 0.14;
+        const panX = Math.sin(progress * Math.PI) * 16;
+        const panY = Math.cos(progress * Math.PI) * 12;
+
+        const cw = W;
+        const ch = H;
+        const imgRatio = img.width / img.height;
+        const canvasRatio = cw / ch;
+
+        let renderW, renderH;
+        if (imgRatio > canvasRatio) {
+          renderH = ch * scale;
+          renderW = renderH * imgRatio;
+        } else {
+          renderW = cw * scale;
+          renderH = renderW / imgRatio;
+        }
+
+        const offsetX = (cw - renderW) / 2 + panX;
+        const offsetY = (ch - renderH) / 2 + panY;
+
+        ctx.drawImage(img, offsetX, offsetY, renderW, renderH);
+
+        // Subtle vignette shadow
+        const vig = ctx.createRadialGradient(cw / 2, ch / 2, ch * 0.35, cw / 2, ch / 2, ch * 0.75);
+        vig.addColorStop(0, 'rgba(0,0,0,0)');
+        vig.addColorStop(1, 'rgba(0,0,0,0.45)');
+        ctx.fillStyle = vig;
+        ctx.fillRect(0, 0, cw, ch);
+
+        ctx.restore();
+      };
+
+      const step = () => {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        const elapsed = (now - startTime) / 1000;
+
+        if (this.p2vLog) {
+          const pct = Math.min(100, Math.round((elapsed / totalDur) * 100));
+          this.p2vLog.textContent = `Rendering Photo Slideshow… ${pct}%`;
+        }
+
+        // Determine current photo index and progress
+        const currentIdx = Math.min(this.p2vImages.length - 1, Math.floor(elapsed / durPerPhoto));
+        const photoElapsed = elapsed - currentIdx * durPerPhoto;
+        const progress = Math.min(1, photoElapsed / durPerPhoto);
+
+        ctx.fillStyle = '#0e0a2b';
+        ctx.fillRect(0, 0, W, H);
+
+        // Previous photo in crossfade
+        if (photoElapsed < transDur && currentIdx > 0) {
+          const prevImg = this.p2vImages[currentIdx - 1].img;
+          drawCoverImage(prevImg, 1.0, 1.0);
+          const currentImg = this.p2vImages[currentIdx].img;
+          drawCoverImage(currentImg, progress, photoElapsed / transDur);
+        } else {
+          const currentImg = this.p2vImages[currentIdx].img;
+          drawCoverImage(currentImg, progress, 1.0);
+        }
+
+        // Draw caption overlay
+        const captionText = globalCaption || `Photo ${currentIdx + 1} of ${this.p2vImages.length}`;
+        ctx.save();
+        ctx.fillStyle = 'rgba(27, 22, 70, 0.72)';
+        ctx.strokeStyle = '#B9A6E8';
+        ctx.lineWidth = 1;
+        const padX = 24;
+        const padY = 10;
+        ctx.font = '600 24px "Poppins", "Noto Sans Devanagari", sans-serif';
+        const txtWidth = ctx.measureText(captionText).width;
+        const boxW = txtWidth + padX * 2;
+        const boxH = 46;
+        const boxX = (W - boxW) / 2;
+        const boxY = H - 90;
+
+        // Rounded pill badge
+        ctx.beginPath();
+        const r = 16;
+        ctx.moveTo(boxX + r, boxY);
+        ctx.arcTo(boxX + boxW, boxY, boxX + boxW, boxY + boxH, r);
+        ctx.arcTo(boxX + boxW, boxY + boxH, boxX, boxY + boxH, r);
+        ctx.arcTo(boxX, boxY + boxH, boxX, boxY, r);
+        ctx.arcTo(boxX, boxY, boxX + boxW, boxY, r);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#F3F0F8';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(captionText, W / 2, boxY + boxH / 2);
+        ctx.restore();
+
+        if (elapsed < totalDur) {
+          requestAnimationFrame(step);
+        } else {
+          mr.stop();
+        }
+      };
+
+      requestAnimationFrame(step);
+    });
+  }
+
+  showP2VResult(blob) {
+    if (this.p2vBlobUrl && typeof URL !== 'undefined') {
+      URL.revokeObjectURL(this.p2vBlobUrl);
+    }
+    this.p2vBlobUrl = URL.createObjectURL(blob);
+
+    if (this.p2vCanvas) {
+      this.p2vCanvas.classList.add('hide');
+      this.p2vCanvas.style.display = 'none';
+    }
+
+    if (this.p2vVideo) {
+      this.p2vVideo.classList.remove('hide');
+      this.p2vVideo.style.display = 'block';
+      this.p2vVideo.src = this.p2vBlobUrl;
+      this.p2vVideo.play().catch(() => {});
+    }
+
+    if (this.p2vDownload) {
+      this.p2vDownload.href = this.p2vBlobUrl;
+      this.p2vDownload.classList.remove('hide');
+      this.p2vDownload.style.display = 'inline-flex';
+      this.p2vDownload.download = 'photo-slideshow.webm';
+    }
+  }
+
+  // --- AI VIDEO GENERATION (ONLINE) ---
+  bindAI() {
+    if (!this.btnAIVideo) return;
+
+    this.btnAIVideo.addEventListener('click', async () => {
+      this.btnAIVideo.disabled = true;
+      if (window.soundFX) window.soundFX.click();
+
+      try {
+        const token = (this.tokenEl ? this.tokenEl.value.trim() : '') || this.ls('hf_token') || this.ls('jarvis_setting_hf_token') || '';
+        const prompt = (this.aiPrompt ? this.aiPrompt.value.trim() : '') || (this.promptEl ? this.promptEl.value.trim() : '');
+
+        if (!token) {
+          throw new Error('Please configure a Hugging Face token in Settings or the Token field.');
+        }
+        this.ls('hf_token', token);
+
+        if (!prompt) {
+          throw new Error('Please enter a prompt description for the video.');
+        }
+
+        const firstModel = (this.midEl ? this.midEl.value.trim() : '') || this.models[0];
+        const isAutoFailover = this.fbEl ? this.fbEl.checked : true;
+        const modelList = isAutoFailover
+          ? [firstModel, ...this.models.filter(m => m !== firstModel)]
+          : [firstModel];
+
+        let successBlob = null;
+        for (const m of modelList) {
+          try {
+            if (this.aiLog) {
+              this.aiLog.textContent = `Synthesizing AI video with ${m}… (1 - 3 mins)`;
+            }
+            successBlob = await this.aiVideo(m, prompt, token);
+            break;
+          } catch (err) {
+            console.warn(`Model ${m} failed:`, err.message);
+          }
+        }
+
+        if (successBlob) {
+          this.show(successBlob);
+          if (this.aiLog) this.aiLog.textContent = 'AI video generated successfully! ✓';
+          if (window.soundFX) window.soundFX.success();
+        } else {
+          const failMsg = 'Free AI video is unavailable right now. Use Cartoon Story Maker instead.';
+          if (this.aiLog) this.aiLog.textContent = '⚠️ ' + failMsg;
+          if (window.app && window.app.showToast) window.app.showToast('⚠️ ' + failMsg);
+          if (window.soundFX) window.soundFX.error();
+        }
+      } catch (err) {
+        const failMsg = 'Free AI video is unavailable right now. Use Cartoon Story Maker instead.';
+        if (this.aiLog) this.aiLog.textContent = '⚠️ ' + failMsg + ' (' + err.message + ')';
+        if (window.app && window.app.showToast) window.app.showToast('⚠️ ' + failMsg);
+        if (window.soundFX) window.soundFX.error();
+      } finally {
+        this.btnAIVideo.disabled = false;
+      }
+    });
+  }
+
+  async aiVideo(model, prompt, token) {
+    const res = await fetch('https://router.huggingface.co/hf-inference/models/' + model, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ inputs: prompt })
+    });
+
+    if (!res.ok) {
+      const errMsg = (await res.text()).slice(0, 160);
+      throw new Error(model + ' → HTTP ' + res.status + ' ' + errMsg);
+    }
+
+    const blob = await res.blob();
+    if (!/video/.test(blob.type)) {
+      throw new Error(model + ' returned non-video response (' + (blob.type || 'empty') + ')');
+    }
+    return blob;
   }
 }
 

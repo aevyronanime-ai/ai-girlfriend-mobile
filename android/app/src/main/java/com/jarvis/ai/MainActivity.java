@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SystemLauncherPlugin.class);
         super.onCreate(savedInstanceState);
         handleStopAction(getIntent());
+        setupDownloadListener();
     }
 
     @Override
@@ -25,5 +26,22 @@ public class MainActivity extends BridgeActivity {
                 JarvisAccessibilityService.getInstance().stopAll();
             }
         }
+    }
+
+    private void setupDownloadListener() {
+        try {
+            if (getBridge() != null && getBridge().getWebView() != null) {
+                getBridge().getWebView().setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
+                    try {
+                        android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+                        intent.setData(android.net.Uri.parse(url));
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                    } catch (Exception e) {
+                        android.widget.Toast.makeText(MainActivity.this, "Download: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+        } catch (Exception ignored) {}
     }
 }

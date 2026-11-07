@@ -13,6 +13,9 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Phone Calls & Communication -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+
     <!-- Vision & Image Upload -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.FLASHLIGHT" />
@@ -24,6 +27,7 @@
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <!-- Package Visibility for Android 11+ & Android 15 (Chrome & YouTube Intent Resolution) -->
     <queries>

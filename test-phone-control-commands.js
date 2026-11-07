@@ -78,6 +78,11 @@ async function runTests() {
   const torchRes = await launcher.toggleTorch(true);
   assert(torchRes && torchRes.success && torchRes.enabled === true, 'toggleTorch turns ON');
 
+  // Test 4b: Phone Call Intent
+  const callResDirect = await launcher.makeCall('+919876543210');
+  assert(callResDirect && callResDirect.success, 'makeCall executes successfully');
+  assert(globalMock.window._lastOpenedUrl && globalMock.window._lastOpenedUrl.startsWith('tel:'), 'makeCall formats tel: URI correctly');
+
   // Test 5: executeStructuredCommand - Intent Action Announcement
   globalMock.window._lastSpoken = null;
   const cmdRes = await launcher.executeStructuredCommand({

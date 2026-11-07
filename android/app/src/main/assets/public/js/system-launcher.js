@@ -134,6 +134,26 @@ class SystemLauncher {
     return { success: true, message: msg };
   }
 
+  // Make phone call or open dialer
+  async makeCall(phone = '') {
+    const cleanPhone = String(phone || '').trim();
+    if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.makeCall) {
+      try {
+        return await window.Capacitor.Plugins.SystemLauncher.makeCall({ phone: cleanPhone });
+      } catch (e) {
+        console.warn('Native makeCall failed:', e);
+      }
+    }
+    if (typeof window !== 'undefined' && cleanPhone) {
+      try {
+        window.open('tel:' + encodeURIComponent(cleanPhone), '_system');
+      } catch (e) {}
+    }
+    const msg = cleanPhone ? `Calling: ${cleanPhone}` : 'Opened phone dialer';
+    if (window.app) window.app.showToast(msg);
+    return { success: true, message: msg };
+  }
+
   // Unified Structured Command Executor (Intents + Accessibility + Confirmation)
   async executeStructuredCommand(rawCommand) {
     let cmd = rawCommand;
@@ -231,6 +251,13 @@ class SystemLauncher {
         result = await this.openCamera();
         break;
       }
+      case 'call':
+      case 'call_phone':
+      case 'make_call':
+      case 'dial': {
+        result = await this.makeCall(target || text);
+        break;
+      }
       case 'toggle_torch':
       case 'torch':
       case 'flashlight': {
@@ -255,7 +282,7 @@ class SystemLauncher {
     }
 
     // Record audit log for Intent actions (Accessibility commands log inside executeAccessibilityCommand)
-    const isIntentAction = ['open_app', 'launch_app', 'search_google', 'google_search', 'search_youtube', 'youtube_search', 'open_website', 'open_url', 'open_whatsapp', 'whatsapp', 'open_camera', 'camera', 'toggle_torch', 'torch', 'flashlight'].includes(action);
+    const isIntentAction = ['open_app', 'launch_app', 'search_google', 'google_search', 'search_youtube', 'youtube_search', 'open_website', 'open_url', 'open_whatsapp', 'whatsapp', 'open_camera', 'camera', 'call', 'call_phone', 'make_call', 'dial', 'toggle_torch', 'torch', 'flashlight'].includes(action);
     if (isIntentAction) {
       this.addAuditLog({
         action,

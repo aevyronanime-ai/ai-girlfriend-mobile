@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2D Cartoon Story Maker</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<h1>2D Cartoon Story Maker</h1>
+
+<label for="script">Story script</label>
+<textarea id="script" spellcheck="false">TITLE: कुएँ वाली रात
+CHAR: Ravi | boy
+CHAR: Meena | girl
+CHAR: Dadi | elder
+[village night]
+Narrator: बहुत पुरानी बात है, एक छोटे से गाँव में रात उतर रही थी।
+Ravi: (scared) मीना, तुमने वो आवाज़ सुनी? कुएँ की तरफ़ से कोई बुला रहा है!
+Meena: डरो मत रवि, चलो चलकर देखते हैं।
+[well night fog]
+Narrator: दोनों बच्चे धीरे-धीरे कुएँ के पास पहुँचे।
+Ravi: (surprised) अरे! यहाँ तो एक छोटी बिल्ली फँसी है!
+Meena: (happy) हम इसे बचा लेंगे!
+[house night]
+Dadi: शाबाश बच्चो! आज तुमने बहुत हिम्मत दिखाई।
+Narrator: और उस रात पूरे गाँव ने चैन की नींद ली।</textarea>
+
+<details>
+<summary>Script format</summary>
+<p><code>TITLE: text</code> title card<br>
+<code>CHAR: Name | boy</code> (boy, girl, man, woman, elder)<br>
+<code>[village night]</code> new scene. Words: village, forest, house, well, road, river, night, day, fog<br>
+<code>Name: dialogue</code> a character speaks. <code>Narrator: text</code> or a plain line is narration<br>
+<code>(scared)</code> before dialogue sets emotion: happy, sad, scared, angry, surprised</p>
+</details>
+
+<div class="row">
+  <div><label for="ratio">Size</label>
+    <select id="ratio"><option value="p">Vertical 9:16</option><option value="l">Horizontal 16:9</option></select></div>
+  <div><label for="engine">Voice</label>
+    <select id="engine">
+      <option value="device">Device voice (preview only)</option>
+      <option value="hf">AI voice (recorded in video)</option>
+      <option value="none">No voice</option>
+    </select></div>
+</div>
+
+<div id="hfOpts" class="hide">
+  <label for="token">Hugging Face token (free account)</label>
+  <input id="token" type="password" placeholder="hf_...">
+  <label for="tmodel">TTS model ID</label>
+  <input id="tmodel" type="text" value="facebook/mms-tts-hin">
+</div>
+
+<div class="row">
+  <button id="prev" class="alt">Preview</button>
+  <button id="rec">Record video</button>
+</div>
+<button id="stop" class="alt hide">Stop</button>
+<div id="log"></div>
+<div id="stage"><canvas id="cv"></canvas><video id="out" class="hide" controls playsinline></video></div>
+<a id="dl" class="dl hide" download="story.webm">Download video</a>
+
+<script src="js/core.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/background.js"></script>
+<script src="js/characters.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/voice.js"></script>
+<script src="js/player.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
