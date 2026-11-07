@@ -140,16 +140,24 @@ class DeveloperStudioController {
       });
     }
 
-    // PIN Unlock
-    if (this.btnDevVerifyPin && this.devStudioPinInput && window.StudioEngine) {
-      this.btnDevVerifyPin.addEventListener('click', () => {
+    // Password / PIN Unlock
+    if (this.btnDevVerifyPin && this.devStudioPinInput) {
+      this.btnDevVerifyPin.addEventListener('click', async () => {
         const pin = this.devStudioPinInput.value.trim();
-        if (window.StudioEngine.verifyPin(pin)) {
+        let ok = false;
+        if (window.DevAssistant && window.DevAssistant.checkPasswordUnlock) {
+          ok = await window.DevAssistant.checkPasswordUnlock(pin);
+        }
+        if (!ok && window.StudioEngine && window.StudioEngine.verifyPin(pin)) {
+          ok = true;
+          if (window.DevAssistant) window.DevAssistant.isUnlocked = true;
+        }
+        if (ok) {
           if (this.devStudioPinModal) this.devStudioPinModal.style.display = 'none';
-          if (window.app) window.app.showToast('🔓 Studio Unlocked');
+          if (window.app) window.app.showToast('🔓 Dev Assistant & Studio Unlocked');
           this.devStudioPinInput.value = '';
         } else {
-          alert('❌ गलत PIN! कृपया सही PIN डालें। (डिफ़ॉल्ट PIN: 1234)');
+          alert('❌ गलत पासवर्ड! कृपया सही पासवर्ड दर्ज करें।');
           this.devStudioPinInput.value = '';
         }
       });

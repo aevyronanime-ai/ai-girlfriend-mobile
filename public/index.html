@@ -988,6 +988,82 @@
             </div>
           </div>
 
+          <!-- Dev Assistant: Diagnostics & Self-Healing Panel -->
+          <div class="settings-section-card" style="padding:16px; margin-bottom:16px; border:1px solid var(--accent-lavender); background:linear-gradient(135deg, rgba(42,31,92,0.6), rgba(27,22,70,0.85));">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+              <div>
+                <h3 style="font-size:1rem; color:var(--accent-sakura); margin:0; display:flex; align-items:center; gap:6px;">
+                  <span>🤖 Dev Assistant (Self-Healing &amp; Diagnostics)</span>
+                </h3>
+                <p style="font-size:0.75rem; color:var(--text-secondary); margin:2px 0 0;">समस्या बोलें या लिखें ("वीडियो नहीं बन रहा", "आवाज़ नहीं आ रही"), जाँचें और AI से सीधा Hotpatch लगाएँ।</p>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button class="chip-btn" id="btnDevChangePwd" style="background:rgba(255,255,255,0.08); font-size:0.72rem; padding:4px 10px;">🔑 Change Password</button>
+                <button class="chip-btn" id="btnDevUndoAllPatches" style="background:#ffaa00; color:#000; font-weight:700; font-size:0.72rem; padding:4px 10px;">↩️ Undo All Patches</button>
+              </div>
+            </div>
+
+            <!-- Problem Input Box & Voice Mic -->
+            <div class="form-group" style="margin-bottom:10px;">
+              <div style="display:flex; gap:6px;">
+                <textarea id="devProblemInput" class="form-control" rows="2" placeholder="समस्या का विवरण दें... (उदा. वीडियो नहीं बन रहा, इमेज जनरेट नहीं हो रही, आवाज़ नहीं आ रही)" style="flex:1; font-size:0.82rem;"></textarea>
+                <button class="chip-btn" id="btnDevProblemMic" title="बोलकर समस्या बताएँ" style="width:44px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; background:var(--accent-sakura); color:#1B1646;">🎙️</button>
+              </div>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
+              <button class="chip-btn" id="btnDevRunFullCheck" style="background:var(--accent-lavender); color:#1B1646; font-weight:700; padding:8px 14px; font-size:0.8rem;">
+                <span>🔍 Run Full Check</span>
+              </button>
+              <button class="chip-btn" id="btnDevDiagnose" style="background:linear-gradient(135deg, var(--accent-sakura), var(--accent-lavender)); color:#1B1646; font-weight:700; padding:8px 14px; font-size:0.8rem;">
+                <span>⚡ Diagnose &amp; Generate Fix</span>
+              </button>
+            </div>
+
+            <!-- Diagnostics Results Grid -->
+            <div style="font-size:0.75rem; font-weight:700; color:var(--accent-lavender); margin-bottom:6px;">📊 System Status &amp; Diagnostics Grid:</div>
+            <div id="devDiagnosticsGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px; margin-bottom:14px;">
+              <div style="color:var(--text-muted); font-size:0.75rem;">Click "Run Full Check" to inspect Chat, Voice, Image, Video, Phone Control &amp; Network.</div>
+            </div>
+
+            <!-- Fix Proposal Card (Appears after diagnosis) -->
+            <div id="devFixProposalCard" style="display:none; background:rgba(0,0,0,0.5); border:1px solid var(--accent-sakura); border-radius:var(--radius-md); padding:12px; margin-bottom:14px;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                <span style="font-weight:700; font-size:0.85rem; color:var(--accent-sakura);">💡 AI Root Cause &amp; Solution:</span>
+              </div>
+              <div id="devFixCauseText" style="font-size:0.8rem; font-weight:600; color:var(--text-primary); margin-bottom:4px;"></div>
+              <div id="devFixSummaryText" style="font-size:0.75rem; color:var(--accent-lavender); margin-bottom:10px;"></div>
+
+              <!-- Hotpatch Code Preview -->
+              <div id="devFixCodeContainer" style="display:none; margin-bottom:10px;">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px;">Proposed Hotpatch Code (Preview):</div>
+                <pre id="devFixCodePreview" style="background:#09061a; border:1px solid #4a3d85; border-radius:var(--radius-sm); padding:8px; font-size:0.72rem; max-height:160px; overflow:auto; color:#F4C2D7; white-space:pre-wrap;"></pre>
+              </div>
+
+              <!-- Native Steps Container -->
+              <div id="devFixNativeContainer" style="display:none; margin-bottom:10px;">
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:4px;">Required Native / User Steps:</div>
+                <pre id="devFixNativeSteps" style="background:#09061a; border:1px solid #4a3d85; border-radius:var(--radius-sm); padding:8px; font-size:0.75rem; max-height:160px; overflow:auto; color:var(--text-primary); white-space:pre-wrap;"></pre>
+              </div>
+
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="chip-btn" id="btnDevApplyHotpatch" style="background:var(--accent-sakura); color:#1B1646; font-weight:700; font-size:0.78rem; padding:6px 14px;">
+                  <span>✅ Apply Hotpatch (Safe Mode)</span>
+                </button>
+                <button class="chip-btn" id="btnDevRejectHotpatch" style="background:rgba(255,255,255,0.1); color:#fff; font-size:0.78rem; padding:6px 12px;">
+                  <span>❌ Reject</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Active Hotpatch History -->
+            <div style="font-size:0.75rem; font-weight:700; color:var(--accent-lavender); margin-bottom:6px;">📜 Active Hotpatches &amp; Safe Mode History:</div>
+            <div id="devPatchHistoryList" style="max-height:140px; overflow-y:auto;">
+              <div style="color:var(--text-muted); font-size:0.75rem;">कोई Hotpatch लागू नहीं किया गया है।</div>
+            </div>
+          </div>
+
           <!-- Test Results Box -->
           <div id="devTestResults" style="display:none; background:#000; border:1px solid var(--neon-cyan); padding:10px; border-radius:var(--radius-md); font-family:monospace; font-size:0.75rem; white-space:pre-wrap; margin-bottom:12px; max-height:160px; overflow-y:auto; color:var(--neon-cyan);"></div>
 
@@ -1182,6 +1258,7 @@
 
 <!-- Scripts -->
 <script src="/js/client-ai.js"></script>
+<script src="/js/dev-assistant.js"></script>
 <script src="/js/studio-engine.js"></script>
 <script src="/js/audio-fx.js"></script>
 <script src="/js/system-launcher.js"></script>

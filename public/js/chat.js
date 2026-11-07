@@ -280,6 +280,19 @@ class ChatController {
 
     if (!message && !hasImage) return;
 
+    // Secret Dev Assistant Unlock Password Interception
+    if (message && window.DevAssistant && typeof window.DevAssistant.checkPasswordUnlock === 'function') {
+      const isUnlock = await window.DevAssistant.checkPasswordUnlock(message);
+      if (isUnlock) {
+        if (this.chatInput) {
+          this.chatInput.value = '';
+          this.chatInput.style.height = 'auto';
+        }
+        this.clearAttachedImage();
+        return; // Secret password intercepted: NOT sent to AI, NOT logged in chat history
+      }
+    }
+
     if (window.soundFX) window.soundFX.click();
 
     // Clear input
