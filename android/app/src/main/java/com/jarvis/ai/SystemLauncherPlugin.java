@@ -4,6 +4,8 @@ import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.speech.tts.TextToSpeech;
+import java.util.Locale;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -145,5 +147,75 @@ public class SystemLauncherPlugin extends Plugin {
         } catch (Exception ex) {
             call.reject("Failed to open YouTube: " + ex.getMessage());
         }
+    }
+
+    private TextToSpeech tts;
+    private boolean ttsReady = false;
+
+    private void ensureTts() {
+        if (tts == null) {
+            try {
+                tts = new TextToSpeech(getContext(), status -> {
+                    if (status == TextToSpeech.SUCCESS) {
+                        ttsReady = true;
+                    }
+                });
+            } catch (Exception e) {
+                ttsReady = false;
+            }
+        }
+    }
+
+    /**
+     * Speak text using Android Native TextToSpeech engine
+     */
+    @PluginMethod
+    public void speakText(PluginCall call) {
+        String text = call.getString("text", "").trim();
+        String lang = call.getString("lang", "hi");
+        float pitch = call.getFloat("pitch", 1.25f);
+        float rate = call.getFloat("rate", 0.98f);
+
+        if (text.isEmpty()) {
+            call.resolve();
+            return;
+        }
+
+        ensureTts();
+
+        if (tts != null) {
+            try {
+                Locale locale = lang.startsWith("hi") ? new Locale("hi", "IN") : Locale.US;
+                tts.setLanguage(locale);
+                tts.setPitch(pitch);
+                tts.setSpeechRate(rate);
+                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "jarvis_native_" + System.currentTimeMillis());
+
+                JSObject ret = new JSObject();
+                ret.put("success", true);
+                ret.put("message", "Speaking text natively");
+                call.resolve(ret);
+                return;
+            } catch (Exception e) {
+                call.reject("TTS Speak failed: " + e.getMessage());
+                return;
+            }
+        }
+        call.reject("Android TextToSpeech not initialized");
+    }
+
+    /**
+     * Stop Android Native TextToSpeech playback
+     */
+    @PluginMethod
+    public void stopSpeech(PluginCall call) {
+        if (tts != null) {
+            try {
+                tts.stop();
+            } catch (Exception ignored) {}
+        }
+        JSObject ret = new JSObject();
+        ret.put("success", true);
+        call.resolve(ret);
     }
 }

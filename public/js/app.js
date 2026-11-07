@@ -322,17 +322,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.settingsManager = new SettingsController();
   window.developerStudio = new DeveloperStudioController();
 
-  // Auto-speak audio toggle state & listener
-  window.autoSpeakEnabled = false;
+  // Auto-voice reply (TTS) default ON
+  const savedAutoVoice = (typeof localStorage !== 'undefined') ? localStorage.getItem('jarvis_setting_auto_voice_reply') : null;
+  window.autoVoiceReplyEnabled = (savedAutoVoice !== 'false');
+  window.autoSpeakEnabled = window.autoVoiceReplyEnabled;
+
   const autoSpeakBtn = document.getElementById('btnToggleAutoSpeak');
   if (autoSpeakBtn) {
+    autoSpeakBtn.textContent = window.autoSpeakEnabled ? '🔊' : '🔇';
+    autoSpeakBtn.style.color = window.autoSpeakEnabled ? 'var(--neon-cyan)' : 'var(--text-muted)';
     autoSpeakBtn.addEventListener('click', () => {
       window.autoSpeakEnabled = !window.autoSpeakEnabled;
+      window.autoVoiceReplyEnabled = window.autoSpeakEnabled;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('jarvis_setting_auto_voice_reply', String(window.autoSpeakEnabled));
+      }
+      const settingToggle = document.getElementById('settingAutoVoiceReply');
+      if (settingToggle) settingToggle.checked = window.autoSpeakEnabled;
       autoSpeakBtn.textContent = window.autoSpeakEnabled ? '🔊' : '🔇';
       autoSpeakBtn.style.color = window.autoSpeakEnabled ? 'var(--neon-cyan)' : 'var(--text-muted)';
       if (window.soundFX) window.soundFX.click();
       if (window.app) {
-        window.app.showToast(window.autoSpeakEnabled ? 'Auto-Speak Enabled (TTS ON)' : 'Auto-Speak Muted (TTS OFF)');
+        window.app.showToast(window.autoSpeakEnabled ? 'Auto-Voice Reply Enabled (TTS ON)' : 'Auto-Voice Reply Muted (TTS OFF)');
       }
     });
   }
@@ -381,6 +392,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const chatMicBtn = document.getElementById('chatMicBtn');
   if (chatMicBtn) {
     chatMicBtn.addEventListener('click', () => {
+      if (window.voiceAssistant) {
+        window.voiceAssistant.unlockAudio();
+      }
       // If on chat pane, switch to voice or toggle voice input
       window.app.switchTab('voice');
       if (window.voiceAssistant) window.voiceAssistant.toggleListening();
@@ -390,7 +404,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const stopVoiceBtn = document.getElementById('btnStopVoice');
   if (stopVoiceBtn) {
     stopVoiceBtn.addEventListener('click', () => {
-      if (window.voiceAssistant) window.voiceAssistant.stopSpeaking();
+      if (window.voiceAssistant) window.voiceAssistant.stopSpeaking(true);
     });
   }
 });

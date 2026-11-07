@@ -586,31 +586,43 @@ html, body {
   margin: 8px 0;
 }
 
-/* Message Action Buttons (Copy, Speak) */
+/* Message Action Buttons (Copy, Speak, Share) - ChatGPT style, always visible on mobile */
 .msg-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
-  margin-top: 6px;
-  opacity: 0.85;
+  margin-top: 8px;
+  opacity: 1 !important;
+  flex-wrap: wrap;
 }
 
 .msg-action-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 6px;
+  gap: 5px;
+  padding: 4px 10px;
   border-radius: var(--radius-sm);
   transition: all 0.2s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.msg-action-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+.msg-action-btn:hover, .msg-action-btn:active {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: rgba(0, 240, 255, 0.5);
   color: var(--neon-cyan);
+}
+
+.msg-action-btn.copied {
+  background: rgba(0, 255, 136, 0.2) !important;
+  border-color: #00ff88 !important;
+  color: #00ff88 !important;
+  font-weight: 600;
 }
 
 /* Chat Input Bar */

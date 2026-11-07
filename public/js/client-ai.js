@@ -231,9 +231,10 @@ Always detect and mirror the language and tone of the user's query naturally.`;
         persona: 'girlfriend',
         user_name: 'Commander',
         custom_system_prompt: '',
-        voice_rate: '1.0',
-        voice_pitch: '1.15',
-        sound_fx: 'true'
+        voice_rate: '0.98',
+        voice_pitch: '1.25',
+        sound_fx: 'true',
+        auto_voice_reply: 'true'
       };
 
       try {

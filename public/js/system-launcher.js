@@ -57,6 +57,29 @@ class SystemLauncher {
     window.open(targetUrl, '_blank');
     return { success: true, query: cleanQuery, message: cleanQuery ? `Searching YouTube for: ${cleanQuery}` : 'Opened YouTube' };
   }
+
+  // Speak using native Android TTS if available
+  async speakText({ text, lang = 'hi', pitch = 1.25, rate = 0.98 }) {
+    if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.speakText) {
+      try {
+        return await window.Capacitor.Plugins.SystemLauncher.speakText({ text, lang, pitch, rate });
+      } catch (e) {
+        console.warn('Native speakText failed:', e);
+      }
+    }
+    return null;
+  }
+
+  // Stop native Android TTS playback
+  async stopSpeech() {
+    if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.stopSpeech) {
+      try {
+        return await window.Capacitor.Plugins.SystemLauncher.stopSpeech();
+      } catch (e) {}
+    }
+    return null;
+  }
 }
 
 window.systemLauncher = new SystemLauncher();
+

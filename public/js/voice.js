@@ -1,29 +1,67 @@
-// Advanced Universal Multilingual Voice Assistant (STT + Real-Time Language Detection + Multilingual TTS)
+// Advanced Universal Multilingual Voice Assistant (STT + Real-Time Language Detection + Multilingual Female TTS + Native Bridge)
 class VoiceAssistant {
   constructor() {
     this.recognition = null;
+    this.state = 'IDLE'; // 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING'
     this.isListening = false;
     this.isSpeaking = false;
-    this.synth = window.speechSynthesis;
+    this.synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
     this.voices = [];
     this.selectedVoice = null;
-    this.rate = 1.0;
-    this.pitch = 1.0;
+    this.rate = 0.98; // Natural conversational rate (0.95 - 1.0)
+    this.pitch = 1.25; // Sweet, soft female voice pitch (1.2 - 1.3)
     this.sttLang = 'hi-IN'; // Default speech recognition (accepts Hindi, English, Hinglish)
     this.lastDetectedLang = null;
+    this.speechQueue = [];
+    this.currentLanguageInfo = null;
+    this.keepAliveTimer = null;
+    this._audioUnlocked = false;
+    this._hindiVoiceNotified = false;
 
     this.initRecognition();
     this.loadVoices();
+    this.setupAudioUnlock();
+  }
+
+  setState(s) {
+    this.state = s;
+    this.isListening = (s === 'LISTENING');
+    this.isSpeaking = (s === 'SPEAKING');
+    if (window.orb) window.orb.setState(s);
+    const orbOverlay = document.getElementById('orbStateText');
+    if (orbOverlay) orbOverlay.textContent = s;
+  }
+
+  setupAudioUnlock() {
+    const unlock = () => this.unlockAudio();
+    if (typeof document !== 'undefined') {
+      document.addEventListener('click', unlock, { once: true, passive: true });
+      document.addEventListener('touchstart', unlock, { once: true, passive: true });
+    }
+  }
+
+  unlockAudio() {
+    if (this._audioUnlocked) return;
+    this._audioUnlocked = true;
+    try {
+      if (this.synth) {
+        this.synth.resume();
+        const dummy = new SpeechSynthesisUtterance(' ');
+        dummy.volume = 0.01;
+        dummy.rate = 2.0;
+        this.synth.speak(dummy);
+      }
+    } catch (e) {}
   }
 
   loadVoices() {
     if (!this.synth) return;
     const updateVoices = () => {
-      this.voices = this.synth.getVoices();
+      this.voices = this.synth.getVoices() || [];
       // Populate settings voice dropdown if available
       const voiceSelect = document.getElementById('settingVoiceSelect');
       if (voiceSelect && this.voices.length > 0) {
-        voiceSelect.innerHTML = '<option value="">Auto-Detect Language (Recommended)</option>';
+        voiceSelect.innerHTML = '<option value="">Auto-Detect Language & Sweet Female Voice (Recommended)</option>';
         this.voices.forEach((v, i) => {
           const opt = document.createElement('option');
           opt.value = i;
@@ -41,7 +79,7 @@ class VoiceAssistant {
   // --- UNIVERSAL AUTOMATIC LANGUAGE DETECTOR ---
   detectLanguage(text) {
     if (!text || typeof text !== 'string') {
-      return { code: 'en-US', name: 'English', bcp47: 'en-US', family: 'en' };
+      return { code: 'hi-IN', name: 'Hindi', bcp47: 'hi-IN', family: 'hi' };
     }
 
     // 1. Assamese distinctive characters: ৰ (\u09F0), ৱ (\u09F1)
@@ -107,22 +145,22 @@ class VoiceAssistant {
       return { code: 'or-IN', name: 'Odia', bcp47: 'or-IN', family: 'or' };
     }
 
-    // 13. Japanese (Hiragana \u3040-\u309F or Katakana \u30A0-\u30FF)
+    // 13. Japanese
     if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) {
       return { code: 'ja-JP', name: 'Japanese', bcp47: 'ja-JP', family: 'ja' };
     }
 
-    // 14. Chinese (CJK \u4E00-\u9FFF) without Japanese kana
+    // 14. Chinese
     if (/[\u4E00-\u9FFF]/.test(text)) {
       return { code: 'zh-CN', name: 'Chinese', bcp47: 'zh-CN', family: 'zh' };
     }
 
-    // 15. Russian (Cyrillic \u0400-\u04FF)
+    // 15. Russian
     if (/[\u0400-\u04FF]/.test(text)) {
       return { code: 'ru-RU', name: 'Russian', bcp47: 'ru-RU', family: 'ru' };
     }
 
-    // 16. Latin-based language differentiation (Spanish, German, French, Hinglish, English)
+    // 16. Latin-based language differentiation
     const lower = text.toLowerCase();
     if (/[¿¡ñáéíóú]/.test(lower) || /\b(hola|gracias|buenos|amigo|como|esta|por favor|adios)\b/.test(lower)) {
       return { code: 'es-ES', name: 'Spanish', bcp47: 'es-ES', family: 'es' };
@@ -143,47 +181,151 @@ class VoiceAssistant {
     return { code: 'en-US', name: 'English', bcp47: 'en-US', family: 'en' };
   }
 
-  // Find the most natural speech synthesis voice for a detected language
+  hasHindiVoice() {
+    if (!this.voices || this.voices.length === 0) return false;
+    return this.voices.some(v => v.lang && v.lang.toLowerCase().startsWith('hi'));
+  }
+
+  // Find sweet, soft, female-preferred voice for language
   getVoiceForLanguage(langInfo) {
     if (!this.voices || this.voices.length === 0) return null;
     const targetCode = langInfo.bcp47.toLowerCase();
     const family = (langInfo.family || targetCode.split('-')[0]).toLowerCase();
 
-    // 1. Exact match (e.g., 'bn-in')
-    let match = this.voices.find(v => v.lang.toLowerCase() === targetCode);
-    if (match) return match;
+    const isFemale = (v) => {
+      const n = (v.name + ' ' + (v.voiceURI || '')).toLowerCase();
+      return n.includes('female') || n.includes('google हिन्दी') || n.includes('woman') ||
+             n.includes('girl') || n.includes('sweet') || n.includes('lekha') ||
+             n.includes('kalpana') || n.includes('samantha') || n.includes('zira') ||
+             n.includes('victoria') || n.includes('karen') || n.includes('natural');
+    };
 
-    // 2. Language family match (e.g. startsWith 'bn' for Bengali, 'as' for Assamese, 'hi' for Hindi, 'ur' for Urdu)
-    match = this.voices.find(v => v.lang.toLowerCase().startsWith(family));
-    if (match) return match;
-
-    // Fallback for Hindi if device lacks native Hindi TTS: try Indian English (en-IN)
+    // 1. Hindi: prioritize female hi-IN voice (Google हिन्दी, female, etc.)
     if (family === 'hi') {
-      match = this.voices.find(v => v.lang.toLowerCase().startsWith('hi'));
-      if (match) return match;
-      match = this.voices.find(v => v.lang.toLowerCase().includes('en-in') || v.name.toLowerCase().includes('india'));
-      if (match) return match;
+      const hiFemale = this.voices.find(v => v.lang.toLowerCase().startsWith('hi') && isFemale(v));
+      if (hiFemale) return hiFemale;
+
+      const hiAny = this.voices.find(v => v.lang.toLowerCase().startsWith('hi'));
+      if (hiAny) return hiAny;
+
+      // Fallback: Indian English female voice
+      const inFemale = this.voices.find(v => (v.lang.toLowerCase().includes('en-in') || v.name.toLowerCase().includes('india')) && isFemale(v));
+      if (inFemale) return inFemale;
+
+      const inAny = this.voices.find(v => v.lang.toLowerCase().includes('en-in') || v.name.toLowerCase().includes('india'));
+      if (inAny) return inAny;
     }
 
-    // 3. Fallback for Assamese if no 'as' voice on device: Bengali voice or Indian voice
+    // 2. English & Hinglish: prioritize female voice (en-IN or en-US)
+    if (family === 'en' || family === 'hinglish') {
+      const enInFemale = this.voices.find(v => v.lang.toLowerCase().includes('en-in') && isFemale(v));
+      if (enInFemale) return enInFemale;
+
+      const enFemale = this.voices.find(v => v.lang.toLowerCase().startsWith('en') && isFemale(v));
+      if (enFemale) return enFemale;
+
+      const enAny = this.voices.find(v => v.lang.toLowerCase().startsWith('en'));
+      if (enAny) return enAny;
+    }
+
+    // 3. Fallback for Assamese if no 'as' voice: Bengali female voice
     if (family === 'as') {
-      match = this.voices.find(v => v.lang.toLowerCase().startsWith('bn'));
-      if (match) return match;
+      const bnFemale = this.voices.find(v => v.lang.toLowerCase().startsWith('bn') && isFemale(v));
+      if (bnFemale) return bnFemale;
     }
 
-    // 4. Fallback for Hinglish: Indian English voice (en-IN)
-    if (family === 'hinglish') {
-      match = this.voices.find(v => v.lang.toLowerCase().includes('en-in') || v.name.toLowerCase().includes('india'));
-      if (match) return match;
-    }
+    // 4. Exact match with female preference
+    const exactFemale = this.voices.find(v => v.lang.toLowerCase() === targetCode && isFemale(v));
+    if (exactFemale) return exactFemale;
 
-    // 5. User selected voice or default
-    return this.selectedVoice || this.voices[0];
+    const exact = this.voices.find(v => v.lang.toLowerCase() === targetCode);
+    if (exact) return exact;
+
+    // 5. Family match with female preference
+    const famFemale = this.voices.find(v => v.lang.toLowerCase().startsWith(family) && isFemale(v));
+    if (famFemale) return famFemale;
+
+    const fam = this.voices.find(v => v.lang.toLowerCase().startsWith(family));
+    if (fam) return fam;
+
+    return this.selectedVoice || this.voices.find(isFemale) || this.voices[0];
   }
 
-  hasHindiVoice() {
-    if (!this.voices || this.voices.length === 0) return false;
-    return this.voices.some(v => v.lang && v.lang.toLowerCase().startsWith('hi'));
+  // Clean text of emojis, markdown, links, and code blocks before speaking
+  cleanTextForSpeech(text) {
+    if (!text || typeof text !== 'string') return '';
+    let s = text;
+    // 1. Remove code blocks
+    s = s.replace(/```[\s\S]*?```/g, '');
+    // 2. Remove inline code backticks
+    s = s.replace(/`([^`]+)`/g, '$1');
+    // 3. Remove URLs
+    s = s.replace(/https?:\/\/\S+/gi, '');
+    // 4. Remove Markdown links [text](url) -> text
+    s = s.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    // 5. Remove Markdown headings
+    s = s.replace(/^#+\s+/gm, '');
+    // 6. Remove bold, italic, strikethrough (*, _, ~)
+    s = s.replace(/[*_~>#]/g, '');
+    // 7. Remove emojis using Unicode regex
+    s = s.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1FA00}-\u{1FAFF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}]/gu, '');
+    // 8. Collapse whitespace and newlines
+    s = s.replace(/\n+/g, '. ').replace(/\s+/g, ' ').trim();
+    return s;
+  }
+
+  // Split text into natural sentence chunks (max ~130 chars) so Chrome/Android TTS never stalls
+  splitIntoSentences(text) {
+    if (!text) return [];
+    // Split by Hindi purna viram (।), period (.), exclamation (!), question mark (?), or newline
+    const rawSentences = text.split(/([।!?.\n]+)/);
+    const sentences = [];
+    let current = '';
+
+    for (let i = 0; i < rawSentences.length; i++) {
+      const part = rawSentences[i].trim();
+      if (!part) continue;
+
+      if (/^[।!?.\n]+$/.test(part)) {
+        current += (current ? '' : '') + part;
+        if (current.trim()) {
+          sentences.push(current.trim());
+          current = '';
+        }
+      } else {
+        if (current) {
+          sentences.push(current.trim());
+        }
+        current = part;
+      }
+    }
+    if (current.trim()) {
+      sentences.push(current.trim());
+    }
+
+    // Ensure chunks don't exceed ~130 characters
+    const finalChunks = [];
+    for (const sent of sentences) {
+      if (sent.length <= 130) {
+        finalChunks.push(sent);
+      } else {
+        const subParts = sent.split(/([,;:\s]+)/);
+        let chunk = '';
+        for (const sp of subParts) {
+          if ((chunk + sp).length > 130 && chunk.trim()) {
+            finalChunks.push(chunk.trim());
+            chunk = sp;
+          } else {
+            chunk += sp;
+          }
+        }
+        if (chunk.trim()) {
+          finalChunks.push(chunk.trim());
+        }
+      }
+    }
+
+    return finalChunks.filter(c => c && c.length > 0);
   }
 
   initRecognition() {
@@ -199,9 +341,9 @@ class VoiceAssistant {
     this.recognition.lang = this.sttLang;
 
     this.recognition.onstart = () => {
-      this.isListening = true;
+      this.unlockAudio();
+      this.setState('LISTENING');
       if (window.soundFX) window.soundFX.activate();
-      if (window.orb) window.orb.setState('LISTENING');
       this.updateMicUI(true);
       const langName = this.getLangLabel(this.sttLang);
       this.setTranscriptText(`Listening... (Speak in ${langName} or any language)`);
@@ -225,23 +367,26 @@ class VoiceAssistant {
       }
 
       if (final) {
+        this.setState('THINKING');
         this.handleVoiceCommand(final.trim());
       }
     };
 
     this.recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
-      this.isListening = false;
+      this.setState('IDLE');
       this.updateMicUI(false);
-      if (window.orb) window.orb.setState('IDLE');
       this.setTranscriptText('Microphone paused: ' + event.error);
+      if (window.app && event.error !== 'no-speech') {
+        window.app.showToast('Mic Notice: ' + event.error);
+      }
     };
 
     this.recognition.onend = () => {
-      this.isListening = false;
       this.updateMicUI(false);
-      if (!this.isSpeaking && window.orb) {
-        window.orb.setState('IDLE');
+      // ONLY return to IDLE if we were listening and got no speech; do NOT override THINKING or SPEAKING!
+      if (this.state === 'LISTENING') {
+        this.setState('IDLE');
       }
     };
   }
@@ -283,8 +428,12 @@ class VoiceAssistant {
   }
 
   toggleListening() {
+    this.unlockAudio();
+
     if (!this.recognition) {
-      alert('Speech Recognition is not available. Please use Google Chrome or Android WebView with microphone permissions enabled.');
+      if (window.app) {
+        window.app.showToast('Speech Recognition is not available. Please allow microphone permissions.');
+      }
       return;
     }
 
@@ -292,13 +441,12 @@ class VoiceAssistant {
       this.recognition.stop();
     } else {
       try {
-        if (this.synth && this.synth.speaking) {
-          this.synth.cancel();
-        }
+        this.stopSpeaking(false);
         this.recognition.lang = this.sttLang;
         this.recognition.start();
       } catch (err) {
         console.error('Error starting recognition:', err);
+        if (window.app) window.app.showToast('Mic error: ' + err.message);
       }
     }
   }
@@ -411,7 +559,7 @@ class VoiceAssistant {
     }
 
     // 3. Real AI Multilingual Chat Processing
-    if (window.orb) window.orb.setState('THINKING');
+    this.setState('THINKING');
     this.setTranscriptText(`Thinking in your language: "${transcript}"...`);
 
     try {
@@ -453,7 +601,7 @@ class VoiceAssistant {
             if (window.chat) {
               window.chat.appendQuotaExhaustedCard(data.content, data.modelsAttempted);
             }
-            if (window.orb) window.orb.setState('IDLE');
+            this.setState('IDLE');
             return;
           }
 
@@ -475,20 +623,37 @@ class VoiceAssistant {
         reply = 'माफ़ कीजिए, मुझे Google AI से कोई जवाब नहीं मिला। कृपया दोबारा बोलें।';
       }
 
-      // Clean markdown tags for spoken audio
-      let cleanSpoken = reply
-        .replace(/```[\s\S]*?```/g, '')
-        .replace(/[#*`_>~]/g, '')
-        .replace(/\n+/g, ' ')
-        .trim();
+      // Display response in Voice tab with Copy button
+      const respCard = document.getElementById('voiceResponseCard');
+      const respText = document.getElementById('voiceResponseText');
+      const copyBtn = document.getElementById('btnVoiceCopyResponse');
 
-      if (!cleanSpoken) {
-        cleanSpoken = 'माफ़ कीजिए, मुझे आपकी बात का जवाब नहीं मिला। कृपया दोबारा बोलें।';
+      if (respCard && respText) {
+        respCard.style.display = 'block';
+        if (window.chat && typeof window.chat.renderMarkdown === 'function') {
+          respText.innerHTML = window.chat.renderMarkdown(reply);
+        } else {
+          respText.textContent = reply;
+        }
+
+        if (copyBtn) {
+          copyBtn.onclick = () => {
+            if (typeof window.copyTextWithFeedback === 'function') {
+              window.copyTextWithFeedback(reply, copyBtn);
+            } else if (navigator.clipboard) {
+              navigator.clipboard.writeText(reply).then(() => {
+                copyBtn.innerHTML = 'Copied ✓';
+                setTimeout(() => { copyBtn.innerHTML = '📋 Copy'; }, 2500);
+              });
+            }
+          };
+        }
       }
 
-      this.setTranscriptText(cleanSpoken.slice(0, 300));
-      // Speak back in the EXACT same language that was received!
-      this.speak(cleanSpoken);
+      this.setTranscriptText(reply.slice(0, 180) + (reply.length > 180 ? '...' : ''));
+
+      // Automatically speak the response aloud
+      this.speak(reply);
 
       // Append to chat history
       if (window.chat && activeSessionId) {
@@ -500,76 +665,172 @@ class VoiceAssistant {
         : 'त्रुटि: ' + err.message;
       this.setTranscriptText(errNotice.slice(0, 300));
       this.speak('माफ़ कीजिए, कनेक्शन एरर आया है। कृपया इंटरनेट चेक करें।');
-      if (window.orb) window.orb.setState('IDLE');
+      this.setState('IDLE');
+      if (window.app) window.app.showToast('Voice Error: ' + err.message);
     }
   }
 
-  // Universal Text-to-Speech (TTS) with Auto-Language Routing
-  speak(text) {
-    if (!this.synth) return;
-    this.synth.cancel();
+  // Universal Text-to-Speech (TTS) with Auto-Language Routing & Chunking
+  async speak(text) {
+    this.stopSpeaking(false);
 
-    // Strip code blocks and raw markdown syntax for clean spoken speech
-    const clean = text
-      .replace(/```[\s\S]*?```/g, 'Code block omitted.')
-      .replace(/[#*`_>~]/g, '')
-      .replace(/\n+/g, '. ')
-      .trim();
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      this.setState('IDLE');
+      return;
+    }
 
-    if (!clean) return;
+    // 1. Clean markdown, emojis, code blocks
+    const cleaned = this.cleanTextForSpeech(text);
+    if (!cleaned) {
+      this.setState('IDLE');
+      return;
+    }
 
-    // 1. Detect language automatically
-    const langInfo = this.detectLanguage(clean);
+    // 2. Detect language automatically
+    const langInfo = this.detectLanguage(cleaned);
     this.lastDetectedLang = langInfo;
 
+    let warnedHindi = false;
     // Check if speaking in Hindi but device lacks Hindi voice
     if (langInfo.family === 'hi' && !this.hasHindiVoice()) {
       if (window.app && !this._hindiVoiceNotified) {
         this._hindiVoiceNotified = true;
-        window.app.showToast('⚠️ फोन में हिंदी TTS आवाज़ नहीं मिली। Android Settings से हिंदी वॉइस डाउनलोड करें।');
+        warnedHindi = true;
+        window.app.showToast('Settings → Text-to-speech में Hindi (India) आवाज़ डाउनलोड करें');
       }
-      console.warn('[VoiceAssistant] Device has no Hindi voice, falling back to closest voice.');
     }
 
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.rate = this.rate;
-    utterance.pitch = this.pitch;
-    utterance.lang = langInfo.bcp47;
+    // 3. Try Native Android TTS bridge first if in Capacitor / APK
+    if (window.systemLauncher && typeof window.systemLauncher.speakText === 'function') {
+      try {
+        const nativeRes = await window.systemLauncher.speakText({
+          text: cleaned,
+          lang: langInfo.bcp47,
+          pitch: this.pitch,
+          rate: this.rate
+        });
+        if (nativeRes && nativeRes.success) {
+          this.setState('SPEAKING');
+          if (window.app && !warnedHindi) window.app.showToast(`🗣️ Speaking in ${langInfo.name}`);
+          // Native auto-clears after estimated duration
+          const estDurationMs = Math.max(2000, Math.min(30000, (cleaned.length / 15) * 1000));
+          setTimeout(() => {
+            if (this.state === 'SPEAKING') this.setState('IDLE');
+          }, estDurationMs);
+          return;
+        }
+      } catch (e) {
+        console.warn('Native TTS bridge fallback to web synthesis:', e);
+      }
+    }
 
-    // 2. Select appropriate voice
-    const matchedVoice = this.getVoiceForLanguage(langInfo);
+    if (!this.synth) {
+      this.setState('IDLE');
+      return;
+    }
+
+    // 4. Split into sentence chunks to prevent Chrome utterance freeze
+    const chunks = this.splitIntoSentences(cleaned);
+    if (chunks.length === 0) {
+      this.setState('IDLE');
+      return;
+    }
+
+    this.speechQueue = [...chunks];
+    this.currentLanguageInfo = langInfo;
+    this.setState('SPEAKING');
+
+    if (window.app && !warnedHindi) {
+      window.app.showToast(`🗣️ Speaking in ${langInfo.name}`);
+    }
+
+    this.playNextSpeechChunk();
+  }
+
+  playNextSpeechChunk() {
+    if (!this.synth || this.speechQueue.length === 0) {
+      this.setState('IDLE');
+      if (this.keepAliveTimer) {
+        clearInterval(this.keepAliveTimer);
+        this.keepAliveTimer = null;
+      }
+      return;
+    }
+
+    const sentence = this.speechQueue.shift();
+    if (!sentence || !sentence.trim()) {
+      this.playNextSpeechChunk();
+      return;
+    }
+
+    const UtteranceClass = (typeof window !== 'undefined' && window.SpeechSynthesisUtterance) || (typeof SpeechSynthesisUtterance !== 'undefined' ? SpeechSynthesisUtterance : null);
+    if (!UtteranceClass) return;
+    const utterance = new UtteranceClass(sentence.trim());
+    utterance.rate = this.rate; // 0.98
+    utterance.pitch = this.pitch; // 1.25 (sweet female pitch)
+    utterance.lang = this.currentLanguageInfo ? this.currentLanguageInfo.bcp47 : 'hi-IN';
+
+    const matchedVoice = this.getVoiceForLanguage(this.currentLanguageInfo || { bcp47: 'hi-IN', family: 'hi' });
     if (matchedVoice) {
       utterance.voice = matchedVoice;
     }
 
     utterance.onstart = () => {
-      this.isSpeaking = true;
-      if (window.orb) window.orb.setState('SPEAKING');
-      if (window.app) {
-        window.app.showToast(`🗣️ Speaking in ${langInfo.name}`);
-      }
+      this.setState('SPEAKING');
     };
 
     utterance.onend = () => {
-      this.isSpeaking = false;
-      if (window.orb) window.orb.setState('IDLE');
+      this.playNextSpeechChunk();
     };
 
-    utterance.onerror = () => {
-      this.isSpeaking = false;
-      if (window.orb) window.orb.setState('IDLE');
+    utterance.onerror = (e) => {
+      console.warn('SpeechSynthesis error:', e.error);
+      if (e.error !== 'canceled' && e.error !== 'interrupted') {
+        if (window.app) window.app.showToast('Voice Notice: ' + (e.error || 'Playback error'));
+      }
+      this.playNextSpeechChunk();
     };
 
-    this.synth.speak(utterance);
+    // Chrome long-speech keepalive interval
+    if (!this.keepAliveTimer) {
+      this.keepAliveTimer = setInterval(() => {
+        if (this.synth && this.synth.speaking) {
+          this.synth.pause();
+          this.synth.resume();
+        }
+      }, 8000);
+    }
+
+    try {
+      this.synth.speak(utterance);
+    } catch (err) {
+      console.error('synth.speak error:', err);
+      this.setState('IDLE');
+    }
   }
 
-  stopSpeaking() {
+  stopSpeaking(showFeedback = true) {
+    this.speechQueue = [];
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+    }
+
     if (this.synth) {
-      this.synth.cancel();
-      this.isSpeaking = false;
-      if (window.orb) window.orb.setState('IDLE');
+      try { this.synth.cancel(); } catch (e) {}
+    }
+
+    if (window.systemLauncher && typeof window.systemLauncher.stopSpeech === 'function') {
+      window.systemLauncher.stopSpeech().catch(() => {});
+    }
+
+    this.setState('IDLE');
+
+    if (showFeedback && window.app) {
+      window.app.showToast('Speech stopped');
     }
   }
 }
 
+// Global instance
 window.voiceAssistant = new VoiceAssistant();

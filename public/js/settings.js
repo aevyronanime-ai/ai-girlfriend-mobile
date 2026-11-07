@@ -82,6 +82,7 @@ class SettingsController {
     this.customPromptGroup = document.getElementById('customPromptGroup');
     this.customPromptInput = document.getElementById('settingCustomPrompt');
     this.soundFxToggle = document.getElementById('settingSoundFx');
+    this.autoVoiceReplyToggle = document.getElementById('settingAutoVoiceReply');
     this.voiceRateInput = document.getElementById('settingVoiceRate');
     this.voiceRateVal = document.getElementById('voiceRateVal');
     this.voicePitchInput = document.getElementById('settingVoicePitch');
@@ -161,15 +162,24 @@ class SettingsController {
       });
     }
 
+    if (this.autoVoiceReplyToggle) {
+      this.autoVoiceReplyToggle.addEventListener('change', () => {
+        window.autoVoiceReplyEnabled = this.autoVoiceReplyToggle.checked;
+        window.autoSpeakEnabled = this.autoVoiceReplyToggle.checked;
+        if (window.ClientAI) window.ClientAI.saveSettings({ auto_voice_reply: this.autoVoiceReplyToggle.checked ? 'true' : 'false' });
+        if (window.app) window.app.showToast(this.autoVoiceReplyToggle.checked ? 'Auto Voice Reply: ON' : 'Auto Voice Reply: OFF');
+      });
+    }
+
     if (this.btnTestVoice) {
       this.btnTestVoice.addEventListener('click', () => {
         if (window.voiceAssistant) {
-          const persona = this.personaSelect ? this.personaSelect.value : 'jarvis';
-          if (persona === 'girlfriend') {
-            window.voiceAssistant.speak('Aap kaise ho? Maine yeh voice settings test kiye hain, kya yeh theek lag rahi hai?');
-          } else {
-            window.voiceAssistant.speak('Audio calibration nominal. All systems functioning at peak efficiency, Sir.');
-          }
+          window.voiceAssistant.unlockAudio();
+          const persona = this.personaSelect ? this.personaSelect.value : 'girlfriend';
+          const sample = (persona === 'girlfriend')
+            ? 'नमस्ते! मैं आपकी पर्सनल AI असिस्टेंट माया हूँ। मेरी आवाज़ एकदम मीठी और साफ़ है, बताइए आज हम क्या बातें करें? ❤️'
+            : 'Greetings, Commander. Audio calibration nominal and neural core online.';
+          window.voiceAssistant.speak(sample);
         }
       });
     }
@@ -238,6 +248,12 @@ class SettingsController {
       this.soundFxToggle.checked = settings.sound_fx === 'true';
       if (window.soundFX) window.soundFX.enabled = this.soundFxToggle.checked;
     }
+    if (this.autoVoiceReplyToggle) {
+      const isAuto = settings.auto_voice_reply !== 'false';
+      this.autoVoiceReplyToggle.checked = isAuto;
+      window.autoVoiceReplyEnabled = isAuto;
+      window.autoSpeakEnabled = isAuto;
+    }
 
     this.updatePersonaBadge(settings.persona || 'girlfriend');
   }
@@ -256,6 +272,11 @@ class SettingsController {
     if (this.voiceRateInput) payload.voice_rate = this.voiceRateInput.value;
     if (this.voicePitchInput) payload.voice_pitch = this.voicePitchInput.value;
     if (this.soundFxToggle) payload.sound_fx = this.soundFxToggle.checked ? 'true' : 'false';
+    if (this.autoVoiceReplyToggle) {
+      payload.auto_voice_reply = this.autoVoiceReplyToggle.checked ? 'true' : 'false';
+      window.autoVoiceReplyEnabled = this.autoVoiceReplyToggle.checked;
+      window.autoSpeakEnabled = this.autoVoiceReplyToggle.checked;
+    }
 
     if (window.ClientAI) {
       window.ClientAI.saveSettings(payload);

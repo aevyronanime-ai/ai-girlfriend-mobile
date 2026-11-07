@@ -1,4 +1,59 @@
 // Chat Controller: Real-time Messages, SSE Streaming, Markdown & Copy/Share
+// Reusable copy with visual feedback ("Copied ✓") and execCommand fallback
+window.fallbackCopyText = function(text, onSuccess) {
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.top = '-9999px';
+    textArea.style.left = '-9999px';
+    textArea.setAttribute('readonly', '');
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    if (successful) {
+      if (onSuccess) onSuccess();
+      return true;
+    }
+  } catch (err) {
+    console.error('Fallback copy error:', err);
+  }
+  return false;
+};
+
+window.copyTextWithFeedback = function(text, btnEl) {
+  if (!text) return Promise.resolve(false);
+  const originalHtml = btnEl ? btnEl.innerHTML : '';
+  const setSuccess = () => {
+    if (btnEl) {
+      btnEl.innerHTML = 'Copied ✓';
+      btnEl.classList.add('copied');
+      setTimeout(() => {
+        btnEl.innerHTML = originalHtml || '📋 Copy';
+        btnEl.classList.remove('copied');
+      }, 2500);
+    }
+    if (window.app && typeof window.app.showToast === 'function') {
+      window.app.showToast('Copied to clipboard');
+    }
+  };
+
+  if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    return navigator.clipboard.writeText(text).then(() => {
+      setSuccess();
+      return true;
+    }).catch(() => {
+      const ok = window.fallbackCopyText(text, setSuccess);
+      return ok;
+    });
+  } else {
+    const ok = window.fallbackCopyText(text, setSuccess);
+    return Promise.resolve(ok);
+  }
+};
+
 class ChatController {
   constructor() {
     this.activeSessionId = null;
@@ -177,7 +232,8 @@ class ChatController {
       msgBubble.innerHTML = this.renderMarkdown(finalText);
       this.addMessageActionButtons(assistantMsgId, finalText);
 
-      if (window.autoSpeakEnabled && window.voiceAssistant && finalText) {
+      const autoVoiceOn = (window.autoVoiceReplyEnabled !== false) && (window.autoSpeakEnabled !== false);
+      if (autoVoiceOn && window.voiceAssistant && finalText && !finalText.startsWith('⚠️')) {
         window.voiceAssistant.speak(finalText);
       }
       if (window.soundFX) window.soundFX.success();
@@ -444,23 +500,29 @@ class ChatController {
         <button class="msg-action-btn share-btn" title="Share response">↗️ Share</button>
       `;
 
-      actions.querySelector('.copy-btn').addEventListener('click', () => {
-        navigator.clipboard.writeText(content).then(() => {
-          if (window.app) window.app.showToast('Copied to clipboard');
-        });
+      const copyBtn = actions.querySelector('.copy-btn');
+      copyBtn.addEventListener('click', () => {
+        if (typeof window.copyTextWithFeedback === 'function') {
+          window.copyTextWithFeedback(content, copyBtn);
+        } else if (navigator.clipboard) {
+          navigator.clipboard.writeText(content).then(() => {
+            if (window.app) window.app.showToast('Copied to clipboard');
+          });
+        }
       });
 
       actions.querySelector('.speak-btn').addEventListener('click', () => {
         if (window.voiceAssistant) {
-          const cleanText = content.replace(/```[\s\S]*?```/g, '').replace(/[#*`_>~]/g, '');
-          window.voiceAssistant.speak(cleanText);
+          window.voiceAssistant.speak(content);
         }
       });
 
       actions.querySelector('.share-btn').addEventListener('click', () => {
         if (navigator.share) {
           navigator.share({ title: 'JARVIS AI Response', text: content });
-        } else {
+        } else if (typeof window.copyTextWithFeedback === 'function') {
+          window.copyTextWithFeedback(content, copyBtn);
+        } else if (navigator.clipboard) {
           navigator.clipboard.writeText(content).then(() => {
             if (window.app) window.app.showToast('Link/text copied to clipboard');
           });
@@ -487,23 +549,29 @@ class ChatController {
       <button class="msg-action-btn share-btn" title="Share response">↗️ Share</button>
     `;
 
-    actions.querySelector('.copy-btn').addEventListener('click', () => {
-      navigator.clipboard.writeText(content).then(() => {
-        if (window.app) window.app.showToast('Copied to clipboard');
-      });
+    const copyBtn = actions.querySelector('.copy-btn');
+    copyBtn.addEventListener('click', () => {
+      if (typeof window.copyTextWithFeedback === 'function') {
+        window.copyTextWithFeedback(content, copyBtn);
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(content).then(() => {
+          if (window.app) window.app.showToast('Copied to clipboard');
+        });
+      }
     });
 
     actions.querySelector('.speak-btn').addEventListener('click', () => {
       if (window.voiceAssistant) {
-        const clean = content.replace(/```[\s\S]*?```/g, '').replace(/[#*`_>~]/g, '');
-        window.voiceAssistant.speak(clean);
+        window.voiceAssistant.speak(content);
       }
     });
 
     actions.querySelector('.share-btn').addEventListener('click', () => {
       if (navigator.share) {
         navigator.share({ title: 'JARVIS AI Response', text: content });
-      } else {
+      } else if (typeof window.copyTextWithFeedback === 'function') {
+        window.copyTextWithFeedback(content, copyBtn);
+      } else if (navigator.clipboard) {
         navigator.clipboard.writeText(content);
       }
     });
