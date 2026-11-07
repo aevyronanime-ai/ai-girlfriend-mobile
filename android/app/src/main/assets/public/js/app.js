@@ -87,6 +87,15 @@ class App {
   }
 
   switchTab(tabName) {
+    if (tabName === 'developer' && window.StudioEngine && !window.StudioEngine.isUnlocked) {
+      const pinModal = document.getElementById('devStudioPinModal');
+      if (pinModal) {
+        pinModal.style.display = 'flex';
+        const input = document.getElementById('devStudioPinInput');
+        if (input) input.focus();
+        return;
+      }
+    }
     if (window.soundFX) window.soundFX.click();
     this.activeTab = tabName;
 
@@ -329,6 +338,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (window.ClientAI) {
     await window.ClientAI.init();
     if (window.app) window.app.updateStatusIndicator();
+  }
+
+  // Boot on-device Studio customizations (Level 1)
+  if (window.StudioEngine) {
+    window.StudioEngine.bootCustomizations();
   }
 
   // Load first active session into Chat view

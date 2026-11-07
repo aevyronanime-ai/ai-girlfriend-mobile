@@ -19,6 +19,7 @@
 
   <!-- Core Stylesheet -->
   <link rel="stylesheet" href="/css/style.css">
+  <style id="aigf-dynamic-custom-styles"></style>
 </head>
 <body>
 
@@ -197,6 +198,9 @@
 
         <!-- Chat Input Bar & Suggestion Chips -->
         <div class="chat-input-bar">
+          <!-- Dynamic Custom Buttons Bar -->
+          <div id="aigf-custom-buttons-bar" style="display:none;"></div>
+
           <!-- Quick Suggestion Chips -->
           <div class="quick-chips-row">
             <button class="chip-btn" onclick="window.systemLauncher.openChrome()">🌐 Open Chrome</button>
@@ -669,9 +673,17 @@
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
               <div>
                 <h2>🛠️ J.A.R.V.I.S. Developer Studio</h2>
-                <p>In-App Neural OS File Explorer, Safe Code Editor, Rollback Vault & Android Sync</p>
+                <p>In-App Live App Customizer (स्तर 1), File Explorer, Code Editor & Rollback Vault</p>
               </div>
-              <div style="display:flex; gap:6px;">
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:var(--radius-sm);">
+                  <span style="font-size:0.75rem; font-weight:700;">Studio ON/OFF:</span>
+                  <label class="switch" style="transform:scale(0.8); margin:0;">
+                    <input type="checkbox" id="switchStudioMaster" checked>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <button class="chip-btn" id="btnDevRollback" style="background:#ffaa00; color:#000; font-weight:700;">↩️ पिछला वर्ज़न वापस लाओ</button>
                 <button class="chip-btn" id="btnDevRunTests" style="background:var(--neon-purple); color:#fff;">🧪 Run Tests</button>
                 <button class="chip-btn" id="btnDevSyncAndroid" style="background:var(--neon-cyan); color:#000; font-weight:700;">📱 Sync Android</button>
                 <button class="chip-btn" id="btnDevTogglePreview">👁️ Toggle Preview</button>
@@ -728,15 +740,26 @@
 
           <!-- Bottom Grid: Rollback Vault & AI Developer Assistant & Debug Console -->
           <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px;">
-            <!-- Column 1: AI Developer Assistant -->
+            <!-- Column 1: AI Developer Assistant (स्तर 1: बोलकर या लिखकर ऐप बदलें) -->
             <div class="settings-section-card" style="padding:12px;">
-              <div style="font-weight:700; font-size:0.85rem; color:var(--neon-purple); margin-bottom:8px;">🤖 AI Developer Architect</div>
-              <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">Ask in Hindi or English to explain code, fix bugs, or optimize the active file.</p>
+              <div style="font-weight:700; font-size:0.85rem; color:var(--neon-purple); margin-bottom:8px;">🤖 AI Studio Customizer (स्तर 1)</div>
+              <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">बोलें या लिखें: जैसे "होम स्क्रीन पर नीला बटन जोड़ो", "नया टैब बनाओ", "गुलाबी थीम बदलो"</p>
               <div style="display:flex; gap:6px; margin-bottom:8px;">
-                <input type="text" id="devAiPromptInput" class="form-control" placeholder="e.g. Is code me bug kahan hai?..." style="flex:1; font-size:0.8rem;">
-                <button class="chip-btn" id="btnDevAskAi" style="background:var(--neon-purple); color:#fff; font-weight:700;">⚡ Consult</button>
+                <input type="text" id="devAiPromptInput" class="form-control" placeholder="उदा. होम स्क्रीन पर नया नीला बटन जोड़ो..." style="flex:1; font-size:0.8rem;">
+                <button class="chip-btn" id="btnDevAiVoice" title="बोलकर आदेश दें">🎙️</button>
+                <button class="chip-btn" id="btnDevAskAi" style="background:var(--neon-purple); color:#fff; font-weight:700;">⚡ कोड बनाओ</button>
               </div>
               <div id="devAiResponseBox" style="display:none; background:rgba(0,0,0,0.4); border:1px solid rgba(157,78,221,0.3); border-radius:var(--radius-sm); padding:10px; max-height:180px; overflow-y:auto; font-size:0.8rem;"></div>
+
+              <!-- Live Approval Card (मेरी हाँ ज़रूरी हो) -->
+              <div id="devLiveApprovalCard" style="display:none; margin-top:10px; background:rgba(0,240,255,0.06); border:1px solid var(--neon-cyan); border-radius:var(--radius-sm); padding:10px;">
+                <div style="font-weight:700; font-size:0.82rem; color:var(--neon-cyan); margin-bottom:6px;">👁️ बदलाव का प्रीव्यू तैयार है (आपकी अनुमति चाहिए)</div>
+                <div id="devApprovalSummary" style="font-size:0.78rem; margin-bottom:8px; color:var(--text-primary);"></div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <button class="chip-btn" id="btnDevApplyChanges" style="background:var(--neon-cyan); color:#000; font-weight:700; font-size:0.75rem;">✅ बदलाव लागू करें (Save to Phone)</button>
+                  <button class="chip-btn" id="btnDevRejectChanges" style="background:#ff0055; color:#fff; font-size:0.75rem;">❌ रद्द करें</button>
+                </div>
+              </div>
             </div>
 
             <!-- Column 2: Rollback Vault -->
@@ -753,6 +776,14 @@
               <div id="devDebugLogs" style="background:#04060a; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:8px; max-height:180px; overflow-y:auto;">
                 <div style="color:var(--text-muted); font-size:0.75rem;">Listening for runtime logs & errors...</div>
               </div>
+            </div>
+          </div>
+
+          <!-- Audit Log Card -->
+          <div class="settings-section-card" style="padding:12px; margin-top:12px;">
+            <div style="font-weight:700; font-size:0.85rem; color:var(--neon-cyan); margin-bottom:6px;">📜 बदलावों का ऑडिट लॉग (Modification Audit History)</div>
+            <div id="devAuditLogsContainer" style="max-height:120px; overflow-y:auto; font-family:monospace; font-size:0.72rem; color:var(--text-muted);">
+              <div>कोई हालिया बदलाव नहीं मिला।</div>
             </div>
           </div>
         </div>
@@ -794,12 +825,26 @@
   <!-- PWA Install Modal Container -->
   <div id="pwaInstallModal" style="display:none;"></div>
 
+  <!-- Studio PIN Security Modal -->
+  <div id="devStudioPinModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:var(--bg-card); border:1px solid var(--neon-cyan); border-radius:var(--radius-md); padding:24px; max-width:320px; width:100%; text-align:center;">
+      <div style="font-size:2rem; margin-bottom:8px;">🔒</div>
+      <h3 style="font-size:1.1rem; margin-bottom:6px;">Studio Security PIN</h3>
+      <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:14px;">Studio खोलने के लिए PIN दर्ज करें (डिफ़ॉल्ट: 1234)</p>
+      <input type="password" id="devStudioPinInput" class="form-control" placeholder="••••" maxlength="8" style="text-align:center; font-size:1.2rem; letter-spacing:4px; margin-bottom:12px;">
+      <div style="display:flex; gap:8px; justify-content:center;">
+        <button class="chip-btn" id="btnDevVerifyPin" style="background:var(--neon-cyan); color:#000; font-weight:700; padding:8px 18px;">Unlock Studio</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Global Toast Notification Container -->
   <div class="toast-container" id="toastContainer"></div>
 </div>
 
 <!-- Scripts -->
 <script src="/js/client-ai.js"></script>
+<script src="/js/studio-engine.js"></script>
 <script src="/js/audio-fx.js"></script>
 <script src="/js/system-launcher.js"></script>
 <script src="/js/orb.js"></script>
