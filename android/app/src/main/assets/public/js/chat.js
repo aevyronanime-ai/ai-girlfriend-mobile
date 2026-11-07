@@ -162,18 +162,38 @@ class ChatController {
         imageBase64: currentImgBase64,
         imageMime: currentImgMime,
         onChunk: (text) => {
-          msgBubble.innerHTML = this.renderMarkdown(text);
-          this.scrollToBottom();
+          if (text && text.trim()) {
+            msgBubble.innerHTML = this.renderMarkdown(text.trim());
+            this.scrollToBottom();
+          }
         }
       });
 
-      if (window.autoSpeakEnabled && window.voiceAssistant && result && result.text) {
-        window.voiceAssistant.speak(result.text);
+      let finalText = (result && result.text && result.text.trim()) ? result.text.trim() : '';
+      if (!finalText) {
+        finalText = '⚠️ **खाली जवाब (HTTP 200 - Empty Response)**\n\nGoogle AI ने कोई टेक्स्ट वापस नहीं भेजा। कृपया दोबारा पूछें।';
+      }
+
+      msgBubble.innerHTML = this.renderMarkdown(finalText);
+      this.addMessageActionButtons(assistantMsgId, finalText);
+
+      if (window.autoSpeakEnabled && window.voiceAssistant && finalText) {
+        window.voiceAssistant.speak(finalText);
       }
       if (window.soundFX) window.soundFX.success();
     } catch (err) {
-      msgBubble.innerHTML = this.renderMarkdown(`> ⚠️ **Notice:** ${err.message}`);
+      const errorMsg = (typeof window.formatGeminiErrorHindi === 'function')
+        ? window.formatGeminiErrorHindi(err?.status || 0, err?.message, err)
+        : `> ⚠️ **त्रुटि:** ${err.message}`;
+      msgBubble.innerHTML = this.renderMarkdown(errorMsg);
+      this.addMessageActionButtons(assistantMsgId, errorMsg);
     } finally {
+      // Hard guarantee: bubble is NEVER left blank
+      if (!msgBubble.innerHTML.trim() || msgBubble.textContent.trim() === '') {
+        const fallbackText = '⚠️ **खाली जवाब (Empty Response)**\n\nGoogle AI ने कोई टेक्स्ट वापस नहीं भेजा। कृपया दोबारा पूछें।';
+        msgBubble.innerHTML = this.renderMarkdown(fallbackText);
+        this.addMessageActionButtons(assistantMsgId, fallbackText);
+      }
       this.isStreaming = false;
       if (this.sendBtn) this.sendBtn.disabled = false;
       this.scrollToBottom();
@@ -211,7 +231,7 @@ class ChatController {
     this.isStreaming = true;
     if (this.sendBtn) this.sendBtn.disabled = true;
 
-    if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+    if (window.ClientAI && !window.ClientAI.serverAvailable) {
       return this.handleClientAISend(message, currentImgBase64, currentImgMime, typingId);
     }
 
@@ -379,7 +399,7 @@ class ChatController {
     msgDiv.innerHTML = `
       <div class="msg-avatar">⚡</div>
       <div class="msg-bubble-wrap">
-        <div class="msg-bubble markdown-body"></div>
+        <div class="msg-bubble markdown-body"><span class="loading-dots" style="opacity:0.7;">● ● ●</span></div>
         <div class="msg-timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
       </div>
     `;

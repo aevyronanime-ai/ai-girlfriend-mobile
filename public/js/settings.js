@@ -38,41 +38,38 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
 }
 
 function formatGeminiErrorHindi(err, status = 0, rawMessage = '') {
+  const code = Number(status) || Number(err?.status) || Number(err?.statusCode) || 0;
   const msg = (rawMessage || err?.message || '').toLowerCase();
 
   if (err?.isTimeout || msg.includes('timeout') || err?.name === 'AbortError') {
-    return '⏳ समय समाप्त (Timeout)\n\n15 सेकंड में Google सर्वर से कोई जवाब नहीं मिला। कृपया अपना इंटरनेट कनेक्शन या वाई-फाई चेक करें।';
+    return '⏳ समय समाप्त (Timeout - 15 Seconds)\n\n15 सेकंड में Google सर्वर से कोई जवाब नहीं मिला। कृपया अपना इंटरनेट कनेक्शन या वाई-फाई चेक करें।';
   }
 
-  if (msg.includes('failed to fetch') || msg.includes('network') || msg.includes('offline')) {
-    return '📶 इंटरनेट कनेक्शन एरर\n\nGoogle AI सर्वर से संपर्क नहीं हो सका। कृपया जांचें कि फोन में इंटरनेट चालू है या नहीं।';
+  if (msg.includes('failed to fetch') || msg.includes('network') || msg.includes('offline') || code === 0) {
+    return '📶 इंटरनेट कनेक्शन एरर (Network Error)\n\nGoogle AI सर्वर से संपर्क नहीं हो सका। कृपया जांचें कि फोन में इंटरनेट चालू है या नहीं।';
   }
 
-  if (status === 429 || msg.includes('429') || msg.includes('resource_exhausted') || msg.includes('quota')) {
-    return '⚠️ कोटा समाप्त (Quota Exhausted - HTTP 429)\n\nआपकी API Key का आज का फ्री कोटा पूरा हो चुका है। Google AI Studio का कोटा 24 घंटे में रीसेट होता है, या आप नई फ्री API कुंजी जोड़ सकते हैं।';
+  if (code === 400 || msg.includes('400') || msg.includes('api_key_invalid') || msg.includes('key not valid')) {
+    return '🔑 अमान्य अनुरोध या कुंजी (HTTP 400 - Bad Request)\n\nआपने जो API Key डाली है वह गलत या अमान्य है। कृपया Google AI Studio (aistudio.google.com) से सही कुंजी कॉपी करके पेस्ट करें।';
   }
 
-  if (
-    status === 400 ||
-    status === 403 ||
-    msg.includes('api_key_invalid') ||
-    msg.includes('key not valid') ||
-    msg.includes('permission_denied')
-  ) {
-    return '🔑 अमान्य कुंजी (Invalid Key)\n\nआपने जो API Key डाली है वह गलत या अमान्य है। कृपया Google AI Studio (aistudio.google.com) से सही कुंजी कॉपी करके पेस्ट करें।';
+  if (code === 403 || msg.includes('403') || msg.includes('permission_denied') || msg.includes('forbidden')) {
+    return '🚫 कुंजी को अनुमति नहीं है (HTTP 403 - Permission Denied)\n\nइस API Key को Gemini API इस्तेमाल करने की अनुमति नहीं है। कृपया Google AI Studio से नई फ्री API कुंजी बनाएं।';
   }
 
-  if (
-    status === 404 ||
-    msg.includes('no longer available') ||
-    msg.includes('not found') ||
-    msg.includes('not supported') ||
-    msg.includes('deprecated')
-  ) {
-    return '🚫 मॉडल अनुपलब्ध (Model Discontinued)\n\nचुना गया मॉडल अब उपलब्ध नहीं है। ऐप चालू मॉडल पर स्विच करने का प्रयास कर रहा है।';
+  if (code === 404 || msg.includes('404') || msg.includes('no longer available') || msg.includes('not found') || msg.includes('deprecated')) {
+    return '🔍 मॉडल नहीं मिला या बंद हो चुका है (HTTP 404 - Not Found)\n\nचुना गया AI मॉडल Google द्वारा बंद कर दिया गया है। ऐप अपने आप नए चालू मॉडल पर स्विच करने का प्रयास कर रहा है।';
   }
 
-  return `❌ सत्यापन असफल:\n\n${rawMessage || err?.message || 'अज्ञात त्रुटि'}`;
+  if (code === 429 || msg.includes('429') || msg.includes('resource_exhausted') || msg.includes('quota')) {
+    return '⚠️ कोटा खत्म है (HTTP 429 - Quota Exhausted)\n\nआपकी API Key का आज का फ्री कोटा पूरा हो चुका है। Google AI Studio का कोटा 24 घंटे में अपने आप फ्री में रीसेट होता है, या आप नई फ्री API कुंजी जोड़ सकते हैं।';
+  }
+
+  if (code >= 500 && code < 600) {
+    return `⚙️ Google सर्वर एरर (HTTP ${code} - Server Error)\n\nGoogle AI सर्वर पर अस्थायी तकनीकी समस्या है। कृपया कुछ सेकंड बाद पुनः प्रयास करें।`;
+  }
+
+  return `⚠️ त्रुटि (HTTP ${code || 'Error'}):\n\n${rawMessage || err?.message || 'अज्ञात समस्या आई।'}`;
 }
 
 // Settings Controller: API Keys, Personas (Jarvis/Girlfriend/Custom), TTS Tuning, Theme

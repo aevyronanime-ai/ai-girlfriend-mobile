@@ -157,6 +157,14 @@ class VoiceAssistant {
     match = this.voices.find(v => v.lang.toLowerCase().startsWith(family));
     if (match) return match;
 
+    // Fallback for Hindi if device lacks native Hindi TTS: try Indian English (en-IN)
+    if (family === 'hi') {
+      match = this.voices.find(v => v.lang.toLowerCase().startsWith('hi'));
+      if (match) return match;
+      match = this.voices.find(v => v.lang.toLowerCase().includes('en-in') || v.name.toLowerCase().includes('india'));
+      if (match) return match;
+    }
+
     // 3. Fallback for Assamese if no 'as' voice on device: Bengali voice or Indian voice
     if (family === 'as') {
       match = this.voices.find(v => v.lang.toLowerCase().startsWith('bn'));
@@ -171,6 +179,11 @@ class VoiceAssistant {
 
     // 5. User selected voice or default
     return this.selectedVoice || this.voices[0];
+  }
+
+  hasHindiVoice() {
+    if (!this.voices || this.voices.length === 0) return false;
+    return this.voices.some(v => v.lang && v.lang.toLowerCase().startsWith('hi'));
   }
 
   initRecognition() {
@@ -405,12 +418,12 @@ class VoiceAssistant {
       const activeSessionId = window.chat ? window.chat.activeSessionId : null;
       let reply = '';
 
-      if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+      if (window.ClientAI && !window.ClientAI.serverAvailable) {
         const clientRes = await window.ClientAI.callGeminiDirect({
           sessionId: activeSessionId,
           message: transcript
         });
-        reply = clientRes.text;
+        reply = clientRes ? clientRes.text : '';
       } else {
         try {
           const res = await fetch('/api/chat', {
@@ -434,7 +447,7 @@ class VoiceAssistant {
           }
 
           if (data.quotaExhausted) {
-            const spokenNotice = 'Google Gemini API quota limit exhaust ho gaya hai. Please Settings me check karein.';
+            const spokenNotice = 'कोटा खत्म है (HTTP 429)। कृपया सेटिंग्स में नई API कुंजी जोड़ें।';
             this.setTranscriptText(spokenNotice);
             this.speak(spokenNotice);
             if (window.chat) {
@@ -444,25 +457,34 @@ class VoiceAssistant {
             return;
           }
 
-          reply = data.content || data.error || 'No response received.';
+          reply = data.content || data.error || '';
         } catch (fetchErr) {
           if (window.ClientAI) {
             const clientRes = await window.ClientAI.callGeminiDirect({
               sessionId: activeSessionId,
               message: transcript
             });
-            reply = clientRes.text;
+            reply = clientRes ? clientRes.text : '';
           } else {
             throw fetchErr;
           }
         }
       }
 
+      if (!reply || !reply.trim()) {
+        reply = 'माफ़ कीजिए, मुझे Google AI से कोई जवाब नहीं मिला। कृपया दोबारा बोलें।';
+      }
+
       // Clean markdown tags for spoken audio
-      const cleanSpoken = reply
+      let cleanSpoken = reply
         .replace(/```[\s\S]*?```/g, '')
         .replace(/[#*`_>~]/g, '')
+        .replace(/\n+/g, ' ')
         .trim();
+
+      if (!cleanSpoken) {
+        cleanSpoken = 'माफ़ कीजिए, मुझे आपकी बात का जवाब नहीं मिला। कृपया दोबारा बोलें।';
+      }
 
       this.setTranscriptText(cleanSpoken.slice(0, 300));
       // Speak back in the EXACT same language that was received!
@@ -473,8 +495,11 @@ class VoiceAssistant {
         window.chat.loadSessionMessages(activeSessionId);
       }
     } catch (err) {
-      this.setTranscriptText('Error: ' + err.message);
-      this.speak('Voice connection notice.');
+      const errNotice = (typeof window.formatGeminiErrorHindi === 'function')
+        ? window.formatGeminiErrorHindi(err?.status || 0, err?.message, err)
+        : 'त्रुटि: ' + err.message;
+      this.setTranscriptText(errNotice.slice(0, 300));
+      this.speak('माफ़ कीजिए, कनेक्शन एरर आया है। कृपया इंटरनेट चेक करें।');
       if (window.orb) window.orb.setState('IDLE');
     }
   }
@@ -496,6 +521,15 @@ class VoiceAssistant {
     // 1. Detect language automatically
     const langInfo = this.detectLanguage(clean);
     this.lastDetectedLang = langInfo;
+
+    // Check if speaking in Hindi but device lacks Hindi voice
+    if (langInfo.family === 'hi' && !this.hasHindiVoice()) {
+      if (window.app && !this._hindiVoiceNotified) {
+        this._hindiVoiceNotified = true;
+        window.app.showToast('⚠️ फोन में हिंदी TTS आवाज़ नहीं मिली। Android Settings से हिंदी वॉइस डाउनलोड करें।');
+      }
+      console.warn('[VoiceAssistant] Device has no Hindi voice, falling back to closest voice.');
+    }
 
     const utterance = new SpeechSynthesisUtterance(clean);
     utterance.rate = this.rate;

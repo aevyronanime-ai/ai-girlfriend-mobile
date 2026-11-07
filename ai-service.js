@@ -184,6 +184,77 @@ function formatGeminiContents(messages, imageBase64 = null, imageMimeType = 'ima
   return contents;
 }
 
+function stripThinkingTags(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+    .trim();
+}
+
+function extractTextFromGeminiResponse(data) {
+  if (!data) return '';
+  if (typeof data === 'string') return stripThinkingTags(data.trim());
+
+  if (data.promptFeedback && data.promptFeedback.blockReason) {
+    return `⚠️ सुरक्षा कारणों से सवाल ब्लॉक किया गया (Block Reason: ${data.promptFeedback.blockReason})`;
+  }
+
+  const candidates = data.candidates;
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    if (typeof data.text === 'string' && data.text.trim()) {
+      return stripThinkingTags(data.text.trim());
+    }
+    return '';
+  }
+
+  const candidate = candidates[0];
+  const parts = candidate?.content?.parts;
+
+  if (Array.isArray(parts) && parts.length > 0) {
+    // 1. Priority: Collect all non-thought parts with valid text
+    const cleanParts = parts.filter(p => {
+      if (!p) return false;
+      if (p.thought === true) return false;
+      if (typeof p.thought === 'string' && p.thought.trim().length > 0) return false;
+      return typeof p.text === 'string' && p.text.trim().length > 0;
+    });
+
+    if (cleanParts.length > 0) {
+      const combined = cleanParts.map(p => p.text).join('');
+      const stripped = stripThinkingTags(combined);
+      if (stripped.trim().length > 0) return stripped.trim();
+    }
+
+    // 2. Fallback: If all parts had thoughts or untagged, take any text parts
+    const allTextParts = parts.filter(p => p && typeof p.text === 'string' && p.text.trim().length > 0);
+    if (allTextParts.length > 0) {
+      const combined = allTextParts.map(p => p.text).join('');
+      const stripped = stripThinkingTags(combined);
+      if (stripped.trim().length > 0) return stripped.trim();
+    }
+  }
+
+  if (typeof candidate?.text === 'string' && candidate.text.trim()) {
+    return stripThinkingTags(candidate.text.trim());
+  }
+
+  if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
+    if (candidate.finishReason === 'SAFETY') {
+      return `⚠️ सुरक्षा फ़िल्टर (Safety Filter): Google AI ने इस सवाल का जवाब देने से रोक दिया।`;
+    }
+    if (candidate.finishReason === 'RECITATION') {
+      return `⚠️ कॉपीराइट / सुरक्षा कारणों से जवाब रोक दिया गया।`;
+    }
+    if (candidate.finishReason === 'MAX_TOKENS') {
+      return `⚠️ अधिकतम टोकन सीमा (Max Tokens) पूरी हो गई।`;
+    }
+    return `⚠️ जवाब पूरा नहीं हो सका (कारण: ${candidate.finishReason})।`;
+  }
+
+  return '';
+}
+
 // ====================================================================
 // GEMINI MODEL FALLBACK CASCADE & 429 QUOTA MANAGEMENT SYSTEM
 // ====================================================================
@@ -534,8 +605,7 @@ async function callGemini({ apiKey, model, messages, systemPrompt, temperature =
 
       // Success!
       const data = await response.json();
-      const candidate = data.candidates?.[0];
-      const replyText = candidate?.content?.parts?.map(p => p.text).join('') || '';
+      const replyText = extractTextFromGeminiResponse(data);
 
       if (candidateModel !== preferred) {
         try { db.setSetting('ai_model', candidateModel); } catch (e) {}
@@ -684,7 +754,14 @@ async function streamGemini({ apiKey, model, messages, systemPrompt, temperature
           if (jsonStr === '[DONE]') continue;
           try {
             const parsed = JSON.parse(jsonStr);
-            const textChunk = parsed.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+            const parts = parsed.candidates?.[0]?.content?.parts;
+            let textChunk = '';
+            if (Array.isArray(parts)) {
+              textChunk = parts
+                .filter(p => !p.thought && typeof p.thought !== 'string' && typeof p.text === 'string')
+                .map(p => p.text)
+                .join('');
+            }
             if (textChunk) {
               onChunk(textChunk);
             }
@@ -755,5 +832,7 @@ module.exports = {
   getCooldownStatus,
   markModelExhausted,
   isModelInCooldown,
-  generateQuotaExhaustedMessage
+  generateQuotaExhaustedMessage,
+  extractTextFromGeminiResponse,
+  stripThinkingTags
 };

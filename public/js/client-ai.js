@@ -36,6 +36,115 @@
     return false;
   }
 
+  function stripThinkingTags(text) {
+    if (!text || typeof text !== 'string') return '';
+    return text
+      .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
+      .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+      .trim();
+  }
+
+  function extractTextFromGeminiResponse(data) {
+    if (!data) return '';
+
+    if (typeof data === 'string') {
+      return stripThinkingTags(data.trim());
+    }
+
+    if (data.promptFeedback && data.promptFeedback.blockReason) {
+      return `⚠️ सुरक्षा कारणों से सवाल ब्लॉक किया गया (Block Reason: ${data.promptFeedback.blockReason})`;
+    }
+
+    const candidates = data.candidates;
+    if (!Array.isArray(candidates) || candidates.length === 0) {
+      if (typeof data.text === 'string' && data.text.trim()) {
+        return stripThinkingTags(data.text.trim());
+      }
+      return '';
+    }
+
+    const candidate = candidates[0];
+    const parts = candidate?.content?.parts;
+
+    if (Array.isArray(parts) && parts.length > 0) {
+      // 1. Priority: Collect all non-thought parts with valid text
+      const cleanParts = parts.filter(p => {
+        if (!p) return false;
+        if (p.thought === true) return false;
+        if (typeof p.thought === 'string' && p.thought.trim().length > 0) return false;
+        return typeof p.text === 'string' && p.text.trim().length > 0;
+      });
+
+      if (cleanParts.length > 0) {
+        const combined = cleanParts.map(p => p.text).join('');
+        const stripped = stripThinkingTags(combined);
+        if (stripped.trim().length > 0) return stripped.trim();
+      }
+
+      // 2. Fallback: If all parts had thoughts or untagged, take any text parts
+      const allTextParts = parts.filter(p => p && typeof p.text === 'string' && p.text.trim().length > 0);
+      if (allTextParts.length > 0) {
+        const combined = allTextParts.map(p => p.text).join('');
+        const stripped = stripThinkingTags(combined);
+        if (stripped.trim().length > 0) return stripped.trim();
+      }
+    }
+
+    if (typeof candidate?.text === 'string' && candidate.text.trim()) {
+      return stripThinkingTags(candidate.text.trim());
+    }
+
+    if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
+      if (candidate.finishReason === 'SAFETY') {
+        return `⚠️ सुरक्षा फ़िल्टर (Safety Filter): Google AI ने इस सवाल का जवाब देने से रोक दिया।`;
+      }
+      if (candidate.finishReason === 'RECITATION') {
+        return `⚠️ कॉपीराइट / सुरक्षा कारणों से जवाब रोक दिया गया।`;
+      }
+      if (candidate.finishReason === 'MAX_TOKENS') {
+        return `⚠️ अधिकतम टोकन सीमा (Max Tokens) पूरी हो गई।`;
+      }
+      return `⚠️ जवाब पूरा नहीं हो सका (कारण: ${candidate.finishReason})।`;
+    }
+
+    return '';
+  }
+
+  function formatGeminiErrorHindi(status, rawMessage = '', err = null) {
+    const code = Number(status) || Number(err?.status) || Number(err?.statusCode) || 0;
+    const msg = (rawMessage || err?.message || '').toLowerCase();
+
+    if (err?.isTimeout || err?.message === 'TIMEOUT' || msg.includes('timeout')) {
+      return `⏳ **समय समाप्त (Timeout - 15 Seconds)**\n\n15 सेकंड में Google सर्वर से कोई जवाब नहीं मिला। कृपया अपना इंटरनेट कनेक्शन या वाई-फाई चेक करें।`;
+    }
+
+    if (msg.includes('failed to fetch') || msg.includes('network') || msg.includes('offline') || code === 0) {
+      return `📶 **इंटरनेट कनेक्शन एरर (Network Error)**\n\nGoogle AI सर्वर से संपर्क नहीं हो सका। कृपया जांचें कि फोन में इंटरनेट चालू है या नहीं।`;
+    }
+
+    if (code === 400 || msg.includes('400') || msg.includes('api_key_invalid') || msg.includes('key not valid')) {
+      return `🔑 **अमान्य अनुरोध या कुंजी (HTTP 400 - Bad Request)**\n\nआपकी API Key गलत है या अनुरोध का फॉर्मेट अमान्य है।\nकृपया **Settings (⚙️)** में जाकर Google AI Studio से अपनी सही Gemini API Key सेट करें।`;
+    }
+
+    if (code === 403 || msg.includes('403') || msg.includes('permission_denied') || msg.includes('forbidden')) {
+      return `🚫 **कुंजी को अनुमति नहीं है (HTTP 403 - Permission Denied)**\n\nइस API Key को Gemini API इस्तेमाल करने की अनुमति नहीं है।\nकृपया [Google AI Studio](https://aistudio.google.com/app/apikey) से नई फ्री API Key बनाएं और Settings में डालें।`;
+    }
+
+    if (code === 404 || msg.includes('404') || msg.includes('no longer available') || msg.includes('not found') || msg.includes('deprecated')) {
+      return `🔍 **मॉडल नहीं मिला या बंद हो चुका है (HTTP 404 - Not Found)**\n\nचुना गया AI मॉडल Google द्वारा बंद कर दिया गया है। ऐप अपने आप नए \`gemini-3.8-flash\` मॉडल पर स्विच कर रहा है।`;
+    }
+
+    if (code === 429 || msg.includes('429') || msg.includes('resource_exhausted') || msg.includes('quota')) {
+      return `⚠️ **कोटा खत्म है (HTTP 429 - Quota Exhausted)**\n\nआपकी API Key का आज का फ्री कोटा पूरा हो चुका है।\n• यह कोटा 24 घंटे में Google द्वारा अपने आप फ्री में रीसेट हो जाएगा।\n• या आप Settings (⚙️) में किसी अन्य Google खाते की नई फ्री Key जोड़ सकते हैं।`;
+    }
+
+    if (code >= 500 && code < 600) {
+      return `⚙️ **Google सर्वर एरर (HTTP ${code} - Server Error)**\n\nGoogle AI सर्वर पर अस्थायी समस्या है। कृपया कुछ सेकंड बाद पुनः प्रयास करें।`;
+    }
+
+    return `⚠️ **त्रुटि (HTTP ${code || 'Error'}):**\n\n${rawMessage || err?.message || 'अनपेक्षित समस्या आई। कृपया पुनः प्रयास करें।'}`;
+  }
+
   async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -357,6 +466,84 @@ Always detect and mirror the language and tone of the user's query naturally.`;
       return `Message received, ${userName}. Standalone on-device engine operational. To activate live Gemini 3.8 Flash neural responses, please calibrate your Gemini API Key in **Settings (⚙️)**.`;
     }
 
+    // Helper to format conversation history according to Gemini API requirements:
+    // 1. First turn must be 'user'
+    // 2. Consecutive turns of same role must be merged
+    // 3. Ensure at least one user turn
+    formatContentsForGemini(messages = [], currentMessage = '', imageBase64 = null, imageMime = 'image/jpeg') {
+      const contents = [];
+      let lastRole = null;
+
+      // Include previous turns (up to last 10 messages for speed)
+      const recentTurns = messages.slice(-10);
+      for (const m of recentTurns) {
+        const role = (m.role === 'user') ? 'user' : 'model';
+        const text = (m.content || '').trim();
+
+        // Gemini rule: First content turn MUST have role 'user'
+        if (contents.length === 0 && role === 'model') {
+          continue;
+        }
+
+        if (!text && !m.image_url) continue;
+
+        const parts = [];
+        if (m.image_url && m.image_url.startsWith('data:')) {
+          const match = m.image_url.match(/^data:([^;]+);base64,(.+)$/);
+          if (match) {
+            parts.push({
+              inline_data: {
+                mime_type: match[1],
+                data: match[2]
+              }
+            });
+          }
+        }
+        if (text) {
+          parts.push({ text });
+        }
+
+        if (parts.length === 0) continue;
+
+        // Merge consecutive turns with the same role to prevent HTTP 400
+        if (role === lastRole && contents.length > 0) {
+          contents[contents.length - 1].parts.push(...parts);
+        } else {
+          contents.push({ role, parts });
+          lastRole = role;
+        }
+      }
+
+      // Add current message with optional multimodal image
+      const currentParts = [];
+      if (imageBase64) {
+        currentParts.push({
+          inline_data: {
+            mime_type: imageMime || 'image/jpeg',
+            data: imageBase64
+          }
+        });
+      }
+      if (currentMessage && currentMessage.trim()) {
+        currentParts.push({ text: currentMessage.trim() });
+      }
+
+      if (currentParts.length > 0) {
+        if (lastRole === 'user' && contents.length > 0) {
+          contents[contents.length - 1].parts.push(...currentParts);
+        } else {
+          contents.push({ role: 'user', parts: currentParts });
+        }
+      }
+
+      // Safety fallback: ensure at least one user turn
+      if (contents.length === 0) {
+        contents.push({ role: 'user', parts: [{ text: 'Hello' }] });
+      }
+
+      return contents;
+    }
+
     // ----------------------------------------------------
     // Direct Gemini REST API Caller
     // ----------------------------------------------------
@@ -374,47 +561,9 @@ Always detect and mirror the language and tone of the user's query naturally.`;
         return { text: reply, model: 'local-offline' };
       }
 
-      // Build conversation history for multi-turn chat
+      // Build conversation history adhering to Gemini REST API rules
       const msgs = sessionId ? this.getMessages(sessionId) : [];
-      const contents = [];
-
-      // Include previous turns (up to last 10 messages for speed)
-      const recentTurns = msgs.slice(-10);
-      for (const m of recentTurns) {
-        if (m.role === 'user') {
-          contents.push({
-            role: 'user',
-            parts: [{ text: m.content }]
-          });
-        } else {
-          contents.push({
-            role: 'model',
-            parts: [{ text: m.content }]
-          });
-        }
-      }
-
-      // Add current message with optional multimodal image
-      const currentParts = [];
-      if (imageBase64) {
-        currentParts.push({
-          inline_data: {
-            mime_type: imageMime || 'image/jpeg',
-            data: imageBase64
-          }
-        });
-      }
-      if (message) {
-        currentParts.push({ text: message });
-      }
-      if (currentParts.length === 0) {
-        currentParts.push({ text: 'Hello' });
-      }
-
-      contents.push({
-        role: 'user',
-        parts: currentParts
-      });
+      const contents = this.formatContentsForGemini(msgs, message, imageBase64, imageMime);
 
       const systemPrompt = this.getSystemPrompt();
       let preferredModel = settings.ai_model || DEFAULT_MODEL;
@@ -447,15 +596,17 @@ Always detect and mirror the language and tone of the user's query naturally.`;
           continue;
         }
 
+        const cleanModel = String(model).replace(/^models\//, '').trim() || DEFAULT_MODEL;
+
         try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`;
           const requestBody = {
             contents,
-            system_instruction: {
+            systemInstruction: {
               parts: [{ text: systemPrompt }]
             },
             generationConfig: {
-              temperature: 0.8,
+              temperature: 0.7,
               maxOutputTokens: 2048
             }
           };
@@ -469,13 +620,16 @@ Always detect and mirror the language and tone of the user's query naturally.`;
           if (res.status === 429) {
             // Rate limit / Quota exceeded
             this.quotaCooldowns.set(model, Date.now() + 60000); // 1 minute cooldown
-            console.warn(`[ClientAI] Quota 429 on model ${model}, trying fallback...`);
+            console.warn(`[ClientAI] Quota 429 on model ${cleanModel}, trying fallback...`);
+            lastError = { status: 429, message: 'RESOURCE_EXHAUSTED', model: cleanModel };
             continue;
           }
 
           if (!res.ok) {
             const errJson = await res.json().catch(() => ({}));
             const errMsg = errJson.error?.message || `HTTP ${res.status}`;
+            lastError = { status: res.status, message: errMsg, model: cleanModel };
+
             const lowerErr = errMsg.toLowerCase();
             if (
               res.status === 404 ||
@@ -486,41 +640,47 @@ Always detect and mirror the language and tone of the user's query naturally.`;
             ) {
               // Model is deprecated or shut down - mark long cooldown and fallback to next model
               this.quotaCooldowns.set(model, Date.now() + 86400000); // 24 hour cooldown
-              console.warn(`[ClientAI] Model ${model} is deprecated/unavailable (${errMsg}), automatically trying next model...`);
+              console.warn(`[ClientAI] Model ${cleanModel} is deprecated/unavailable (${errMsg}), automatically trying next model...`);
               continue;
             }
-            throw new Error(errMsg);
+            // For fatal errors like 400 or 403, break and report clearly
+            break;
           }
 
           const data = await res.json();
-          const candidate = data.candidates?.[0];
-          const text = candidate?.content?.parts?.[0]?.text || '';
-          if (text) {
-            finalResponseText = text;
-            usedModel = model;
+          const extractedText = extractTextFromGeminiResponse(data);
+
+          if (extractedText && extractedText.trim().length > 0) {
+            finalResponseText = extractedText.trim();
+            usedModel = cleanModel;
             // If fallback model was used because preferred model failed, persist the working model
             if (usedModel !== preferredModel) {
               this.saveSettings({ ai_model: usedModel });
             }
             break;
+          } else {
+            console.warn(`[ClientAI] Model ${cleanModel} returned 200 OK but text was empty. Trying next model...`);
+            lastError = { status: 200, isEmpty: true, message: 'Google AI ने खाली जवाब दिया (Empty Response)', model: cleanModel };
           }
         } catch (err) {
           lastError = err;
-          console.warn(`[ClientAI] Error with ${model}:`, err.message);
+          console.warn(`[ClientAI] Error with ${cleanModel}:`, err.message);
           if (err.isTimeout) break; // If timed out, break immediately
         }
       }
 
-      // If all models exhausted or failed
-      if (!finalResponseText) {
-        if (lastError && (lastError.isTimeout || lastError.message === 'TIMEOUT')) {
-          finalResponseText = `⏳ समय समाप्त (Timeout): 15 सेकंड में Google सर्वर से कोई जवाब नहीं मिला। कृपया इंटरनेट कनेक्शन चेक करें।`;
-        } else if (lastError && lastError.message.includes('429')) {
+      // If all models exhausted or failed, guarantee a non-empty, clear Hindi explanation with status code
+      if (!finalResponseText || finalResponseText.trim().length === 0) {
+        if (lastError && lastError.isEmpty) {
+          finalResponseText = `⚠️ **खाली जवाब (HTTP 200 - Empty Response)**\n\nGoogle AI (\`${usedModel || preferredModel}\`) ने कोई टेक्स्ट वापस नहीं भेजा। कृपया सवाल दोबारा पूछें या थोड़ा विस्तार से लिखें।`;
+        } else if (lastError && (lastError.status === 429 || (lastError.message && lastError.message.includes('429')))) {
           finalResponseText = settings.persona === 'girlfriend'
-            ? `Jaan, lagta hai Google Gemini ka daily free quota abhi khatam ho gaya hai. Aap thodi der baad baat kar sakte hain ya Settings (⚙️) me nayi API Key daal sakte hain! ❤️`
-            : `System Notice: Google Gemini API quota has been reached for all models. Please try again later or calibrate a new API key in Settings.`;
+            ? `💖 **कोटा खत्म है (HTTP 429 - Quota Exhausted)**\n\nJaan, lagta hai Google Gemini ka daily free quota abhi pura ho gaya hai! 🥺\n• Yeh quota 24 ghante me Google ki taraf se automatically bilkul free me reset ho jayega.\n• Turant baat jari rakhne ke liye aap Settings (⚙️) me kisi doosre account ki nayi free API key daal sakte hain!`
+            : `⚠️ **कोटा खत्म है (HTTP 429 - Quota Exhausted)**\n\nGoogle Gemini API free tier request quota limit reached. Please wait for the 24-hour reset or calibrate a new free API key in Settings (⚙️).`;
+        } else if (lastError) {
+          finalResponseText = formatGeminiErrorHindi(lastError.status || 0, lastError.message || '', lastError);
         } else {
-          finalResponseText = `Error: ${lastError ? lastError.message : 'Unable to connect to Gemini API. Please check your internet connection or API key.'}`;
+          finalResponseText = `⚠️ **त्रुटि:** Google AI से कोई जवाब नहीं मिला। कृपया इंटरनेट कनेक्शन और API Key जांचें।`;
         }
       }
 
@@ -563,7 +723,28 @@ Always detect and mirror the language and tone of the user's query naturally.`;
     }
   }
 
-  // Attach global instance
-  window.ClientAI = new ClientAIEngine();
+  // Attach global instance and expose utility helpers
+  const clientAI = new ClientAIEngine();
+  clientAI.extractText = extractTextFromGeminiResponse;
+  clientAI.formatErrorHindi = formatGeminiErrorHindi;
+  clientAI.stripThinkingTags = stripThinkingTags;
 
-})(window);
+  if (typeof window !== 'undefined') {
+    window.ClientAI = clientAI;
+    window.extractTextFromGeminiResponse = extractTextFromGeminiResponse;
+    window.formatGeminiErrorHindi = formatGeminiErrorHindi;
+    window.stripThinkingTags = stripThinkingTags;
+  }
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      ClientAIEngine,
+      extractTextFromGeminiResponse,
+      formatGeminiErrorHindi,
+      stripThinkingTags,
+      isDiscontinuedModel
+    };
+  }
+
+})(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));
+
