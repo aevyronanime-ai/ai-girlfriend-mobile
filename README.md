@@ -10,7 +10,7 @@ An Android-first, high-performance personal AI companion and developer assistant
 - **Bilingual & Polyglot Intelligence**: Fluent in Hindi (हिंदी), English, Hinglish, Assamese, Bengali, Urdu, and world languages.
 - **Streaming Responses**: Real-time token streaming via Server-Sent Events (SSE).
 - **Multimodal Vision**: Attach photos or documents for deep visual analysis.
-- **Quota Protection (HTTP 429)**: Automatic fallback across official Google Gemini models (`gemini-2.5-flash` ➔ `gemini-2.0-flash` ➔ `gemini-1.5-flash` ➔ `gemini-1.5-pro`) with in-memory cooldown tracking.
+- **Quota Protection (HTTP 429)**: Automatic fallback across official Google Gemini models (`gemini-3.8-flash` ➔ `gemini-2.5-flash` ➔ `gemini-2.0-flash` ➔ `gemini-1.5-flash` ➔ `gemini-1.5-pro`) with in-memory cooldown tracking.
 
 ### 2. 🎙️ Voice Assistant & Animated Holographic Orb
 - **Animated Arc Reactor Orb**: Dynamic 60fps HTML5 Canvas particle orb shifting through `IDLE`, `LISTENING`, `THINKING`, and `SPEAKING` states.

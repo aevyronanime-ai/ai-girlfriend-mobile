@@ -13,6 +13,7 @@
   };
 
   const SUPPORTED_MODELS = [
+    'gemini-3.8-flash',
     'gemini-2.5-flash',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
@@ -40,7 +41,7 @@ Always detect and mirror the language and tone of the user's query naturally.`;
     constructor() {
       this.serverAvailable = null;
       this.quotaCooldowns = new Map();
-      this.activeModel = 'gemini-2.5-flash';
+      this.activeModel = 'gemini-3.8-flash';
     }
 
     async init() {
@@ -76,7 +77,7 @@ Always detect and mirror the language and tone of the user's query naturally.`;
 
     getSettings() {
       const defaults = {
-        ai_model: 'gemini-2.5-flash',
+        ai_model: 'gemini-3.8-flash',
         persona: 'girlfriend',
         user_name: 'Commander',
         custom_system_prompt: '',
@@ -264,7 +265,7 @@ Always detect and mirror the language and tone of the user's query naturally.`;
       if (isGirlfriend) {
         return `Main sun rahi hoon, ${userName}! Main direct aapke phone me bina kisi computer ke active hoon. Mujhse full smart baatein karne ke liye Settings (⚙️) me ek baar apni free Gemini API Key daal dijiye, fir main aapki har baat ka best jawab doongi! ❤️`;
       }
-      return `Message received, ${userName}. Standalone on-device engine operational. To activate live Gemini 2.5 Flash neural responses, please calibrate your Gemini API Key in **Settings (⚙️)**.`;
+      return `Message received, ${userName}. Standalone on-device engine operational. To activate live Gemini 3.8 Flash neural responses, please calibrate your Gemini API Key in **Settings (⚙️)**.`;
     }
 
     // ----------------------------------------------------
@@ -327,7 +328,7 @@ Always detect and mirror the language and tone of the user's query naturally.`;
       });
 
       const systemPrompt = this.getSystemPrompt();
-      const preferredModel = settings.ai_model || 'gemini-2.5-flash';
+      const preferredModel = settings.ai_model || 'gemini-3.8-flash';
       const modelsToTry = [preferredModel, ...SUPPORTED_MODELS.filter(m => m !== preferredModel)];
 
       let lastError = null;
@@ -369,7 +370,21 @@ Always detect and mirror the language and tone of the user's query naturally.`;
 
           if (!res.ok) {
             const errJson = await res.json().catch(() => ({}));
-            throw new Error(errJson.error?.message || `HTTP ${res.status}`);
+            const errMsg = errJson.error?.message || `HTTP ${res.status}`;
+            const lowerErr = errMsg.toLowerCase();
+            if (
+              res.status === 404 ||
+              lowerErr.includes('no longer available') ||
+              lowerErr.includes('not found') ||
+              lowerErr.includes('not supported') ||
+              lowerErr.includes('deprecated')
+            ) {
+              // Model is deprecated or shut down - mark long cooldown and fallback to next model
+              this.quotaCooldowns.set(model, Date.now() + 86400000); // 24 hour cooldown
+              console.warn(`[ClientAI] Model ${model} is deprecated/unavailable (${errMsg}), automatically trying next model...`);
+              continue;
+            }
+            throw new Error(errMsg);
           }
 
           const data = await res.json();
@@ -378,6 +393,10 @@ Always detect and mirror the language and tone of the user's query naturally.`;
           if (text) {
             finalResponseText = text;
             usedModel = model;
+            // If fallback model was used because preferred model failed, persist the working model
+            if (usedModel !== preferredModel) {
+              this.saveSettings({ ai_model: usedModel });
+            }
             break;
           }
         } catch (err) {

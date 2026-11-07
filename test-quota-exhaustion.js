@@ -36,6 +36,7 @@ async function testAsync(name, fn) {
   // Test 1: Official models list
   test('Supported Official Models list defined', () => {
     assert(Array.isArray(aiService.OFFICIAL_MODELS), 'OFFICIAL_MODELS must be an array');
+    assert(aiService.OFFICIAL_MODELS.includes('gemini-3.8-flash'), 'Includes gemini-3.8-flash');
     assert(aiService.OFFICIAL_MODELS.includes('gemini-2.5-flash'), 'Includes gemini-2.5-flash');
     assert(aiService.OFFICIAL_MODELS.includes('gemini-2.0-flash'), 'Includes gemini-2.0-flash');
     assert(aiService.OFFICIAL_MODELS.includes('gemini-1.5-flash'), 'Includes gemini-1.5-flash');

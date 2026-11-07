@@ -127,7 +127,7 @@ const server = http.createServer(async (req, res) => {
         name: 'J.A.R.V.I.S. AI',
         version: '1.0.0',
         hasApiKey: Boolean(apiKey && apiKey.trim().length > 5),
-        model: db.getSetting('ai_model', 'gemini-2.5-flash'),
+        model: db.getSetting('ai_model', 'gemini-3.8-flash'),
         persona: db.getSetting('persona', 'jarvis'),
         userName: db.getSetting('user_name', 'Sir'),
         sessionsCount: sessions.length
@@ -165,7 +165,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/test-api-key' && method === 'POST') {
       const body = await parseBody(req);
       const key = (body.apiKey || '').trim();
-      const model = body.model || 'gemini-2.5-flash';
+      const model = body.model || 'gemini-3.8-flash';
 
       if (!key) {
         return sendJSON(res, 400, { success: false, error: 'API key is required' });
@@ -268,7 +268,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const apiKey = db.getSetting('gemini_api_key', '');
-      const model = db.getSetting('ai_model', 'gemini-2.5-flash');
+      const model = db.getSetting('ai_model', 'gemini-3.8-flash');
       const messagesHistory = db.getSessionMessages(activeSessionId);
 
       // If no API key configured, check if simple utility (math/time) or return clear key required error

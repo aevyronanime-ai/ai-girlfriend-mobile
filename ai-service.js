@@ -188,6 +188,7 @@ function formatGeminiContents(messages, imageBase64 = null, imageMimeType = 'ima
 // GEMINI MODEL FALLBACK CASCADE & 429 QUOTA MANAGEMENT SYSTEM
 // ====================================================================
 const OFFICIAL_MODELS = [
+  'gemini-3.8-flash',
   'gemini-2.5-flash',
   'gemini-2.0-flash',
   'gemini-1.5-flash',
@@ -258,6 +259,15 @@ function parseGeminiError(status, errText) {
     /Too Many Requests/i.test(msg)
   );
 
+  const isDeprecatedOrNotFound = (
+    code === 404 ||
+    status === 404 ||
+    /no longer available/i.test(msg) ||
+    /not found/i.test(msg) ||
+    /not supported/i.test(msg) ||
+    /deprecated/i.test(msg)
+  );
+
   const isInvalidKey = (
     (code === 400 && /API_KEY_INVALID|key not valid/i.test(msg)) ||
     (code === 403 && /API key|PERMISSION_DENIED/i.test(msg))
@@ -268,6 +278,7 @@ function parseGeminiError(status, errText) {
     statusStr,
     message: msg,
     isQuota,
+    isDeprecatedOrNotFound,
     isInvalidKey,
     raw: errJson
   };
@@ -316,62 +327,88 @@ function getModelCandidateList(preferredModel) {
   return list;
 }
 
-// Verify API Key via direct Google API probe
-async function verifyApiKey(apiKey, model = 'gemini-2.5-flash') {
-  const candidate = model && OFFICIAL_MODELS.includes(model) ? model : 'gemini-2.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${apiKey}`;
+// Verify API Key via direct Google API probe with automatic model cascade
+async function verifyApiKey(apiKey, model = 'gemini-3.8-flash') {
+  const candidateList = getModelCandidateList(model || 'gemini-3.8-flash');
+  let lastErrInfo = null;
 
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: 'Respond with OK' }] }]
-      })
-    });
+  for (const candidate of candidateList) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${apiKey}`;
 
-    if (res.ok) {
-      return {
-        success: true,
-        valid: true,
-        model: candidate,
-        message: `API Key is VALID and connected to ${candidate} successfully!`
-      };
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'Respond with OK' }] }]
+        })
+      });
+
+      if (res.ok) {
+        if (candidate !== model) {
+          try { db.setSetting('ai_model', candidate); } catch (e) {}
+        }
+        return {
+          success: true,
+          valid: true,
+          model: candidate,
+          fallbackUsed: candidate !== model,
+          message: candidate !== model
+            ? `API Key is VALID! (Auto-connected to ${candidate} as ${model} is discontinued).`
+            : `API Key is VALID and connected to ${candidate} successfully!`
+        };
+      }
+
+      const errText = await res.text();
+      const errInfo = parseGeminiError(res.status, errText);
+      lastErrInfo = errInfo;
+
+      if (errInfo.isQuota) {
+        markModelExhausted(candidate);
+        continue;
+      }
+
+      if (errInfo.isDeprecatedOrNotFound) {
+        markModelExhausted(candidate, 86400000); // 24h
+        console.warn(`[verifyApiKey] Model ${candidate} deprecated or unavailable (${errInfo.message}). Trying next candidate...`);
+        continue;
+      }
+
+      if (errInfo.isInvalidKey) {
+        return {
+          success: false,
+          valid: false,
+          error: 'INVALID_KEY',
+          message: errInfo.message || `API Key verification failed (HTTP ${res.status})`
+        };
+      }
+    } catch (err) {
+      lastErrInfo = { message: err.message };
     }
+  }
 
-    const errText = await res.text();
-    const errInfo = parseGeminiError(res.status, errText);
-
-    if (errInfo.isQuota) {
-      return {
-        success: false,
-        valid: true,
-        quotaExhausted: true,
-        model: candidate,
-        error: 'QUOTA_EXHAUSTED',
-        message: `API Key is valid, but model "${candidate}" has reached its free tier quota limit (HTTP 429 - RESOURCE_EXHAUSTED).`
-      };
-    }
-
+  if (lastErrInfo && lastErrInfo.isQuota) {
     return {
       success: false,
-      valid: false,
-      error: 'INVALID_KEY',
-      message: errInfo.message || `API Key verification failed (HTTP ${res.status})`
-    };
-  } catch (err) {
-    return {
-      success: false,
-      valid: false,
-      error: 'NETWORK_ERROR',
-      message: err.message
+      valid: true,
+      quotaExhausted: true,
+      model: model || 'gemini-3.8-flash',
+      error: 'QUOTA_EXHAUSTED',
+      message: `API Key is valid, but attempted models have reached their free tier quota limit (HTTP 429 - RESOURCE_EXHAUSTED).`
     };
   }
+
+  return {
+    success: false,
+    valid: false,
+    error: 'VERIFICATION_FAILED',
+    message: lastErrInfo?.message || 'API Key verification failed'
+  };
 }
 
 // Call Google Gemini API with Automatic Fallback & Quota Protection
 async function callGemini({ apiKey, model, messages, systemPrompt, temperature = 0.7, imageBase64 = null, imageMimeType = 'image/jpeg' }) {
-  const preferred = model || db.getSetting('ai_model', 'gemini-2.5-flash');
+  const preferred = model || db.getSetting('ai_model', 'gemini-3.8-flash');
   const candidates = getModelCandidateList(preferred);
   const userName = db.getSetting('user_name', 'Sir');
   const persona = db.getSetting('persona', 'girlfriend');
@@ -422,6 +459,13 @@ async function callGemini({ apiKey, model, messages, systemPrompt, temperature =
           continue;
         }
 
+        if (errInfo.isDeprecatedOrNotFound) {
+          markModelExhausted(candidateModel, 86400000);
+          console.warn(`[callGemini] Model "${candidateModel}" is deprecated/unavailable (${errInfo.message}). Trying next fallback model...`);
+          lastError = new Error(`Deprecated model ${candidateModel}: ${errInfo.message}`);
+          continue;
+        }
+
         if (errInfo.isInvalidKey) {
           throw new Error(`Invalid Gemini API Key: ${errInfo.message}`);
         }
@@ -434,6 +478,11 @@ async function callGemini({ apiKey, model, messages, systemPrompt, temperature =
       const data = await response.json();
       const candidate = data.candidates?.[0];
       const replyText = candidate?.content?.parts?.map(p => p.text).join('') || '';
+
+      if (candidateModel !== preferred) {
+        try { db.setSetting('ai_model', candidateModel); } catch (e) {}
+      }
+
       return {
         replyText,
         modelUsed: candidateModel,
@@ -464,7 +513,7 @@ async function callGemini({ apiKey, model, messages, systemPrompt, temperature =
 
 // Streaming Gemini API response with Automatic Fallback & Quota Protection
 async function streamGemini({ apiKey, model, messages, systemPrompt, temperature = 0.7, imageBase64 = null, imageMimeType = 'image/jpeg', onChunk, onError, onDone }) {
-  const preferred = model || db.getSetting('ai_model', 'gemini-2.5-flash');
+  const preferred = model || db.getSetting('ai_model', 'gemini-3.8-flash');
   const candidates = getModelCandidateList(preferred);
   const userName = db.getSetting('user_name', 'Sir');
   const persona = db.getSetting('persona', 'girlfriend');
@@ -512,6 +561,12 @@ async function streamGemini({ apiKey, model, messages, systemPrompt, temperature
           continue;
         }
 
+        if (errInfo.isDeprecatedOrNotFound) {
+          markModelExhausted(candidateModel, 86400000);
+          console.warn(`[streamGemini] Model "${candidateModel}" is deprecated/unavailable (${errInfo.message}). Trying fallback model...`);
+          continue;
+        }
+
         if (errInfo.isInvalidKey) {
           onError(new Error(`Invalid Gemini API Key: ${errInfo.message}`));
           return;
@@ -523,6 +578,9 @@ async function streamGemini({ apiKey, model, messages, systemPrompt, temperature
       // Successfully connected to a working model!
       connectedModel = candidateModel;
       activeResponse = response;
+      if (candidateModel !== preferred) {
+        try { db.setSetting('ai_model', candidateModel); } catch (e) {}
+      }
       break;
     } catch (netErr) {
       console.warn(`[streamGemini] Connection error with "${candidateModel}":`, netErr.message);

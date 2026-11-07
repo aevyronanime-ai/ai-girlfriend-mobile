@@ -93,7 +93,7 @@ function initDatabase() {
   // Seed default settings if empty
   const defaultSettings = [
     ['gemini_api_key', process.env.GEMINI_API_KEY || ''],
-    ['ai_model', 'gemini-2.5-flash'],
+    ['ai_model', 'gemini-3.8-flash'],
     ['persona', 'girlfriend'],
     ['user_name', 'Darling'],
     ['assistant_name', 'Maya (AI Girlfriend)'],
@@ -112,6 +112,9 @@ function initDatabase() {
     const existing = checkStmt.get(key);
     if (!existing) {
       insertStmt.run(key, val);
+    } else if (key === 'ai_model' && existing.value === 'gemini-2.5-flash') {
+      // Migrate old discontinued model to gemini-3.8-flash
+      db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('gemini-3.8-flash', 'ai_model');
     }
   }
 

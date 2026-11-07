@@ -172,25 +172,72 @@ class SettingsController {
     if (testBtn) testBtn.textContent = 'Testing...';
 
     try {
-      const model = this.modelSelect ? this.modelSelect.value : 'gemini-2.5-flash';
+      const selectedModel = this.modelSelect ? this.modelSelect.value : 'gemini-3.8-flash';
+      const modelsToTry = [
+        selectedModel,
+        'gemini-3.8-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro'
+      ].filter((m, idx, arr) => m && arr.indexOf(m) === idx);
 
-      // Test directly against Google Gemini endpoint
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Hello' }] }]
-        })
-      });
+      let lastError = null;
+      let connectedModel = null;
 
-      if (res.ok) {
-        alert(`✅ API Key is VALID and connected to ${model} successfully!`);
-      } else if (res.status === 429) {
-        alert(`⚠️ Google Gemini Quota Exhausted (HTTP 429)\n\nNote: Google AI Studio free tier quotas reset within 24 hours. You can also insert another free API key.`);
+      for (const model of modelsToTry) {
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'Hello' }] }]
+            })
+          });
+
+          if (res.ok) {
+            connectedModel = model;
+            break;
+          }
+
+          const errData = await res.json().catch(() => ({}));
+          const errMsg = errData.error?.message || `HTTP ${res.status}`;
+          const lower = errMsg.toLowerCase();
+
+          if (res.status === 429) {
+            alert(`⚠️ Google Gemini Quota Exhausted (HTTP 429)\n\nNote: Google AI Studio free tier quotas reset within 24 hours. You can also insert another free API key.`);
+            return;
+          }
+
+          if (
+            res.status === 404 ||
+            lower.includes('no longer available') ||
+            lower.includes('not found') ||
+            lower.includes('not supported') ||
+            lower.includes('deprecated')
+          ) {
+            console.warn(`[Settings] Model ${model} unavailable (${errMsg}), trying next candidate...`);
+            lastError = errMsg;
+            continue;
+          }
+
+          lastError = errMsg;
+          break; // Real error like invalid key
+        } catch (callErr) {
+          lastError = callErr.message;
+        }
+      }
+
+      if (connectedModel) {
+        if (connectedModel !== selectedModel && this.modelSelect) {
+          this.modelSelect.value = connectedModel;
+          if (window.ClientAI) window.ClientAI.saveSettings({ ai_model: connectedModel });
+          alert(`✅ API Key is VALID!\n\n(Note: Automatically updated model to "${connectedModel}" because "${selectedModel}" is discontinued by Google).`);
+        } else {
+          alert(`✅ API Key is VALID and connected to ${connectedModel} successfully!`);
+        }
       } else {
-        const errData = await res.json().catch(() => ({}));
-        alert(`❌ API Key verification failed: ${errData.error?.message || 'Invalid API Key'}`);
+        alert(`❌ API Key verification failed: ${lastError || 'Invalid API Key'}`);
       }
     } catch (err) {
       alert('❌ API Key verification network error: ' + err.message);
