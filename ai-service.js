@@ -189,11 +189,57 @@ function formatGeminiContents(messages, imageBase64 = null, imageMimeType = 'ima
 // ====================================================================
 const OFFICIAL_MODELS = [
   'gemini-3.8-flash',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro'
+  'gemini-3.8-pro'
 ];
+
+const DISCONTINUED_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-exp',
+  'gemini-2.0-pro-exp',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-pro',
+  'gemini-1.0-pro',
+  'gemini-pro',
+  'gemini-pro-vision'
+];
+
+function isDiscontinuedModel(model) {
+  if (!model) return true;
+  const m = String(model).toLowerCase().trim();
+  if (DISCONTINUED_MODELS.some(d => m === d || m.startsWith(d))) return true;
+  if (m.includes('2.5') || m.includes('2.0') || m.includes('1.5') || m.includes('1.0')) return true;
+  return false;
+}
+
+async function fetchLiveModels(apiKey) {
+  if (!apiKey) return [...OFFICIAL_MODELS];
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (!res.ok) return [...OFFICIAL_MODELS];
+    const data = await res.json();
+    if (!data || !Array.isArray(data.models)) return [...OFFICIAL_MODELS];
+
+    const live = data.models
+      .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+      .map(m => m.name.replace(/^models\//, ''))
+      .filter(m => !isDiscontinuedModel(m));
+
+    live.sort((a, b) => {
+      if (a === 'gemini-3.8-flash') return -1;
+      if (b === 'gemini-3.8-flash') return 1;
+      if (a.includes('3.8') && !b.includes('3.8')) return -1;
+      if (b.includes('3.8') && !a.includes('3.8')) return 1;
+      return a.localeCompare(b);
+    });
+
+    return live.length > 0 ? live : [...OFFICIAL_MODELS];
+  } catch (err) {
+    return [...OFFICIAL_MODELS];
+  }
+}
 
 // Cooldown cache to prevent rapid/repeated retries on exhausted models
 // model -> timestamp (ms) until when this model is on cooldown
@@ -314,22 +360,28 @@ Notice for ${userName}: The request quota for the primary and all official fallb
 }
 
 // Prepare list of models in order of attempt: preferred model first, then remaining official models
-function getModelCandidateList(preferredModel) {
+function getModelCandidateList(preferredModel, liveList = null) {
+  const models = liveList && liveList.length > 0 ? liveList : OFFICIAL_MODELS;
+  const cleanPreferred = isDiscontinuedModel(preferredModel) ? 'gemini-3.8-flash' : preferredModel;
   const list = [];
-  if (preferredModel && OFFICIAL_MODELS.includes(preferredModel)) {
-    list.push(preferredModel);
+  if (cleanPreferred && !isDiscontinuedModel(cleanPreferred)) {
+    list.push(cleanPreferred);
   }
-  for (const m of OFFICIAL_MODELS) {
-    if (!list.includes(m)) {
+  for (const m of models) {
+    if (!list.includes(m) && !isDiscontinuedModel(m)) {
       list.push(m);
     }
+  }
+  if (list.length === 0) {
+    list.push('gemini-3.8-flash');
   }
   return list;
 }
 
 // Verify API Key via direct Google API probe with automatic model cascade
 async function verifyApiKey(apiKey, model = 'gemini-3.8-flash') {
-  const candidateList = getModelCandidateList(model || 'gemini-3.8-flash');
+  const liveList = await fetchLiveModels(apiKey);
+  const candidateList = getModelCandidateList(model || 'gemini-3.8-flash', liveList);
   let lastErrInfo = null;
 
   for (const candidate of candidateList) {
@@ -353,6 +405,7 @@ async function verifyApiKey(apiKey, model = 'gemini-3.8-flash') {
           valid: true,
           model: candidate,
           fallbackUsed: candidate !== model,
+          liveModels: liveList,
           message: candidate !== model
             ? `API Key is VALID! (Auto-connected to ${candidate} as ${model} is discontinued).`
             : `API Key is VALID and connected to ${candidate} successfully!`
@@ -408,8 +461,13 @@ async function verifyApiKey(apiKey, model = 'gemini-3.8-flash') {
 
 // Call Google Gemini API with Automatic Fallback & Quota Protection
 async function callGemini({ apiKey, model, messages, systemPrompt, temperature = 0.7, imageBase64 = null, imageMimeType = 'image/jpeg' }) {
-  const preferred = model || db.getSetting('ai_model', 'gemini-3.8-flash');
-  const candidates = getModelCandidateList(preferred);
+  let preferred = model || db.getSetting('ai_model', 'gemini-3.8-flash');
+  if (isDiscontinuedModel(preferred)) {
+    preferred = 'gemini-3.8-flash';
+    try { db.setSetting('ai_model', 'gemini-3.8-flash'); } catch (e) {}
+  }
+  const liveList = await fetchLiveModels(apiKey);
+  const candidates = getModelCandidateList(preferred, liveList);
   const userName = db.getSetting('user_name', 'Sir');
   const persona = db.getSetting('persona', 'girlfriend');
 
@@ -513,8 +571,13 @@ async function callGemini({ apiKey, model, messages, systemPrompt, temperature =
 
 // Streaming Gemini API response with Automatic Fallback & Quota Protection
 async function streamGemini({ apiKey, model, messages, systemPrompt, temperature = 0.7, imageBase64 = null, imageMimeType = 'image/jpeg', onChunk, onError, onDone }) {
-  const preferred = model || db.getSetting('ai_model', 'gemini-3.8-flash');
-  const candidates = getModelCandidateList(preferred);
+  let preferred = model || db.getSetting('ai_model', 'gemini-3.8-flash');
+  if (isDiscontinuedModel(preferred)) {
+    preferred = 'gemini-3.8-flash';
+    try { db.setSetting('ai_model', 'gemini-3.8-flash'); } catch (e) {}
+  }
+  const liveList = await fetchLiveModels(apiKey);
+  const candidates = getModelCandidateList(preferred, liveList);
   const userName = db.getSetting('user_name', 'Sir');
   const persona = db.getSetting('persona', 'girlfriend');
 
@@ -680,6 +743,8 @@ async function generateImage({ prompt, style = 'realistic', aspectRatio = '1:1',
 
 module.exports = {
   OFFICIAL_MODELS,
+  isDiscontinuedModel,
+  fetchLiveModels,
   getSystemPrompt,
   generateLocalResponse,
   callGemini,

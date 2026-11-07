@@ -34,19 +34,29 @@ async function testAsync(name, fn) {
 
 (async () => {
   // Test 1: Official models list
-  test('Supported Official Models list defined', () => {
+  test('Supported Official Models list defined with only active models', () => {
     assert(Array.isArray(aiService.OFFICIAL_MODELS), 'OFFICIAL_MODELS must be an array');
     assert(aiService.OFFICIAL_MODELS.includes('gemini-3.8-flash'), 'Includes gemini-3.8-flash');
-    assert(aiService.OFFICIAL_MODELS.includes('gemini-2.5-flash'), 'Includes gemini-2.5-flash');
-    assert(aiService.OFFICIAL_MODELS.includes('gemini-2.0-flash'), 'Includes gemini-2.0-flash');
-    assert(aiService.OFFICIAL_MODELS.includes('gemini-1.5-flash'), 'Includes gemini-1.5-flash');
-    assert(aiService.OFFICIAL_MODELS.includes('gemini-1.5-pro'), 'Includes gemini-1.5-pro');
+    assert(aiService.OFFICIAL_MODELS.includes('gemini-3.8-pro'), 'Includes gemini-3.8-pro');
+    assert(!aiService.OFFICIAL_MODELS.includes('gemini-2.5-flash'), 'Excludes discontinued gemini-2.5-flash');
+    assert(!aiService.OFFICIAL_MODELS.includes('gemini-2.0-flash'), 'Excludes discontinued gemini-2.0-flash');
+    assert(!aiService.OFFICIAL_MODELS.includes('gemini-1.5-flash'), 'Excludes discontinued gemini-1.5-flash');
   });
 
-  // Test 2: Cooldown tracking
+  // Test 2: Discontinued models filter
+  test('isDiscontinuedModel correctly identifies dead models', () => {
+    assert(aiService.isDiscontinuedModel('gemini-2.5-flash'), 'gemini-2.5-flash is discontinued');
+    assert(aiService.isDiscontinuedModel('gemini-2.0-flash'), 'gemini-2.0-flash is discontinued');
+    assert(aiService.isDiscontinuedModel('gemini-1.5-flash'), 'gemini-1.5-flash is discontinued');
+    assert(aiService.isDiscontinuedModel('gemini-1.5-pro'), 'gemini-1.5-pro is discontinued');
+    assert(!aiService.isDiscontinuedModel('gemini-3.8-flash'), 'gemini-3.8-flash is active');
+    assert(!aiService.isDiscontinuedModel('gemini-3.8-pro'), 'gemini-3.8-pro is active');
+  });
+
+  // Test 3: Cooldown tracking
   test('Cooldown tracking for exhausted models', () => {
     aiService.clearCooldowns();
-    const model = 'gemini-2.5-flash';
+    const model = 'gemini-3.8-flash';
     assert.strictEqual(aiService.getCooldownStatus()[model], undefined, 'Initial status clean');
 
     aiService.markModelExhausted(model, 60000); // 1 minute cooldown
@@ -58,9 +68,9 @@ async function testAsync(name, fn) {
     assert.strictEqual(aiService.getCooldownStatus()[model], undefined, 'Cooldowns cleared successfully');
   });
 
-  // Test 3: Quota Exhausted Message for Girlfriend Persona (Maya)
+  // Test 4: Quota Exhausted Message for Girlfriend Persona (Maya)
   test('Persona Girlfriend Quota Exhausted Message (Hindi & English)', () => {
-    const msg = aiService.generateQuotaExhaustedMessage('girlfriend', 'Rahul', ['gemini-2.5-flash', 'gemini-2.0-flash']);
+    const msg = aiService.generateQuotaExhaustedMessage('girlfriend', 'Rahul', ['gemini-3.8-flash', 'gemini-3.8-pro']);
     assert(msg.includes('Rahul'), 'Includes personalized user name');
     assert(msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429'), 'Mentions HTTP 429 / RESOURCE_EXHAUSTED');
     assert(msg.includes('Settings (⚙️)'), 'Guides user to Settings to add key');
@@ -68,15 +78,15 @@ async function testAsync(name, fn) {
     assert(!msg.includes('Subscription') && !msg.includes('purchase'), 'Does not ask user to purchase paid subscriptions');
   });
 
-  // Test 4: Quota Exhausted Message for JARVIS Persona
+  // Test 5: Quota Exhausted Message for JARVIS Persona
   test('Persona JARVIS Quota Exhausted Message', () => {
-    const msg = aiService.generateQuotaExhaustedMessage('jarvis', 'Sir', ['gemini-2.5-flash']);
+    const msg = aiService.generateQuotaExhaustedMessage('jarvis', 'Sir', ['gemini-3.8-flash']);
     assert(msg.includes('Sir'), 'Respectfully addresses as Sir');
     assert(msg.includes('HTTP 429') && msg.includes('RESOURCE_EXHAUSTED'), 'Accurately diagnoses HTTP 429 RESOURCE_EXHAUSTED');
     assert(msg.includes('Google AI Studio'), 'Provides free AI Studio reference');
   });
 
-  // Test 5: Simulated Quota Fallback Cascade
+  // Test 6: Simulated Quota Fallback Cascade
   await testAsync('callGemini with exhausted models cascade & friendly response', async () => {
     // Clear cooldowns first
     aiService.clearCooldowns();
@@ -88,13 +98,13 @@ async function testAsync(name, fn) {
 
     const result = await aiService.callGemini({
       apiKey: 'AIzaFakeKey123',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       messages: [{ role: 'user', content: 'Hello' }]
     });
 
     assert(result.quotaExhausted === true, 'Result correctly marked as quotaExhausted: true');
     assert(result.replyText && result.replyText.length > 50, 'Friendly explanation reply generated');
-    assert(result.modelsAttempted.length >= 4, 'All official models attempted/skipped in cascade');
+    assert(result.modelsAttempted.length >= 1, 'Active models attempted in cascade');
 
     // Clean up cooldowns
     aiService.clearCooldowns();

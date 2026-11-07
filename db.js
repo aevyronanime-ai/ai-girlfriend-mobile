@@ -112,8 +112,14 @@ function initDatabase() {
     const existing = checkStmt.get(key);
     if (!existing) {
       insertStmt.run(key, val);
-    } else if (key === 'ai_model' && existing.value === 'gemini-2.5-flash') {
-      // Migrate old discontinued model to gemini-3.8-flash
+    } else if (key === 'ai_model' && (
+      !existing.value ||
+      existing.value.includes('2.5') ||
+      existing.value.includes('2.0') ||
+      existing.value.includes('1.5') ||
+      existing.value.includes('1.0')
+    )) {
+      // Migrate any old discontinued model to gemini-3.8-flash
       db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('gemini-3.8-flash', 'ai_model');
     }
   }

@@ -12,13 +12,36 @@
     MESSAGES_PREFIX: 'jarvis_msgs_'
   };
 
-  const SUPPORTED_MODELS = [
-    'gemini-3.8-flash',
+  const DEFAULT_MODEL = 'gemini-3.8-flash';
+
+  const DISCONTINUED_MODELS = [
     'gemini-2.5-flash',
+    'gemini-2.5-pro',
     'gemini-2.0-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-2.0-pro-exp',
     'gemini-1.5-flash',
-    'gemini-1.5-pro'
+    'gemini-1.5-flash-8b',
+    'gemini-1.5-pro',
+    'gemini-1.0-pro',
+    'gemini-pro',
+    'gemini-pro-vision'
   ];
+
+  function isDiscontinuedModel(name) {
+    if (!name) return true;
+    const lower = String(name).toLowerCase().trim();
+    if (DISCONTINUED_MODELS.some(d => lower === d || lower.startsWith(d))) return true;
+    if (lower.includes('2.5') || lower.includes('2.0') || lower.includes('1.5') || lower.includes('1.0')) return true;
+    return false;
+  }
+
+  const DEFAULT_ACTIVE_MODELS = [
+    'gemini-3.8-flash',
+    'gemini-3.8-pro'
+  ];
+
+  const SUPPORTED_MODELS = [...DEFAULT_ACTIVE_MODELS];
 
   const PERSONA_PROMPTS = {
     jarvis: `You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), an ultra-advanced, sophisticated personal AI assistant.
@@ -77,7 +100,7 @@ Always detect and mirror the language and tone of the user's query naturally.`;
 
     getSettings() {
       const defaults = {
-        ai_model: 'gemini-3.8-flash',
+        ai_model: DEFAULT_MODEL,
         persona: 'girlfriend',
         user_name: 'Commander',
         custom_system_prompt: '',
@@ -88,7 +111,15 @@ Always detect and mirror the language and tone of the user's query naturally.`;
 
       try {
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS) || '{}');
+        // Auto-migration: if saved model is missing or discontinued, replace immediately with gemini-3.8-flash
+        if (!saved.ai_model || isDiscontinuedModel(saved.ai_model)) {
+          saved.ai_model = DEFAULT_MODEL;
+          try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(saved)); } catch (e) {}
+        }
         const merged = Object.assign({}, defaults, saved);
+        if (isDiscontinuedModel(merged.ai_model)) {
+          merged.ai_model = DEFAULT_MODEL;
+        }
         const apiKey = this.getApiKey();
         if (apiKey) {
           merged.gemini_api_key_masked = apiKey.substring(0, 4) + '••••••••' + apiKey.slice(-4);
@@ -107,12 +138,52 @@ Always detect and mirror the language and tone of the user's query naturally.`;
       try {
         const current = this.getSettings();
         const updated = Object.assign({}, current, settings);
+        if (isDiscontinuedModel(updated.ai_model)) {
+          updated.ai_model = DEFAULT_MODEL;
+        }
         delete updated.gemini_api_key;
         delete updated.gemini_api_key_masked;
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
       } catch (e) {
         console.error('[ClientAI] Failed to save settings to localStorage:', e);
       }
+    }
+
+    // Live query Google ListModels REST API to discover active models
+    async fetchLiveModels(apiKey) {
+      const key = apiKey || this.getApiKey();
+      if (!key) return DEFAULT_ACTIVE_MODELS;
+
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+        if (!res.ok) return DEFAULT_ACTIVE_MODELS;
+
+        const data = await res.json();
+        if (!data || !Array.isArray(data.models)) return DEFAULT_ACTIVE_MODELS;
+
+        const live = data.models
+          .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+          .map(m => m.name.replace(/^models\//, ''))
+          .filter(name => !isDiscontinuedModel(name));
+
+        // Prioritize gemini-3.8-flash
+        live.sort((a, b) => {
+          if (a === DEFAULT_MODEL) return -1;
+          if (b === DEFAULT_MODEL) return 1;
+          if (a.includes('3.8') && !b.includes('3.8')) return -1;
+          if (b.includes('3.8') && !a.includes('3.8')) return 1;
+          return a.localeCompare(b);
+        });
+
+        if (live.length > 0) {
+          try { localStorage.setItem('jarvis_live_models', JSON.stringify(live)); } catch (e) {}
+          return live;
+        }
+      } catch (e) {
+        console.warn('[ClientAI] Live models lookup failed, using active defaults.');
+      }
+
+      return DEFAULT_ACTIVE_MODELS;
     }
 
     getSystemPrompt() {
@@ -328,8 +399,22 @@ Always detect and mirror the language and tone of the user's query naturally.`;
       });
 
       const systemPrompt = this.getSystemPrompt();
-      const preferredModel = settings.ai_model || 'gemini-3.8-flash';
-      const modelsToTry = [preferredModel, ...SUPPORTED_MODELS.filter(m => m !== preferredModel)];
+      let preferredModel = settings.ai_model || DEFAULT_MODEL;
+      if (isDiscontinuedModel(preferredModel)) {
+        preferredModel = DEFAULT_MODEL;
+        this.saveSettings({ ai_model: DEFAULT_MODEL });
+      }
+
+      // Fetch live models from Google ListModels API or active cache
+      const liveModels = await this.fetchLiveModels(apiKey);
+      const activeCandidates = liveModels.filter(m => !isDiscontinuedModel(m));
+      const modelsToTry = [
+        preferredModel,
+        ...activeCandidates.filter(m => m !== preferredModel)
+      ];
+      if (modelsToTry.length === 0) {
+        modelsToTry.push(DEFAULT_MODEL);
+      }
 
       let lastError = null;
       let finalResponseText = '';
