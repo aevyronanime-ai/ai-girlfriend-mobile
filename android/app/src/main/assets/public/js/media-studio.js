@@ -988,8 +988,10 @@ class MediaStudioController {
       }
 
       if (this.btnDownloadVid) {
+        const ext = (videoBlob && videoBlob.type && videoBlob.type.includes('mp4')) ? 'mp4' : 'webm';
         this.btnDownloadVid.href = this.currentVideoUrl;
-        this.btnDownloadVid.download = `flow-video-${this.creationStyle}-${Date.now()}.mp4`;
+        this.btnDownloadVid.download = `flow-video-${this.creationStyle}-${Date.now()}.${ext}`;
+        this.btnDownloadVid.innerHTML = `<span>⬇️ Download ${ext.toUpperCase()}</span>`;
       }
 
       if (this.vidResultMetaBadge) {
@@ -1529,9 +1531,10 @@ class MediaStudioController {
       if (window.app) window.app.showToast('No generated video available');
       return;
     }
+    const ext = (this.currentVideoBlob && this.currentVideoBlob.type && this.currentVideoBlob.type.includes('mp4')) ? 'mp4' : 'webm';
     const a = document.createElement('a');
     a.href = this.currentVideoUrl;
-    a.download = `flow-video-${Date.now()}.mp4`;
+    a.download = `flow-video-${Date.now()}.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

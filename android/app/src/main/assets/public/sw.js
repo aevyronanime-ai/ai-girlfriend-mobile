@@ -1,11 +1,12 @@
 // AI Girlfriend Mobile App - Service Worker for Offline App Shell & PWA Installation
-const CACHE_NAME = 'ai-girlfriend-pwa-v4';
+const CACHE_NAME = 'ai-girlfriend-pwa-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/css/style.css',
   '/js/client-ai.js',
+  '/js/dev-assistant.js',
   '/js/media-studio.js',
   '/js/audio-fx.js',
   '/js/system-launcher.js',
@@ -16,6 +17,7 @@ const STATIC_ASSETS = [
   '/js/history.js',
   '/js/settings.js',
   '/js/developer.js',
+  '/js/sakura-petals.js',
   '/js/app.js',
   '/icons/icon.svg',
   '/icons/icon-192.png',

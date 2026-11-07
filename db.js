@@ -104,6 +104,11 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_audit_time ON admin_audit_logs(created_at);
   `);
 
+  // Migration: Ensure accessories column exists on media_characters
+  try {
+    db.prepare("ALTER TABLE media_characters ADD COLUMN accessories TEXT DEFAULT ''").run();
+  } catch (e) {}
+
   // Seed default settings if empty
   const defaultSettings = [
     ['gemini_api_key', process.env.GEMINI_API_KEY || ''],
@@ -397,8 +402,8 @@ function saveMediaCharacter(char) {
     const now = Date.now();
     const id = char.id || ('char_' + now + '_' + Math.floor(Math.random() * 1000));
     const stmt = db.prepare(`
-      INSERT INTO media_characters (id, name, image_data, appearance, hairstyle, clothing, body_proportions, voice, description, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO media_characters (id, name, image_data, appearance, hairstyle, clothing, body_proportions, accessories, voice, description, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         name=excluded.name,
         image_data=excluded.image_data,
@@ -406,6 +411,7 @@ function saveMediaCharacter(char) {
         hairstyle=excluded.hairstyle,
         clothing=excluded.clothing,
         body_proportions=excluded.body_proportions,
+        accessories=excluded.accessories,
         voice=excluded.voice,
         description=excluded.description,
         updated_at=excluded.updated_at
@@ -418,6 +424,7 @@ function saveMediaCharacter(char) {
       char.hairstyle || '',
       char.clothing || '',
       char.body_proportions || '',
+      char.accessories || '',
       char.voice || 'female',
       char.description || '',
       char.created_at || now,
