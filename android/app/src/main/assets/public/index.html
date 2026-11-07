@@ -375,22 +375,32 @@
                 </div>
               </div>
               <textarea class="flow-textarea" id="imagePromptInput" rows="3" placeholder="Describe the scene, subject, lighting, mood, color palette, or artistic details..."></textarea>
+
+              <!-- Image Negative Prompt Collapsible -->
+              <div style="margin-top:8px;">
+                <button type="button" class="flow-link-btn" id="btnToggleImageNegativePrompt">
+                  <span>+ Negative Prompt (Optional)</span>
+                </button>
+                <div id="imageNegativePromptContainer" style="display:none; margin-top:6px;">
+                  <textarea class="flow-textarea-sm" id="imageNegativePromptInput" rows="2" placeholder="e.g. blurry, low quality, distorted anatomy, extra limbs, bad eyes, watermark, text..."></textarea>
+                </div>
+              </div>
             </div>
 
-            <!-- 2. Controls Grid: Style, Aspect Ratio, Quantity, AI Model -->
+            <!-- 2. Controls Grid: Style, Aspect Ratio, Quantity, AI Model, Quality -->
             <div class="flow-controls-grid">
               <!-- Artistic Style Selector -->
               <div class="flow-control-group">
                 <label class="flow-label" for="imageStyleSelect">Artistic Style</label>
                 <select class="flow-select" id="imageStyleSelect">
-                  <option value="2d-anime" selected>2D Anime</option>
-                  <option value="hand-drawn-anime">Hand-Drawn Anime</option>
-                  <option value="ghibli">Ghibli-Inspired</option>
-                  <option value="2d-cartoon">2D Cartoon</option>
-                  <option value="3d-pixar">3D Pixar-Like Animation</option>
-                  <option value="3d-cartoon">3D Cartoon</option>
-                  <option value="realistic-3d">Realistic 3D</option>
-                  <option value="cinematic">Cinematic</option>
+                  <option value="2d-anime" selected>Anime 2D</option>
+                  <option value="hand-drawn-anime">Hand-Painted 2D</option>
+                  <option value="ghibli">Ghibli-Inspired Original Artwork</option>
+                  <option value="2d-cartoon">2D Cartoon Animation</option>
+                  <option value="3d-pixar">3D Pixar-Like Cartoon</option>
+                  <option value="3d-cartoon">3D Cartoon Animation</option>
+                  <option value="realistic-3d">Photorealistic 3D</option>
+                  <option value="cinematic">3D Cinematic Animation Artwork</option>
                   <option value="watercolor">Watercolor Illustration</option>
                 </select>
               </div>
@@ -415,6 +425,15 @@
                   <option value="2">x2 Variations</option>
                   <option value="3">x3 Set</option>
                   <option value="4">x4 Batch</option>
+                </select>
+              </div>
+
+              <!-- Image Quality Selector -->
+              <div class="flow-control-group">
+                <label class="flow-label" for="imageQualitySelect">Quality</label>
+                <select class="flow-select" id="imageQualitySelect">
+                  <option value="standard" selected>Standard HD</option>
+                  <option value="ultra">Ultra HD (4K Clarity)</option>
                 </select>
               </div>
 
@@ -648,6 +667,8 @@
                     <option value="pan_right">Pan Right</option>
                     <option value="zoom_in" selected>Slow Zoom In</option>
                     <option value="zoom_out">Slow Zoom Out</option>
+                    <option value="ken_burns">Ken Burns (Pan &amp; Zoom)</option>
+                    <option value="parallax">Parallax Motion Layers</option>
                     <option value="orbit">Cinematic Orbit</option>
                   </select>
                 </div>
@@ -677,6 +698,7 @@
                     <option value="ltx">LTX-Video Cinema</option>
                     <option value="cogvideox">CogVideoX Dynamic</option>
                   </select>
+                  <button type="button" class="flow-link-btn" id="btnOpenColabInfo" style="margin-top:4px; font-size:0.72rem;">☁️ Heavy Models &amp; Colab GPU Info</button>
                 </div>
               </div>
 
@@ -710,6 +732,8 @@
                   <textarea class="flow-textarea" id="videoDialogueInput" rows="2" placeholder="Write dialogue in Hindi or English (e.g. नमस्ते! मैं आपकी नई दोस्त हूँ।)..."></textarea>
                   <div class="flow-dialogue-samples">
                     <span style="font-size:0.7rem; color:var(--text-muted);">Quick presets:</span>
+                    <button type="button" class="flow-sample-btn" data-text="गाँव के उस पुराने कुएँ के पास एक रहस्यमयी परछाईं दिखी...">गाँव की कहानी...</button>
+                    <button type="button" class="flow-sample-btn" data-text="माँ, मैं वापस आ गया हूँ। इस बार आपको कभी छोड़कर नहीं जाऊँगा।">भावुक परिवार...</button>
                     <button type="button" class="flow-sample-btn" data-text="नमस्ते! आज का दिन बहुत खूबसूरत है, हम कहाँ चलें?">नमस्ते! आज का दिन...</button>
                     <button type="button" class="flow-sample-btn" data-text="सावधानी से चलो, आगे का रास्ता बहुत रहस्यमयी है!">सावधानी से चलो...</button>
                     <button type="button" class="flow-sample-btn" data-text="Hello Commander! Everything is ready for our mission today.">Hello Commander...</button>
@@ -726,11 +750,20 @@
                   </div>
 
                   <div class="flow-control-group">
+                    <label class="flow-label" for="videoVoiceRoleSelect">Voice Assignment</label>
+                    <select class="flow-select" id="videoVoiceRoleSelect">
+                      <option value="character" selected>Character Dialogue</option>
+                      <option value="narrator">Story Narrator</option>
+                    </select>
+                  </div>
+
+                  <div class="flow-control-group">
                     <label class="flow-label" for="videoVoiceGenderSelect">Voice Type</label>
                     <select class="flow-select" id="videoVoiceGenderSelect">
                       <option value="female" selected>Female Voice (Sweet &amp; Clear)</option>
                       <option value="male">Male Voice (Deep &amp; Calm)</option>
                       <option value="child">Child Voice (Playful &amp; Cute)</option>
+                      <option value="narrator">Story Narrator (Hindi/English)</option>
                     </select>
                   </div>
 
@@ -751,6 +784,7 @@
                     <select class="flow-select" id="videoBgmSelect">
                       <option value="none">None</option>
                       <option value="sakura" selected>Sakura Lofi Ambient</option>
+                      <option value="village_folk">Indian Village Folk Flute</option>
                       <option value="cinematic">Cinematic Piano</option>
                       <option value="fantasy">Fantasy Whimsical</option>
                       <option value="rain">Gentle Rain &amp; Calm</option>
@@ -762,6 +796,7 @@
                     <select class="flow-select" id="videoSfxSelect">
                       <option value="none" selected>None</option>
                       <option value="footsteps">Footsteps</option>
+                      <option value="thunder">Rain &amp; Thunder</option>
                       <option value="wind">Wind Chimes</option>
                       <option value="birds">Birds Chirping</option>
                       <option value="sparkle">Magic Sparkle</option>
@@ -1670,6 +1705,28 @@
       <div style="margin-top:12px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
         <a id="btnLightboxDownload" class="chip-btn" download="ai-generated-image.jpg" href="#" style="background:var(--neon-cyan); color:#000; font-weight:700;">⬇️ Download HD</a>
         <button type="button" id="btnLightboxCopy" class="chip-btn">🔗 Copy URL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Colab GPU Backend Modal -->
+  <div id="colabInfoModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:var(--bg-card); border:1px solid var(--neon-cyan); border-radius:var(--radius-md); padding:18px; max-width:440px; width:100%; box-shadow:0 0 30px rgba(0,240,255,0.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.3rem;">☁️</span>
+          <h3 style="font-size:1.05rem; color:var(--neon-cyan); margin:0;">AI Video Engine &amp; Colab GPU</h3>
+        </div>
+        <button type="button" class="chip-btn" id="btnCloseColabModal" style="padding:2px 8px; font-size:1rem;">✕</button>
+      </div>
+      <div style="font-size:0.8rem; line-height:1.5; color:var(--text-secondary);">
+        <p style="margin-bottom:8px;"><strong style="color:var(--text-primary);">1. Default On-Device FlowMotion Engine:</strong> Runs 100% free offline on your phone using HTML5 Canvas, WebAudio &amp; MediaRecorder. No GPU cost, zero RAM overload, instant playable video clips with real lip-sync.</p>
+        <p style="margin-bottom:8px;"><strong style="color:var(--text-primary);">2. Optional Google Colab GPU:</strong> Heavy multi-billion parameter diffusion models (Wan 2.1, CogVideoX) require 12GB+ VRAM. You can run them via a free Google Colab T4 GPU notebook without loading your phone's memory.</p>
+        <p style="margin-bottom:0;"><strong style="color:var(--text-primary);">3. Camera &amp; Parallax Effects:</strong> Built-in Ken Burns pan/zoom and parallax motion are computed dynamically directly on the canvas.</p>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+        <a href="https://colab.research.google.com" target="_blank" class="chip-btn" style="background:rgba(255,255,255,0.1); color:#fff; text-decoration:none;">Open Google Colab</a>
+        <button type="button" class="chip-btn" id="btnCloseColabBtn" style="background:var(--neon-cyan); color:#000; font-weight:700;">Got It</button>
       </div>
     </div>
   </div>

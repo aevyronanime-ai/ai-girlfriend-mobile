@@ -40,9 +40,13 @@ class MediaStudioController {
     this.imgPromptInput = document.getElementById('imagePromptInput');
     this.btnEnhanceImg = document.getElementById('btnEnhancePrompt');
     this.btnClearImg = document.getElementById('btnClearImagePrompt');
+    this.btnToggleImageNegPrompt = document.getElementById('btnToggleImageNegativePrompt');
+    this.imageNegPromptContainer = document.getElementById('imageNegativePromptContainer');
+    this.imageNegPromptInput = document.getElementById('imageNegativePromptInput');
     this.imgStyleSelect = document.getElementById('imageStyleSelect');
     this.imgRatioSelect = document.getElementById('imageRatioSelect');
     this.imgQuantitySelect = document.getElementById('imageQuantitySelect');
+    this.imageQualitySelect = document.getElementById('imageQualitySelect');
     this.imgModelSelect = document.getElementById('imageModelSelect');
     this.btnGenerateImg = document.getElementById('btnGenerateImage');
     this.imgProgressBox = document.getElementById('imageGenerationProgress');
@@ -148,6 +152,13 @@ class MediaStudioController {
     this.btnCloseLightbox = document.getElementById('btnCloseLightbox');
     this.btnLightboxDownload = document.getElementById('btnLightboxDownload');
     this.btnLightboxCopy = document.getElementById('btnLightboxCopy');
+
+    // Voice Role & Colab GPU Modal Elements
+    this.videoVoiceRoleSelect = document.getElementById('videoVoiceRoleSelect');
+    this.btnOpenColabInfo = document.getElementById('btnOpenColabInfo');
+    this.colabInfoModal = document.getElementById('colabInfoModal');
+    this.btnCloseColabModal = document.getElementById('btnCloseColabModal');
+    this.btnCloseColabBtn = document.getElementById('btnCloseColabBtn');
   }
 
   // --- 2. MODE SWITCHER ---
@@ -226,6 +237,16 @@ class MediaStudioController {
       });
     }
 
+    // Toggle Negative Prompt
+    if (this.btnToggleImageNegPrompt && this.imageNegPromptContainer) {
+      this.btnToggleImageNegPrompt.addEventListener('click', () => {
+        const isHidden = this.imageNegPromptContainer.style.display === 'none';
+        this.imageNegPromptContainer.style.display = isHidden ? 'block' : 'none';
+        const span = this.btnToggleImageNegPrompt.querySelector('span');
+        if (span) span.textContent = isHidden ? '- Hide Negative Prompt' : '+ Negative Prompt (Optional)';
+      });
+    }
+
     // Generate Images
     if (this.btnGenerateImg) {
       this.btnGenerateImg.addEventListener('click', () => this.generateImages());
@@ -271,6 +292,8 @@ class MediaStudioController {
     const aspectRatio = this.imgRatioSelect ? this.imgRatioSelect.value : '1:1';
     const quantity = this.imgQuantitySelect ? parseInt(this.imgQuantitySelect.value, 10) : 1;
     const model = this.imgModelSelect ? this.imgModelSelect.value : 'flux';
+    const negativePrompt = this.imageNegPromptInput ? this.imageNegPromptInput.value.trim() : '';
+    const quality = this.imageQualitySelect ? this.imageQualitySelect.value : 'standard';
 
     if (window.soundFX) window.soundFX.click();
 
@@ -309,7 +332,7 @@ class MediaStudioController {
         const res = await fetch('/api/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, style, aspectRatio, quantity, model })
+          body: JSON.stringify({ prompt, negativePrompt, style, aspectRatio, quantity, model, quality })
         });
         resultData = await res.json();
         if (!resultData.success) throw new Error(resultData.error || 'Failed to synthesize images');
@@ -548,6 +571,28 @@ class MediaStudioController {
         }
       });
     });
+
+    // Google Colab GPU Backend Modal
+    if (this.btnOpenColabInfo && this.colabInfoModal) {
+      this.btnOpenColabInfo.addEventListener('click', () => {
+        this.colabInfoModal.style.display = 'flex';
+      });
+    }
+    if (this.btnCloseColabModal && this.colabInfoModal) {
+      this.btnCloseColabModal.addEventListener('click', () => {
+        this.colabInfoModal.style.display = 'none';
+      });
+    }
+    if (this.btnCloseColabBtn && this.colabInfoModal) {
+      this.btnCloseColabBtn.addEventListener('click', () => {
+        this.colabInfoModal.style.display = 'none';
+      });
+    }
+    if (this.colabInfoModal) {
+      this.colabInfoModal.addEventListener('click', (e) => {
+        if (e.target === this.colabInfoModal) this.colabInfoModal.style.display = 'none';
+      });
+    }
 
     // Reference Upload Handlers
     this._initUploadHandlers();
@@ -999,7 +1044,13 @@ class MediaStudioController {
           osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(bgm === 'sakura' ? 220 : 174, audioCtx.currentTime);
+          let baseFreq = 220;
+          if (bgm === 'village_folk') baseFreq = 392; // Indian folk flute tone (G4)
+          else if (bgm === 'cinematic') baseFreq = 174.61; // F3
+          else if (bgm === 'sakura') baseFreq = 261.63; // C4
+          else if (bgm === 'fantasy') baseFreq = 329.63; // E4
+          else if (bgm === 'rain' || bgm === 'thunder_rain') baseFreq = 110; // A2 low calm
+          osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
           gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
           osc.connect(gain);
           gain.connect(audioDest);
@@ -1026,8 +1077,14 @@ class MediaStudioController {
         window.speechSynthesis.cancel();
         const utter = new SpeechSynthesisUtterance(dialogue);
         utter.lang = (this.videoLanguageSelect && this.videoLanguageSelect.value === 'en') ? 'en-US' : 'hi-IN';
-        utter.rate = this.videoVoiceSpeed ? parseFloat(this.videoVoiceSpeed.value) || 1.0 : 1.0;
-        utter.pitch = this.videoVoicePitch ? parseFloat(this.videoVoicePitch.value) || 1.2 : 1.2;
+        let rate = this.videoVoiceSpeed ? parseFloat(this.videoVoiceSpeed.value) || 1.0 : 1.0;
+        let pitch = this.videoVoicePitch ? parseFloat(this.videoVoicePitch.value) || 1.2 : 1.2;
+        if (this.videoVoiceRoleSelect && this.videoVoiceRoleSelect.value === 'narrator') {
+          pitch = Math.max(0.85, pitch * 0.85); // deeper narrator timbre
+          rate = Math.min(1.0, rate * 0.95);
+        }
+        utter.rate = rate;
+        utter.pitch = pitch;
         window.speechSynthesis.speak(utter);
       } catch (e) {}
     }
@@ -1091,15 +1148,39 @@ class MediaStudioController {
         onProgress(pct, `Synthesizing frames: ${f}/${totalFrames} (${Math.floor(progress * 100)}%)...`);
       }
 
+      // Dynamic Camera Movement & Parallax System
+      const cam = this.videoCameraMovement ? this.videoCameraMovement.value : 'zoom_in';
+      let zoom = 1.0;
+      let panX = 0;
+      let panY = 0;
+      let rot = 0;
+
+      if (cam === 'ken_burns') {
+        zoom = 1.0 + progress * 0.16;
+        panX = (progress - 0.5) * 60;
+        panY = (progress - 0.5) * 28;
+      } else if (cam === 'parallax') {
+        panX = (progress - 0.5) * 55;
+      } else if (cam === 'zoom_in') {
+        zoom = 1.0 + progress * 0.12;
+      } else if (cam === 'zoom_out') {
+        zoom = 1.14 - progress * 0.12;
+      } else if (cam === 'pan_left') {
+        panX = progress * 60;
+      } else if (cam === 'pan_right') {
+        panX = -progress * 60;
+      } else if (cam === 'orbit') {
+        panX = Math.sin(t * 1.2) * 24;
+        rot = Math.sin(t * 1.2) * 0.015;
+      }
+
       // Draw Background
       if (sceneImg) {
-        // Slow pan / zoom
-        const zoom = 1.0 + progress * 0.08;
-        const panX = (progress - 0.5) * 40;
         ctx.save();
         ctx.translate(width / 2, height / 2);
         ctx.scale(zoom, zoom);
-        ctx.drawImage(sceneImg, -width / 2 + panX, -height / 2, width, height);
+        if (rot) ctx.rotate(rot);
+        ctx.drawImage(sceneImg, -width / 2 + panX, -height / 2 + panY, width, height);
         ctx.restore();
       } else {
         const grad = ctx.createLinearGradient(0, 0, 0, height);
@@ -1138,9 +1219,10 @@ class MediaStudioController {
         ctx.restore();
       });
 
-      // Animated Character Placement
-      const charCenterX = width * 0.5 + Math.sin(t * 1.5) * 8; // subtle breathing sway
-      const charCenterY = height * 0.52 + Math.cos(t * 2.0) * 4;
+      // Animated Character Placement with Parallax
+      const charPanRatio = (cam === 'parallax') ? 0.35 : 0.0;
+      const charCenterX = width * 0.5 + Math.sin(t * 1.5) * 8 + (panX * charPanRatio);
+      const charCenterY = height * 0.52 + Math.cos(t * 2.0) * 4 + (panY * charPanRatio);
 
       if (charImg) {
         // Draw recurring user character with breathing & zoom
