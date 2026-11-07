@@ -19,6 +19,62 @@ function isDiscontinuedModel(name) {
   return false;
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') {
+      const tErr = new Error('TIMEOUT');
+      tErr.isTimeout = true;
+      throw tErr;
+    }
+    throw err;
+  }
+}
+
+function formatGeminiErrorHindi(err, status = 0, rawMessage = '') {
+  const msg = (rawMessage || err?.message || '').toLowerCase();
+
+  if (err?.isTimeout || msg.includes('timeout') || err?.name === 'AbortError') {
+    return '⏳ समय समाप्त (Timeout)\n\n15 सेकंड में Google सर्वर से कोई जवाब नहीं मिला। कृपया अपना इंटरनेट कनेक्शन या वाई-फाई चेक करें।';
+  }
+
+  if (msg.includes('failed to fetch') || msg.includes('network') || msg.includes('offline')) {
+    return '📶 इंटरनेट कनेक्शन एरर\n\nGoogle AI सर्वर से संपर्क नहीं हो सका। कृपया जांचें कि फोन में इंटरनेट चालू है या नहीं।';
+  }
+
+  if (status === 429 || msg.includes('429') || msg.includes('resource_exhausted') || msg.includes('quota')) {
+    return '⚠️ कोटा समाप्त (Quota Exhausted - HTTP 429)\n\nआपकी API Key का आज का फ्री कोटा पूरा हो चुका है। Google AI Studio का कोटा 24 घंटे में रीसेट होता है, या आप नई फ्री API कुंजी जोड़ सकते हैं।';
+  }
+
+  if (
+    status === 400 ||
+    status === 403 ||
+    msg.includes('api_key_invalid') ||
+    msg.includes('key not valid') ||
+    msg.includes('permission_denied')
+  ) {
+    return '🔑 अमान्य कुंजी (Invalid Key)\n\nआपने जो API Key डाली है वह गलत या अमान्य है। कृपया Google AI Studio (aistudio.google.com) से सही कुंजी कॉपी करके पेस्ट करें।';
+  }
+
+  if (
+    status === 404 ||
+    msg.includes('no longer available') ||
+    msg.includes('not found') ||
+    msg.includes('not supported') ||
+    msg.includes('deprecated')
+  ) {
+    return '🚫 मॉडल अनुपलब्ध (Model Discontinued)\n\nचुना गया मॉडल अब उपलब्ध नहीं है। ऐप चालू मॉडल पर स्विच करने का प्रयास कर रहा है।';
+  }
+
+  return `❌ सत्यापन असफल:\n\n${rawMessage || err?.message || 'अज्ञात त्रुटि'}`;
+}
+
 // Settings Controller: API Keys, Personas (Jarvis/Girlfriend/Custom), TTS Tuning, Theme
 class SettingsController {
   constructor() {
@@ -227,91 +283,118 @@ class SettingsController {
   async testApiKey() {
     const key = this.apiKeyInput ? this.apiKeyInput.value.trim() : '';
     if (!key) {
-      alert('Please enter an API Key to test.');
+      alert('कृपया टेस्ट करने के लिए API Key दर्ज करें।');
       return;
     }
 
     const testBtn = this.btnTestApiKey;
-    if (testBtn) testBtn.textContent = 'Verifying...';
+    if (testBtn) {
+      testBtn.textContent = 'Verifying...';
+      testBtn.disabled = true;
+    }
 
     try {
-      // 1. Live discover active models via ListModels API
+      // 1. Live discover active models via ListModels API (15s timeout)
+      let activeCandidates = ['gemini-3.8-flash', 'gemini-3.8-pro'];
       const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
-      const listRes = await fetch(listUrl);
 
-      if (!listRes.ok) {
-        const errJson = await listRes.json().catch(() => ({}));
-        const errMsg = errJson.error?.message || `HTTP ${listRes.status}`;
+      try {
+        const listRes = await fetchWithTimeout(listUrl, {}, 15000);
 
-        if (listRes.status === 429) {
-          alert('⚠️ Google Gemini Quota Exhausted (HTTP 429)\n\nNote: Google AI Studio free tier quotas reset within 24 hours. You can also insert another free API key.');
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          const rawModels = Array.isArray(listData.models) ? listData.models : [];
+
+          const liveModels = rawModels
+            .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+            .map(m => m.name.replace(/^models\//, ''))
+            .filter(name => !isDiscontinuedModel(name));
+
+          liveModels.sort((a, b) => {
+            if (a === 'gemini-3.8-flash') return -1;
+            if (b === 'gemini-3.8-flash') return 1;
+            if (a.includes('3.8') && !b.includes('3.8')) return -1;
+            if (b.includes('3.8') && !a.includes('3.8')) return 1;
+            return a.localeCompare(b);
+          });
+
+          if (liveModels.length > 0) {
+            activeCandidates = liveModels;
+          }
+        } else {
+          const errData = await listRes.json().catch(() => ({}));
+          const errMsg = errData.error?.message || `HTTP ${listRes.status}`;
+
+          // Check if invalid key or quota
+          if (listRes.status === 400 || listRes.status === 403 || listRes.status === 429) {
+            alert(formatGeminiErrorHindi(null, listRes.status, errMsg));
+            return;
+          }
+        }
+      } catch (listErr) {
+        if (listErr.isTimeout) {
+          alert(formatGeminiErrorHindi(listErr));
           return;
         }
-
-        throw new Error(errMsg);
+        console.warn('[Settings] ListModels failed, proceeding with active fallback models:', listErr.message);
       }
 
-      const listData = await listRes.json();
-      const rawModels = Array.isArray(listData.models) ? listData.models : [];
-
-      // Extract generateContent models and filter out discontinued ones
-      const liveModels = rawModels
-        .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
-        .map(m => m.name.replace(/^models\//, ''))
-        .filter(name => !isDiscontinuedModel(name));
-
-      // Prioritize gemini-3.8-flash
-      liveModels.sort((a, b) => {
-        if (a === 'gemini-3.8-flash') return -1;
-        if (b === 'gemini-3.8-flash') return 1;
-        if (a.includes('3.8') && !b.includes('3.8')) return -1;
-        if (b.includes('3.8') && !a.includes('3.8')) return 1;
-        return a.localeCompare(b);
-      });
-
-      const activeCandidates = liveModels.length > 0 ? liveModels : ['gemini-3.8-flash', 'gemini-3.8-pro'];
-
-      // 2. Test ping with candidate model
+      // 2. Test ping with candidate models (STRICTLY MAXIMUM 3 ATTEMPTS, 15s timeout each)
+      const candidatesToTest = activeCandidates.slice(0, 3);
       let workingModel = null;
       let lastPingError = null;
+      let lastPingStatus = 0;
 
-      for (const candidate of activeCandidates) {
+      for (let i = 0; i < candidatesToTest.length; i++) {
+        const candidate = candidatesToTest[i];
         try {
           const pingUrl = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${key}`;
-          const pingRes = await fetch(pingUrl, {
+          const pingRes = await fetchWithTimeout(pingUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: 'Hello' }] }] })
-          });
+            body: JSON.stringify({ contents: [{ parts: [{ text: 'Respond with OK' }] }] })
+          }, 15000);
 
           if (pingRes.ok) {
             workingModel = candidate;
             break;
           }
 
+          lastPingStatus = pingRes.status;
           const pingErr = await pingRes.json().catch(() => ({}));
           lastPingError = pingErr.error?.message || `HTTP ${pingRes.status}`;
+
+          if (pingRes.status === 429 || pingRes.status === 400 || pingRes.status === 403) {
+            // Definite error (quota or invalid key), no need to loop further
+            break;
+          }
         } catch (callErr) {
           lastPingError = callErr.message;
+          if (callErr.isTimeout) {
+            lastPingError = 'TIMEOUT';
+            break;
+          }
         }
       }
 
       if (workingModel) {
-        // Save key and update dropdown with live models list
         this.populateModelDropdown(activeCandidates, workingModel);
         if (window.ClientAI) {
           window.ClientAI.setApiKey(key);
           window.ClientAI.saveSettings({ ai_model: workingModel });
         }
         try { localStorage.setItem('jarvis_live_models', JSON.stringify(activeCandidates)); } catch (e) {}
-        alert(`✅ API Key is VALID!\n\nConnected to: ${workingModel}\nLive models loaded from Google:\n• ${activeCandidates.join('\n• ')}`);
+        alert(`✅ API Key बिल्कुल सही है!\n\nसफलतापूर्वक कनेक्टेड: ${workingModel}\nGoogle से मॉडल लोड हो चुके हैं।`);
       } else {
-        alert(`❌ API Key verification failed: ${lastPingError || 'Unable to generate response'}`);
+        alert(formatGeminiErrorHindi({ message: lastPingError }, lastPingStatus, lastPingError));
       }
     } catch (err) {
-      alert(`❌ API Key verification failed: ${err.message}`);
+      alert(formatGeminiErrorHindi(err));
     } finally {
-      if (testBtn) testBtn.textContent = 'Verify Key';
+      if (testBtn) {
+        testBtn.textContent = 'Verify Key';
+        testBtn.disabled = false;
+      }
     }
   }
 

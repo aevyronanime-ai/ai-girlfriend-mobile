@@ -36,6 +36,24 @@
     return false;
   }
 
+  async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return res;
+    } catch (err) {
+      clearTimeout(timer);
+      if (err.name === 'AbortError') {
+        const tErr = new Error('TIMEOUT');
+        tErr.isTimeout = true;
+        throw tErr;
+      }
+      throw err;
+    }
+  }
+
   const DEFAULT_ACTIVE_MODELS = [
     'gemini-3.8-flash',
     'gemini-3.8-pro'
@@ -155,7 +173,7 @@ Always detect and mirror the language and tone of the user's query naturally.`;
       if (!key) return DEFAULT_ACTIVE_MODELS;
 
       try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+        const res = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`, {}, 15000);
         if (!res.ok) return DEFAULT_ACTIVE_MODELS;
 
         const data = await res.json();
@@ -408,10 +426,12 @@ Always detect and mirror the language and tone of the user's query naturally.`;
       // Fetch live models from Google ListModels API or active cache
       const liveModels = await this.fetchLiveModels(apiKey);
       const activeCandidates = liveModels.filter(m => !isDiscontinuedModel(m));
-      const modelsToTry = [
+      const candidates = [
         preferredModel,
         ...activeCandidates.filter(m => m !== preferredModel)
       ];
+      // Strictly maximum 3 attempts as instructed
+      const modelsToTry = candidates.slice(0, 3);
       if (modelsToTry.length === 0) {
         modelsToTry.push(DEFAULT_MODEL);
       }
@@ -440,11 +460,11 @@ Always detect and mirror the language and tone of the user's query naturally.`;
             }
           };
 
-          const res = await fetch(endpoint, {
+          const res = await fetchWithTimeout(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
-          });
+          }, 15000);
 
           if (res.status === 429) {
             // Rate limit / Quota exceeded
@@ -487,12 +507,15 @@ Always detect and mirror the language and tone of the user's query naturally.`;
         } catch (err) {
           lastError = err;
           console.warn(`[ClientAI] Error with ${model}:`, err.message);
+          if (err.isTimeout) break; // If timed out, break immediately
         }
       }
 
       // If all models exhausted or failed
       if (!finalResponseText) {
-        if (lastError && lastError.message.includes('429')) {
+        if (lastError && (lastError.isTimeout || lastError.message === 'TIMEOUT')) {
+          finalResponseText = `⏳ समय समाप्त (Timeout): 15 सेकंड में Google सर्वर से कोई जवाब नहीं मिला। कृपया इंटरनेट कनेक्शन चेक करें।`;
+        } else if (lastError && lastError.message.includes('429')) {
           finalResponseText = settings.persona === 'girlfriend'
             ? `Jaan, lagta hai Google Gemini ka daily free quota abhi khatam ho gaya hai. Aap thodi der baad baat kar sakte hain ya Settings (⚙️) me nayi API Key daal sakte hain! ❤️`
             : `System Notice: Google Gemini API quota has been reached for all models. Please try again later or calibrate a new API key in Settings.`;

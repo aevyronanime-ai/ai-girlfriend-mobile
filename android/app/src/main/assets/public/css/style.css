@@ -414,7 +414,7 @@ html, body {
 }
 
 .tab-pane {
-  display: none;
+  display: none !important;
   flex: 1;
   height: 100%;
   overflow: hidden;
@@ -422,14 +422,13 @@ html, body {
 }
 
 .tab-pane.active {
-  display: flex;
+  display: flex !important;
 }
 
 /* ==========================================================================
    1. CHAT INTERFACE
    ========================================================================== */
 .chat-pane {
-  display: flex;
   flex-direction: column;
   height: 100%;
   position: relative;
@@ -774,7 +773,6 @@ html, body {
    2. VOICE ASSISTANT PANE & ANIMATED AI ORB
    ========================================================================== */
 .voice-pane {
-  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;

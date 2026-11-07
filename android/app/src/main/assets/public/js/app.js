@@ -9,6 +9,7 @@ class App {
     this.initSidebar();
     this.initPWA();
     this.updateStatusIndicator();
+    this.switchTab('chat');
   }
 
   initTheme() {
@@ -104,8 +105,10 @@ class App {
     panes.forEach(pane => {
       if (pane.id === `tab-${tabName}`) {
         pane.classList.add('active');
+        pane.style.setProperty('display', 'flex', 'important');
       } else {
         pane.classList.remove('active');
+        pane.style.setProperty('display', 'none', 'important');
       }
     });
 
