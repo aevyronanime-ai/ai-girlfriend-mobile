@@ -21,12 +21,22 @@ class HistoryController {
 
   async loadSessions() {
     if (!this.container) return;
+    if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+      this.sessions = window.ClientAI.getSessions();
+      this.renderSessions(this.sessions);
+      return;
+    }
     try {
       const res = await fetch('/api/sessions');
       if (!res.ok) throw new Error('Failed to load history');
       this.sessions = await res.json();
       this.renderSessions(this.sessions);
     } catch (err) {
+      if (window.ClientAI) {
+        this.sessions = window.ClientAI.getSessions();
+        this.renderSessions(this.sessions);
+        return;
+      }
       console.error('History load error:', err);
       this.container.innerHTML = `<p style="color:#ff0055; padding:20px;">Failed to load history: ${err.message}</p>`;
     }
@@ -100,7 +110,13 @@ class HistoryController {
   async deleteSession(sessionId) {
     if (!confirm('Are you sure you want to delete this conversation?')) return;
     try {
-      await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+      if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+        window.ClientAI.deleteSession(sessionId);
+      } else {
+        await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' }).catch(() => {
+          if (window.ClientAI) window.ClientAI.deleteSession(sessionId);
+        });
+      }
       if (window.app) window.app.showToast('Session deleted');
       await this.loadSessions();
 
@@ -113,6 +129,11 @@ class HistoryController {
         }
       }
     } catch (err) {
+      if (window.ClientAI) {
+        window.ClientAI.deleteSession(sessionId);
+        await this.loadSessions();
+        return;
+      }
       alert('Failed to delete session: ' + err.message);
     }
   }
@@ -120,11 +141,23 @@ class HistoryController {
   async handleClearAll() {
     if (!confirm('Are you sure you want to delete ALL conversations? This cannot be undone.')) return;
     try {
-      await fetch('/api/sessions/clear', { method: 'POST' });
+      if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+        window.ClientAI.clearAllSessions();
+      } else {
+        await fetch('/api/sessions/clear', { method: 'POST' }).catch(() => {
+          if (window.ClientAI) window.ClientAI.clearAllSessions();
+        });
+      }
       if (window.app) window.app.showToast('All chat history cleared');
       await this.loadSessions();
       if (window.app) window.app.createNewChat();
     } catch (err) {
+      if (window.ClientAI) {
+        window.ClientAI.clearAllSessions();
+        await this.loadSessions();
+        if (window.app) window.app.createNewChat();
+        return;
+      }
       alert('Failed to clear history: ' + err.message);
     }
   }

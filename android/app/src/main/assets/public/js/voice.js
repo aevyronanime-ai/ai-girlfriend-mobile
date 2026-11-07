@@ -403,38 +403,60 @@ class VoiceAssistant {
 
     try {
       const activeSessionId = window.chat ? window.chat.activeSessionId : null;
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      let reply = '';
+
+      if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+        const clientRes = await window.ClientAI.callGeminiDirect({
           sessionId: activeSessionId,
-          message: transcript,
-          stream: false
-        })
-      });
+          message: transcript
+        });
+        reply = clientRes.text;
+      } else {
+        try {
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: activeSessionId,
+              message: transcript,
+              stream: false
+            })
+          });
 
-      const data = await res.json();
+          const data = await res.json();
 
-      if (data.apiKeyRequired) {
-        const notice = 'Google Gemini API key required. Please configure your key in Settings.';
-        this.setTranscriptText(notice);
-        this.speak(notice);
-        if (window.chat) window.chat.appendApiKeyRequiredCard();
-        return;
-      }
+          if (data.apiKeyRequired) {
+            const notice = 'Google Gemini API key required. Please configure your key in Settings.';
+            this.setTranscriptText(notice);
+            this.speak(notice);
+            if (window.chat) window.chat.appendApiKeyRequiredCard();
+            return;
+          }
 
-      if (data.quotaExhausted) {
-        const spokenNotice = 'Google Gemini API quota limit exhaust ho gaya hai. Please Settings me check karein.';
-        this.setTranscriptText(spokenNotice);
-        this.speak(spokenNotice);
-        if (window.chat) {
-          window.chat.appendQuotaExhaustedCard(data.content, data.modelsAttempted);
+          if (data.quotaExhausted) {
+            const spokenNotice = 'Google Gemini API quota limit exhaust ho gaya hai. Please Settings me check karein.';
+            this.setTranscriptText(spokenNotice);
+            this.speak(spokenNotice);
+            if (window.chat) {
+              window.chat.appendQuotaExhaustedCard(data.content, data.modelsAttempted);
+            }
+            if (window.orb) window.orb.setState('IDLE');
+            return;
+          }
+
+          reply = data.content || data.error || 'No response received.';
+        } catch (fetchErr) {
+          if (window.ClientAI) {
+            const clientRes = await window.ClientAI.callGeminiDirect({
+              sessionId: activeSessionId,
+              message: transcript
+            });
+            reply = clientRes.text;
+          } else {
+            throw fetchErr;
+          }
         }
-        if (window.orb) window.orb.setState('IDLE');
-        return;
       }
-
-      const reply = data.content || data.error || 'No response received.';
 
       // Clean markdown tags for spoken audio
       const cleanSpoken = reply
@@ -452,7 +474,7 @@ class VoiceAssistant {
       }
     } catch (err) {
       this.setTranscriptText('Error: ' + err.message);
-      this.speak('Network connection error.');
+      this.speak('Voice connection notice.');
       if (window.orb) window.orb.setState('IDLE');
     }
   }

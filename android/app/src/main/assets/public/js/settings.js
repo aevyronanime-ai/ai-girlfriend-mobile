@@ -81,42 +81,51 @@ class SettingsController {
   }
 
   async loadSettings() {
-    try {
-      const res = await fetch('/api/settings');
-      if (!res.ok) throw new Error('Failed to load settings');
-      const settings = await res.json();
+    let settings = {};
+    if (window.ClientAI) {
+      settings = window.ClientAI.getSettings();
+    }
 
-      if (this.apiKeyInput && settings.gemini_api_key_masked) {
-        this.apiKeyInput.placeholder = `Configured: ${settings.gemini_api_key_masked}`;
-      }
-      if (this.modelSelect && settings.ai_model) this.modelSelect.value = settings.ai_model;
-      if (this.personaSelect && settings.persona) {
-        this.personaSelect.value = settings.persona;
-        if (this.customPromptGroup) {
-          this.customPromptGroup.style.display = settings.persona === 'custom' ? 'flex' : 'none';
+    try {
+      if (!window.ClientAI || window.ClientAI.serverAvailable !== false) {
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const serverSettings = await res.json();
+          settings = Object.assign({}, settings, serverSettings);
         }
       }
-      if (this.userNameInput && settings.user_name) this.userNameInput.value = settings.user_name;
-      if (this.customPromptInput && settings.custom_system_prompt) this.customPromptInput.value = settings.custom_system_prompt;
-      if (this.voiceRateInput && settings.voice_rate) {
-        this.voiceRateInput.value = settings.voice_rate;
-        if (this.voiceRateVal) this.voiceRateVal.textContent = settings.voice_rate + 'x';
-        if (window.voiceAssistant) window.voiceAssistant.rate = parseFloat(settings.voice_rate);
-      }
-      if (this.voicePitchInput && settings.voice_pitch) {
-        this.voicePitchInput.value = settings.voice_pitch;
-        if (this.voicePitchVal) this.voicePitchVal.textContent = settings.voice_pitch + 'x';
-        if (window.voiceAssistant) window.voiceAssistant.pitch = parseFloat(settings.voice_pitch);
-      }
-      if (this.soundFxToggle && settings.sound_fx !== undefined) {
-        this.soundFxToggle.checked = settings.sound_fx === 'true';
-        if (window.soundFX) window.soundFX.enabled = this.soundFxToggle.checked;
-      }
-
-      this.updatePersonaBadge(settings.persona || 'jarvis');
     } catch (err) {
-      console.error('Settings load error:', err);
+      console.warn('Server settings unavailable, using local on-device settings.');
     }
+
+    if (this.apiKeyInput && settings.gemini_api_key_masked) {
+      this.apiKeyInput.placeholder = `Configured: ${settings.gemini_api_key_masked}`;
+    }
+    if (this.modelSelect && settings.ai_model) this.modelSelect.value = settings.ai_model;
+    if (this.personaSelect && settings.persona) {
+      this.personaSelect.value = settings.persona;
+      if (this.customPromptGroup) {
+        this.customPromptGroup.style.display = settings.persona === 'custom' ? 'flex' : 'none';
+      }
+    }
+    if (this.userNameInput && settings.user_name) this.userNameInput.value = settings.user_name;
+    if (this.customPromptInput && settings.custom_system_prompt) this.customPromptInput.value = settings.custom_system_prompt;
+    if (this.voiceRateInput && settings.voice_rate) {
+      this.voiceRateInput.value = settings.voice_rate;
+      if (this.voiceRateVal) this.voiceRateVal.textContent = settings.voice_rate + 'x';
+      if (window.voiceAssistant) window.voiceAssistant.rate = parseFloat(settings.voice_rate);
+    }
+    if (this.voicePitchInput && settings.voice_pitch) {
+      this.voicePitchInput.value = settings.voice_pitch;
+      if (this.voicePitchVal) this.voicePitchVal.textContent = settings.voice_pitch + 'x';
+      if (window.voiceAssistant) window.voiceAssistant.pitch = parseFloat(settings.voice_pitch);
+    }
+    if (this.soundFxToggle && settings.sound_fx !== undefined) {
+      this.soundFxToggle.checked = settings.sound_fx === 'true';
+      if (window.soundFX) window.soundFX.enabled = this.soundFxToggle.checked;
+    }
+
+    this.updatePersonaBadge(settings.persona || 'girlfriend');
   }
 
   async saveSettings() {
@@ -126,28 +135,30 @@ class SettingsController {
     }
     if (this.modelSelect) payload.ai_model = this.modelSelect.value;
     if (this.personaSelect) payload.persona = this.personaSelect.value;
-    if (this.userNameInput) payload.user_name = this.userNameInput.value.trim() || 'Sir';
+    if (this.userNameInput) payload.user_name = this.userNameInput.value.trim() || 'Commander';
     if (this.customPromptInput) payload.custom_system_prompt = this.customPromptInput.value.trim();
     if (this.voiceRateInput) payload.voice_rate = this.voiceRateInput.value;
     if (this.voicePitchInput) payload.voice_pitch = this.voicePitchInput.value;
     if (this.soundFxToggle) payload.sound_fx = this.soundFxToggle.checked ? 'true' : 'false';
 
-    try {
-      const res = await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (data.success) {
-        if (window.app) window.app.showToast('Settings saved successfully!');
-        if (window.soundFX) window.soundFX.success();
-        this.updatePersonaBadge(payload.persona || 'jarvis');
-        if (window.app) window.app.updateStatusIndicator();
-      }
-    } catch (err) {
-      alert('Failed to save settings: ' + err.message);
+    if (window.ClientAI) {
+      window.ClientAI.saveSettings(payload);
     }
+
+    try {
+      if (!window.ClientAI || window.ClientAI.serverAvailable !== false) {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
+    if (window.app) window.app.showToast('Settings saved to phone successfully!');
+    if (window.soundFX) window.soundFX.success();
+    this.updatePersonaBadge(payload.persona || 'girlfriend');
+    if (window.app) window.app.updateStatusIndicator();
   }
 
   async testApiKey() {
@@ -162,20 +173,24 @@ class SettingsController {
 
     try {
       const model = this.modelSelect ? this.modelSelect.value : 'gemini-2.5-flash';
-      const res = await fetch('/api/test-api-key', {
+
+      // Test directly against Google Gemini endpoint
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: key, model })
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Hello' }] }]
+        })
       });
 
-      const data = await res.json();
-
-      if (data.valid && !data.quotaExhausted) {
-        alert(`✅ API Key is VALID and connected to ${data.model} successfully!`);
-      } else if (data.quotaExhausted) {
-        alert(`⚠️ Google Gemini Quota Exhausted (HTTP 429)\n\n${data.message}\n\nNote: Google AI Studio free tier quotas reset automatically within 24 hours. You can also insert another free API key.`);
+      if (res.ok) {
+        alert(`✅ API Key is VALID and connected to ${model} successfully!`);
+      } else if (res.status === 429) {
+        alert(`⚠️ Google Gemini Quota Exhausted (HTTP 429)\n\nNote: Google AI Studio free tier quotas reset within 24 hours. You can also insert another free API key.`);
       } else {
-        alert(`❌ API Key verification failed: ${data.message || data.error || 'Invalid API Key'}`);
+        const errData = await res.json().catch(() => ({}));
+        alert(`❌ API Key verification failed: ${errData.error?.message || 'Invalid API Key'}`);
       }
     } catch (err) {
       alert('❌ API Key verification network error: ' + err.message);

@@ -133,12 +133,17 @@ class App {
   async createNewChat() {
     if (window.soundFX) window.soundFX.click();
     try {
-      const res = await fetch('/api/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'New Conversation' })
-      });
-      const newSession = await res.json();
+      let newSession;
+      if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+        newSession = window.ClientAI.createSession('New Conversation');
+      } else {
+        const res = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'New Conversation' })
+        });
+        newSession = await res.json();
+      }
       this.switchTab('chat');
       if (window.chat) {
         await window.chat.loadSessionMessages(newSession.id);
@@ -146,29 +151,47 @@ class App {
       this.showToast('Created new conversation');
       this.closeSidebar();
     } catch (err) {
+      if (window.ClientAI) {
+        const newSession = window.ClientAI.createSession('New Conversation');
+        this.switchTab('chat');
+        if (window.chat) await window.chat.loadSessionMessages(newSession.id);
+        this.showToast('Created new conversation');
+        this.closeSidebar();
+        return;
+      }
       alert('Failed to create new chat: ' + err.message);
     }
   }
 
   async updateStatusIndicator() {
-    try {
-      const res = await fetch('/api/status');
-      if (!res.ok) return;
-      const data = await res.json();
+    const dot = document.getElementById('systemStatusDot');
+    const text = document.getElementById('systemStatusText');
+    const userNameEl = document.getElementById('sidebarUserName');
 
-      const dot = document.getElementById('systemStatusDot');
-      const text = document.getElementById('systemStatusText');
-      const userNameEl = document.getElementById('sidebarUserName');
-
-      if (userNameEl) userNameEl.textContent = data.userName || 'Sir';
-
+    if (window.ClientAI) {
+      const s = window.ClientAI.getSettings();
+      if (userNameEl) userNameEl.textContent = s.user_name || 'Commander';
+      const hasKey = Boolean(window.ClientAI.getApiKey());
       if (dot && text) {
-        if (data.hasApiKey) {
-          dot.className = 'status-dot';
-          text.textContent = 'Neural Core Online';
+        if (window.ClientAI.serverAvailable === false) {
+          dot.className = hasKey ? 'status-dot' : 'status-dot warning';
+          text.textContent = hasKey ? 'Standalone Phone Core' : 'Phone Core (Add Key)';
         } else {
-          dot.className = 'status-dot warning';
-          text.textContent = 'Offline Engine (Add Key)';
+          dot.className = hasKey ? 'status-dot' : 'status-dot warning';
+          text.textContent = hasKey ? 'Neural Core Online' : 'Offline Engine (Add Key)';
+        }
+      }
+    }
+
+    try {
+      if (!window.ClientAI || window.ClientAI.serverAvailable !== false) {
+        const res = await fetch('/api/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (userNameEl) userNameEl.textContent = data.userName || 'Commander';
+        if (dot && text) {
+          dot.className = data.hasApiKey ? 'status-dot' : 'status-dot warning';
+          text.textContent = data.hasApiKey ? 'Neural Core Online' : 'Offline Engine (Add Key)';
         }
       }
     } catch (e) {}
@@ -302,14 +325,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Initialize on-device engine
+  if (window.ClientAI) {
+    await window.ClientAI.init();
+    if (window.app) window.app.updateStatusIndicator();
+  }
+
   // Load first active session into Chat view
   try {
-    const res = await fetch('/api/sessions');
-    const sessions = await res.json();
-    if (sessions && sessions.length > 0) {
-      window.chat.loadSessionMessages(sessions[0].id);
+    let sessions = [];
+    if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+      sessions = window.ClientAI.getSessions();
+    } else {
+      const res = await fetch('/api/sessions');
+      sessions = await res.json();
     }
-  } catch (e) {}
+    if (sessions && sessions.length > 0) {
+      if (window.chat) window.chat.loadSessionMessages(sessions[0].id);
+    } else if (window.ClientAI) {
+      const initial = window.ClientAI.ensureInitialSession();
+      if (window.chat) window.chat.loadSessionMessages(initial.id);
+    }
+  } catch (e) {
+    if (window.ClientAI) {
+      const initial = window.ClientAI.ensureInitialSession();
+      if (window.chat) window.chat.loadSessionMessages(initial.id);
+    }
+  }
 
   // Microphone toggle button click in voice view & chat input bar
   const micToggleBtn = document.getElementById('btnVoiceMicToggle');

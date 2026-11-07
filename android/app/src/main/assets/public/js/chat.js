@@ -91,6 +91,21 @@ class ChatController {
     this.activeSessionId = sessionId;
     if (!this.messagesContainer) return;
 
+    if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+      const msgs = window.ClientAI.getMessages(sessionId);
+      const sess = window.ClientAI.getSession(sessionId);
+      this.messagesContainer.innerHTML = '';
+      if (msgs && msgs.length > 0) {
+        msgs.forEach(msg => {
+          this.appendMessage(msg.role, msg.content, msg.id, msg.timestamp, msg.image_url);
+        });
+      }
+      this.scrollToBottom();
+      const titleEl = document.getElementById('topBarChatTitle');
+      if (titleEl) titleEl.textContent = (sess && sess.title) || 'AI Girlfriend Chat';
+      return;
+    }
+
     try {
       const res = await fetch(`/api/sessions/${sessionId}`);
       if (!res.ok) throw new Error('Session not found');
@@ -106,9 +121,62 @@ class ChatController {
 
       // Update top bar title
       const titleEl = document.getElementById('topBarChatTitle');
-      if (titleEl) titleEl.textContent = data.title || 'J.A.R.V.I.S. Chat';
+      if (titleEl) titleEl.textContent = data.title || 'AI Girlfriend Chat';
     } catch (err) {
+      if (window.ClientAI) {
+        const msgs = window.ClientAI.getMessages(sessionId);
+        const sess = window.ClientAI.getSession(sessionId);
+        this.messagesContainer.innerHTML = '';
+        if (msgs && msgs.length > 0) {
+          msgs.forEach(msg => {
+            this.appendMessage(msg.role, msg.content, msg.id, msg.timestamp, msg.image_url);
+          });
+        }
+        this.scrollToBottom();
+        const titleEl = document.getElementById('topBarChatTitle');
+        if (titleEl) titleEl.textContent = (sess && sess.title) || 'AI Girlfriend Chat';
+        return;
+      }
       console.error('Failed to load session:', err);
+    }
+  }
+
+  async handleClientAISend(message, currentImgBase64, currentImgMime, typingId) {
+    this.removeTypingIndicator(typingId);
+    const assistantMsgId = 'msg_ast_' + Date.now();
+    const msgBubble = this.createEmptyAssistantBubble(assistantMsgId);
+
+    if (window.ClientAI) {
+      window.ClientAI.addMessage(
+        this.activeSessionId,
+        'user',
+        message || '(Image sent)',
+        currentImgBase64 ? `data:${currentImgMime};base64,${currentImgBase64}` : ''
+      );
+    }
+
+    try {
+      const result = await window.ClientAI.callGeminiDirect({
+        sessionId: this.activeSessionId,
+        message,
+        imageBase64: currentImgBase64,
+        imageMime: currentImgMime,
+        onChunk: (text) => {
+          msgBubble.innerHTML = this.renderMarkdown(text);
+          this.scrollToBottom();
+        }
+      });
+
+      if (window.autoSpeakEnabled && window.voiceAssistant && result && result.text) {
+        window.voiceAssistant.speak(result.text);
+      }
+      if (window.soundFX) window.soundFX.success();
+    } catch (err) {
+      msgBubble.innerHTML = this.renderMarkdown(`> ⚠️ **Notice:** ${err.message}`);
+    } finally {
+      this.isStreaming = false;
+      if (this.sendBtn) this.sendBtn.disabled = false;
+      this.scrollToBottom();
     }
   }
 
@@ -142,6 +210,10 @@ class ChatController {
 
     this.isStreaming = true;
     if (this.sendBtn) this.sendBtn.disabled = true;
+
+    if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+      return this.handleClientAISend(message, currentImgBase64, currentImgMime, typingId);
+    }
 
     try {
       const res = await fetch('/api/chat', {
@@ -240,6 +312,9 @@ class ChatController {
         if (window.soundFX) window.soundFX.success();
       }
     } catch (err) {
+      if (window.ClientAI) {
+        return this.handleClientAISend(message, currentImgBase64, currentImgMime, typingId);
+      }
       this.removeTypingIndicator(typingId);
       this.appendMessage('assistant', `> ⚠️ **Network Notice:** ${err.message}`, 'err_' + Date.now(), Date.now());
     } finally {

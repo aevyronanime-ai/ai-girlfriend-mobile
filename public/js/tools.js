@@ -40,34 +40,47 @@ class ToolsController {
         genBtn.disabled = true;
         genBtn.innerHTML = `<span>⏳ Synthesizing AI Visual...</span>`;
 
+        let imageUrl = '';
         try {
-          const res = await fetch('/api/generate-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              prompt,
-              style: styleSelect ? styleSelect.value : 'realistic',
-              aspectRatio: ratioSelect ? ratioSelect.value : '1:1'
-            })
-          });
+          if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+            imageUrl = window.ClientAI.generateImageUrl(prompt);
+          } else {
+            const res = await fetch('/api/generate-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt,
+                style: styleSelect ? styleSelect.value : 'realistic',
+                aspectRatio: ratioSelect ? ratioSelect.value : '1:1'
+              })
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to generate image');
+            imageUrl = data.imageUrl;
+          }
+        } catch (fetchErr) {
+          if (window.ClientAI) {
+            imageUrl = window.ClientAI.generateImageUrl(prompt);
+          } else {
+            throw fetchErr;
+          }
+        }
 
-          const data = await res.json();
-          if (!data.success) throw new Error(data.error || 'Failed to generate image');
-
+        try {
           resultBox.style.display = 'block';
           resultBox.innerHTML = `
             <div class="image-result-grid">
               <div class="generated-image-frame">
-                <img src="${data.imageUrl}" alt="${data.prompt}" id="activeGenImage" loading="lazy" />
+                <img src="${imageUrl}" alt="${prompt}" id="activeGenImage" loading="lazy" />
               </div>
               <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; width:100%;">
-                <a href="${data.imageUrl}" target="_blank" download="jarvis-ai-image.jpg" class="chip-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+                <a href="${imageUrl}" target="_blank" download="jarvis-ai-image.jpg" class="chip-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
                   ⬇️ Download HD
                 </a>
-                <button class="chip-btn" onclick="navigator.clipboard.writeText('${data.imageUrl}'); if(window.app) window.app.showToast('Image link copied!');">
+                <button class="chip-btn" onclick="navigator.clipboard.writeText('${imageUrl}'); if(window.app) window.app.showToast('Image link copied!');">
                   🔗 Copy Link
                 </button>
-                <button class="chip-btn" onclick="window.tools.askJarvisAboutImage('${data.imageUrl}', '${encodeURIComponent(prompt)}')">
+                <button class="chip-btn" onclick="window.tools.askJarvisAboutImage('${imageUrl}', '${encodeURIComponent(prompt)}')">
                   💬 Chat About This
                 </button>
               </div>
@@ -125,24 +138,48 @@ class ToolsController {
         writeBtn.disabled = true;
         writeBtn.innerHTML = `<span>⏳ Crafting content...</span>`;
 
+        let content = '';
         try {
-          const res = await fetch('/api/writer', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              toolType: this.activeWriterType,
+          if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+            content = await window.ClientAI.generateWriting({
               topic,
               details: detailsInput ? detailsInput.value.trim() : '',
               tone: toneSelect ? toneSelect.value : 'Engaging',
-              language: langSelect ? langSelect.value : 'English'
-            })
-          });
+              format: this.activeWriterType,
+              lang: langSelect ? langSelect.value : 'Hindi'
+            });
+          } else {
+            const res = await fetch('/api/writer', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                toolType: this.activeWriterType,
+                topic,
+                details: detailsInput ? detailsInput.value.trim() : '',
+                tone: toneSelect ? toneSelect.value : 'Engaging',
+                language: langSelect ? langSelect.value : 'Hindi'
+              })
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to craft content');
+            content = data.result || '';
+          }
+        } catch (fetchErr) {
+          if (window.ClientAI) {
+            content = await window.ClientAI.generateWriting({
+              topic,
+              details: detailsInput ? detailsInput.value.trim() : '',
+              tone: toneSelect ? toneSelect.value : 'Engaging',
+              format: this.activeWriterType,
+              lang: langSelect ? langSelect.value : 'Hindi'
+            });
+          } else {
+            throw fetchErr;
+          }
+        }
 
-          const data = await res.json();
-          if (!data.success) throw new Error(data.error || 'Failed to craft content');
-
+        try {
           resultBox.style.display = 'block';
-          const content = data.result || '';
           const rendered = window.chat ? window.chat.renderMarkdown(content) : content;
 
           resultBox.innerHTML = `
@@ -220,22 +257,43 @@ class ToolsController {
         transBtn.disabled = true;
         transBtn.innerHTML = `<span>⏳ Translating...</span>`;
 
+        let translated = '';
         try {
-          const res = await fetch('/api/translate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+            translated = await window.ClientAI.translateText({
               text,
-              from: fromSelect ? fromSelect.value : 'Auto-Detect',
-              to: toSelect ? toSelect.value : 'Hindi'
-            })
-          });
+              fromLang: fromSelect ? fromSelect.value : 'Auto-Detect',
+              toLang: toSelect ? toSelect.value : 'Hindi'
+            });
+          } else {
+            const res = await fetch('/api/translate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text,
+                from: fromSelect ? fromSelect.value : 'Auto-Detect',
+                to: toSelect ? toSelect.value : 'Hindi'
+              })
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Translation failed');
+            translated = data.translated;
+          }
+        } catch (fetchErr) {
+          if (window.ClientAI) {
+            translated = await window.ClientAI.translateText({
+              text,
+              fromLang: fromSelect ? fromSelect.value : 'Auto-Detect',
+              toLang: toSelect ? toSelect.value : 'Hindi'
+            });
+          } else {
+            throw fetchErr;
+          }
+        }
 
-          const data = await res.json();
-          if (!data.success) throw new Error(data.error || 'Translation failed');
-
+        try {
           resultBox.style.display = 'block';
-          const rendered = window.chat ? window.chat.renderMarkdown(data.translated) : data.translated;
+          const rendered = window.chat ? window.chat.renderMarkdown(translated) : translated;
 
           resultBox.innerHTML = `
             <div class="tool-result-header">
@@ -294,27 +352,46 @@ class ToolsController {
         analyzeBtn.disabled = true;
         analyzeBtn.innerHTML = `<span>⏳ Analyzing document structure...</span>`;
 
+        let analysis = '';
         try {
-          const res = await fetch('/api/analyze-doc', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              docText,
-              question: goalSelect ? goalSelect.value : 'Summarize key points'
-            })
-          });
+          if (window.ClientAI && window.ClientAI.serverAvailable === false) {
+            analysis = await window.ClientAI.analyzeDocument({
+              content: docText,
+              goal: goalSelect ? goalSelect.value : 'Summarize key points'
+            });
+          } else {
+            const res = await fetch('/api/analyze-doc', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                docText,
+                question: goalSelect ? goalSelect.value : 'Summarize key points'
+              })
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Document analysis failed');
+            analysis = data.analysis;
+          }
+        } catch (fetchErr) {
+          if (window.ClientAI) {
+            analysis = await window.ClientAI.analyzeDocument({
+              content: docText,
+              goal: goalSelect ? goalSelect.value : 'Summarize key points'
+            });
+          } else {
+            throw fetchErr;
+          }
+        }
 
-          const data = await res.json();
-          if (!data.success) throw new Error(data.error || 'Document analysis failed');
-
+        try {
           resultBox.style.display = 'block';
-          const rendered = window.chat ? window.chat.renderMarkdown(data.analysis) : data.analysis;
+          const rendered = window.chat ? window.chat.renderMarkdown(analysis) : analysis;
 
           resultBox.innerHTML = `
             <div class="tool-result-header">
               <h3>📄 INTELLIGENCE REPORT</h3>
               <div class="tool-result-actions">
-                <button class="msg-action-btn" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(data.analysis)}')); if(window.app) window.app.showToast('Copied report!');">📋 Copy</button>
+                <button class="msg-action-btn" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodeURIComponent(analysis)}')); if(window.app) window.app.showToast('Copied report!');">📋 Copy</button>
               </div>
             </div>
             <div class="result-content-body">${rendered}</div>
