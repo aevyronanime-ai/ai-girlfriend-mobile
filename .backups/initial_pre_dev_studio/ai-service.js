@@ -124,28 +124,6 @@ In the meantime, you can try my built-in tools in the sidebar:
 - 🌐 **Translator & AI Writer**`;
 }
 
-// Call Google Gemini API
-async function callGemini({ apiKey, model, messages, systemPrompt, temperature = 0.7, imageBase64 = null, imageMimeType = 'image/jpeg' }) {
-  const modelName = model || db.getSetting('ai_model', 'gemini-2.5-flash');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-
-  // Format contents for Gemini API
-  const contents = [];
-
-  // Add historical messages
-  for (const msg of messages) {
-    const role = msg.role === 'assistant' ? 'model' : 'user';
-    const parts = [{ text: msg.content }];
-    
-    if (msg.image_base64) {
-      parts.unshift({
-        inlineData: {
-          mimeType: msg.image_mime || 'image/jpeg',
-          data: msg.image_base64
-        }
-      });
-    }
-    
 // Format messages into Gemini-compliant contents structure
 function formatGeminiContents(messages, imageBase64 = null, imageMimeType = 'image/jpeg') {
   const contents = [];

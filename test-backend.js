@@ -1,5 +1,6 @@
 // Comprehensive Automated Backend & Logic Test Suite for JARVIS AI
 const http = require('node:http');
+const path = require('node:path');
 
 const BASE_URL = 'http://localhost:3000';
 
@@ -24,6 +25,28 @@ async function runTests() {
   console.log('====================================================');
   console.log('🧪 STARTING COMPREHENSIVE JARVIS AI TEST SUITE');
   console.log('====================================================\n');
+
+  let serverProcess = null;
+  try {
+    const ping = await fetch(`${BASE_URL}/api/status`);
+    if (ping.status === 200) {
+      console.log('📡 Connected to active J.A.R.V.I.S. server on port 3000\n');
+    }
+  } catch (e) {
+    console.log('🚀 Launching backend server for integration tests...');
+    const { fork } = require('node:child_process');
+    serverProcess = fork(path.join(__dirname, 'server.js'), [], { silent: true });
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 200));
+      try {
+        const ping = await fetch(`${BASE_URL}/api/status`);
+        if (ping.status === 200) {
+          console.log('✓ Backend test server ready!\n');
+          break;
+        }
+      } catch (err) {}
+    }
+  }
 
   let passed = 0;
   let failed = 0;
@@ -269,13 +292,32 @@ async function runTests() {
     const iconRes = await fetch(`${BASE_URL}/icons/icon.svg`);
     assert(iconRes.status === 200, 'icon.svg returns HTTP 200');
 
-    const jsFiles = ['audio-fx.js', 'orb.js', 'voice.js', 'chat.js', 'tools.js', 'history.js', 'settings.js', 'app.js'];
+    const jsFiles = [
+      'audio-fx.js',
+      'orb.js',
+      'voice.js',
+      'chat.js',
+      'tools.js',
+      'history.js',
+      'settings.js',
+      'developer.js',
+      'sakura-petals.js',
+      'video-studio.js',
+      'client-ai.js',
+      'studio-engine.js',
+      'system-launcher.js',
+      'app.js'
+    ];
     for (const f of jsFiles) {
       const jsRes = await fetch(`${BASE_URL}/js/${f}`);
       assert(jsRes.status === 200, `JavaScript module /js/${f} returns HTTP 200`);
     }
   } catch (err) {
     assert(false, 'Static assets delivery test', err.message);
+  }
+
+  if (serverProcess) {
+    serverProcess.kill();
   }
 
   console.log('\n====================================================');
