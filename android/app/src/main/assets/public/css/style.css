@@ -3,14 +3,58 @@
    Optimized for Android Mobile & Desktop Screens
    ========================================================================== */
 
-:root {
-  /* Futuristic Glowing Cyberpunk Palette (Dark Default) */
+:root,
+[data-theme="sakura"] {
+  /* Sakura Anime Palette (Default) */
+  --bg-primary: #1B1646;
+  --bg-secondary: #2A1F5C;
+  --bg-card: rgba(42, 31, 92, 0.65);
+  --bg-card-hover: rgba(58, 44, 122, 0.78);
+  --bg-glass: rgba(27, 22, 70, 0.72);
+
+  --accent-lavender: #B9A6E8;
+  --accent-sakura: #F4C2D7;
+  --neon-cyan: #B9A6E8;
+  --neon-blue: #9D84D8;
+  --neon-purple: #B9A6E8;
+  --neon-pink: #F4C2D7;
+  --neon-green: #98E2C6;
+  --neon-amber: #FFD3B6;
+
+  --text-primary: #F3F0F8;
+  --text-secondary: #D4CCE8;
+  --text-muted: #9A91B8;
+
+  --border-glow: rgba(185, 166, 232, 0.32);
+  --border-subtle: rgba(185, 166, 232, 0.15);
+
+  --glow-cyan: 0 0 20px rgba(185, 166, 232, 0.4);
+  --glow-purple: 0 0 25px rgba(244, 194, 215, 0.35);
+  --glow-pink: 0 0 20px rgba(244, 194, 215, 0.45);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+
+  --font-main: "Poppins", "Noto Sans Devanagari", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Classic J.A.R.V.I.S. Theme (Cyberpunk Dark) */
+[data-theme="classic"],
+[data-theme="dark"] {
   --bg-primary: #050811;
   --bg-secondary: #0c1222;
   --bg-card: rgba(16, 24, 44, 0.75);
   --bg-card-hover: rgba(24, 35, 64, 0.85);
   --bg-glass: rgba(12, 18, 34, 0.65);
-  
+
+  --accent-lavender: #9d4edd;
+  --accent-sakura: #00f0ff;
   --neon-cyan: #00f0ff;
   --neon-blue: #0070f3;
   --neon-purple: #9d4edd;
@@ -28,17 +72,6 @@
   --glow-cyan: 0 0 20px rgba(0, 240, 255, 0.35);
   --glow-purple: 0 0 25px rgba(157, 78, 221, 0.35);
   --glow-pink: 0 0 20px rgba(255, 0, 127, 0.35);
-
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-full: 9999px;
-
-  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, sans-serif;
-  --font-mono: "SF Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
-
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Light Mode Overrides */
@@ -91,9 +124,23 @@ html, body {
   width: 100%;
   height: 100%;
   position: relative;
-  background: radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.05), transparent 70%),
-              radial-gradient(circle at 100% 100%, rgba(157, 78, 221, 0.06), transparent 70%),
-              var(--bg-primary);
+  background-color: var(--bg-primary);
+  background-image: 
+    linear-gradient(rgba(27, 22, 70, 0.60), rgba(42, 31, 92, 0.60)),
+    url('/images/sakura-anime-bg.webp'),
+    url('/images/sakura-anime-bg.jpg');
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+[data-theme="classic"] #app,
+[data-theme="dark"] #app {
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.05), transparent 70%),
+    radial-gradient(circle at 100% 100%, rgba(157, 78, 221, 0.06), transparent 70%),
+    linear-gradient(to bottom, #050811, #0c1222);
 }
 
 /* ==========================================================================
@@ -102,7 +149,9 @@ html, body {
 .sidebar {
   width: 280px;
   height: 100%;
-  background: var(--bg-secondary);
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -509,13 +558,25 @@ html, body {
   border: 1px solid var(--border-glow);
   border-top-left-radius: 4px;
   color: var(--text-primary);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 20px rgba(27, 22, 70, 0.4);
 }
 
 .chat-message.user .msg-bubble {
+  background: linear-gradient(135deg, rgba(185, 166, 232, 0.28), rgba(244, 194, 215, 0.25));
+  color: var(--text-primary);
+  border-top-right-radius: 4px;
+  border: 1px solid rgba(244, 194, 215, 0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 18px rgba(27, 22, 70, 0.35);
+}
+
+[data-theme="classic"] .chat-message.user .msg-bubble,
+[data-theme="dark"] .chat-message.user .msg-bubble {
   background: linear-gradient(135deg, rgba(0, 112, 243, 0.8), rgba(0, 240, 255, 0.8));
   color: #ffffff;
-  border-top-right-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 15px rgba(0, 112, 243, 0.35);
 }

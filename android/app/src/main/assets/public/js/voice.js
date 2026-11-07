@@ -558,6 +558,62 @@ class VoiceAssistant {
       return;
     }
 
+    // 2.5 Phone Control & System Intent Voice Commands
+    if (lower.includes('open whatsapp') || lower.includes('whatsapp kholo') || lower.includes('whatsapp chalao') || lower.includes('व्हाट्सएप खोलो')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'open_app', target: 'whatsapp' });
+      return;
+    }
+
+    if (lower.includes('open camera') || lower.includes('camera kholo') || lower.includes('कैमरा खोलो') || lower.includes('photo khicho') || lower.includes('फ़ोटो खींचो')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'open_camera' });
+      return;
+    }
+
+    if (lower.includes('torch on') || lower.includes('turn on torch') || lower.includes('torch jalao') || lower.includes('टॉर्च जलाओ') || lower.includes('flashlight on')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'toggle_torch', target: 'on' });
+      return;
+    }
+
+    if (lower.includes('torch off') || lower.includes('turn off torch') || lower.includes('torch band') || lower.includes('टॉर्च बंद') || lower.includes('flashlight off')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'toggle_torch', target: 'off' });
+      return;
+    }
+
+    if (lower.includes('go back') || lower.includes('peeche jao') || lower.includes('पीछे जाओ') || lower.includes('back jao')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'back' });
+      return;
+    }
+
+    if (lower.includes('go home') || lower.includes('home screen') || lower.includes('होम पर जाओ') || lower.includes('होम स्क्रीन')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'home' });
+      return;
+    }
+
+    if (lower.includes('recent apps') || lower.includes('recents') || lower.includes('हालिया ऐप्स')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'recents' });
+      return;
+    }
+
+    if (lower.includes('scroll down') || lower.includes('niche scroll') || lower.includes('नीचे स्क्रॉल')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'scroll_down' });
+      return;
+    }
+
+    if (lower.includes('scroll up') || lower.includes('upar scroll') || lower.includes('ऊपर स्क्रॉल')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'scroll_up' });
+      return;
+    }
+
+    if (lower.includes('read screen') || lower.includes('screen padho') || lower.includes('स्क्रीन पढ़ो')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'read_screen' });
+      return;
+    }
+
+    if (lower.includes('stop all') || lower.includes('sab roko') || lower.includes('सब रोको') || lower.includes('emergency stop')) {
+      if (window.systemLauncher) window.systemLauncher.executeStructuredCommand({ action: 'stop_all' });
+      return;
+    }
+
     // 3. Real AI Multilingual Chat Processing
     this.setState('THINKING');
     this.setTranscriptText(`Thinking in your language: "${transcript}"...`);
@@ -650,10 +706,27 @@ class VoiceAssistant {
         }
       }
 
-      this.setTranscriptText(reply.slice(0, 180) + (reply.length > 180 ? '...' : ''));
+      // Check for structured Phone Control command in AI reply
+      let speechToSpeak = reply;
+      if (window.systemLauncher && typeof window.systemLauncher.executeStructuredCommand === 'function') {
+        const jsonMatch = reply.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || reply.match(/(\{[\s\S]*"action"\s*:\s*"[^"]+"[\s\S]*\})/);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+            if (parsed && parsed.action) {
+              window.systemLauncher.executeStructuredCommand(parsed);
+              if (parsed.spokenText) {
+                speechToSpeak = parsed.spokenText;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
+      this.setTranscriptText(speechToSpeak.slice(0, 180) + (speechToSpeak.length > 180 ? '...' : ''));
 
       // Automatically speak the response aloud
-      this.speak(reply);
+      this.speak(speechToSpeak);
 
       // Append to chat history
       if (window.chat && activeSessionId) {

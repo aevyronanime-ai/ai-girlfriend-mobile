@@ -320,7 +320,31 @@ Always detect and mirror the language and tone of the user's query naturally.`;
       if (s.custom_system_prompt && s.custom_system_prompt.trim()) {
         base = s.custom_system_prompt.trim();
       }
-      return `${base}\n${UNIVERSAL_MULTILINGUAL_RULE}\nThe user's name is: "${s.user_name || 'Friend'}". Always address them respectfully and warmly.`;
+      let prompt = `${base}\n${UNIVERSAL_MULTILINGUAL_RULE}\nThe user's name is: "${s.user_name || 'Friend'}". Always address them respectfully and warmly.`;
+
+      const isPhoneControlOn = typeof localStorage !== 'undefined' && localStorage.getItem('jarvis_phone_control') === 'true';
+      if (isPhoneControlOn) {
+        prompt += `\n\n[PHONE CONTROL CAPABILITY ACTIVATED]
+You have direct control over this Android smartphone. When the user asks you to interact with their phone (open app, search, click text, type, scroll, go back, camera, torch, whatsapp, etc.), format your action as a JSON command inside a code block:
+\`\`\`json
+{"action":"<action_name>", "target":"<target_value>", "text":"<text_to_type>", "confirmationRequired":false, "spokenText":"<short_hindi_explanation>"}
+\`\`\`
+Supported actions:
+- open_app: target="youtube"|"chrome"|"whatsapp"|"camera"|<app_name>
+- search_google: target="<query>"
+- search_youtube: target="<query>"
+- open_website: target="<url>"
+- open_whatsapp: target="<phone_number>", text="<message>"
+- open_camera: target="camera"
+- toggle_torch: target="on"|"off"
+- back, home, recents, scroll_down, scroll_up, read_screen, stop_all
+- click_text: target="<exact visible button or link text to click>"
+- type_text: text="<text to type into active field>"
+- High risk actions: call, send_message, delete, payment (MUST set "confirmationRequired": true).
+Always include a friendly spokenText in Hindi explaining what you are doing.`;
+      }
+
+      return prompt;
     }
 
     // ----------------------------------------------------

@@ -4,4 +4,6 @@
     <string name="title_activity_main">AI Girlfriend Mobile</string>
     <string name="package_name">com.jarvis.ai</string>
     <string name="custom_url_scheme">com.jarvis.ai</string>
+    <string name="accessibility_service_name">J.A.R.V.I.S. Phone Control Service</string>
+    <string name="accessibility_service_description">AI Girlfriend / J.A.R.V.I.S. Phone Control Service. Allows safe navigation, app actions, and screen reading with user consent.</string>
 </resources>

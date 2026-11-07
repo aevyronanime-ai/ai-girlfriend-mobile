@@ -28,15 +28,27 @@ class JarvisOrb {
     this.cy = this.height / 2;
   }
 
+  isSakuraTheme() {
+    if (typeof document === 'undefined' || !document.documentElement) return true;
+    const theme = document.documentElement.getAttribute('data-theme') || 'sakura';
+    return theme !== 'classic' && theme !== 'dark';
+  }
+
   setState(newState) {
     this.state = newState.toUpperCase();
     const overlay = document.getElementById('orbStateText');
     if (overlay) {
       overlay.textContent = this.state;
-      if (this.state === 'LISTENING') overlay.style.color = '#ff0055';
-      else if (this.state === 'THINKING') overlay.style.color = '#9d4edd';
-      else if (this.state === 'SPEAKING') overlay.style.color = '#00f0ff';
-      else overlay.style.color = '#00f0ff';
+      if (this.isSakuraTheme()) {
+        if (this.state === 'LISTENING') overlay.style.color = '#ff4081';
+        else if (this.state === 'THINKING') overlay.style.color = '#B9A6E8';
+        else overlay.style.color = '#F4C2D7';
+      } else {
+        if (this.state === 'LISTENING') overlay.style.color = '#ff0055';
+        else if (this.state === 'THINKING') overlay.style.color = '#9d4edd';
+        else if (this.state === 'SPEAKING') overlay.style.color = '#00f0ff';
+        else overlay.style.color = '#00f0ff';
+      }
     }
   }
 
@@ -64,18 +76,38 @@ class JarvisOrb {
 
     // Outer Glow Gradient
     const gradient = this.ctx.createRadialGradient(cx, cy, 10, cx, cy, 110);
+    const isSakura = this.isSakuraTheme();
     if (this.state === 'LISTENING') {
-      gradient.addColorStop(0, 'rgba(255, 0, 85, 0.8)');
-      gradient.addColorStop(0.5, 'rgba(255, 85, 0, 0.3)');
-      gradient.addColorStop(1, 'transparent');
+      if (isSakura) {
+        gradient.addColorStop(0, 'rgba(255, 64, 129, 0.85)');
+        gradient.addColorStop(0.5, 'rgba(244, 194, 215, 0.35)');
+        gradient.addColorStop(1, 'transparent');
+      } else {
+        gradient.addColorStop(0, 'rgba(255, 0, 85, 0.8)');
+        gradient.addColorStop(0.5, 'rgba(255, 85, 0, 0.3)');
+        gradient.addColorStop(1, 'transparent');
+      }
     } else if (this.state === 'THINKING') {
-      gradient.addColorStop(0, 'rgba(157, 78, 221, 0.8)');
-      gradient.addColorStop(0.6, 'rgba(0, 240, 255, 0.25)');
-      gradient.addColorStop(1, 'transparent');
+      if (isSakura) {
+        gradient.addColorStop(0, 'rgba(185, 166, 232, 0.85)');
+        gradient.addColorStop(0.6, 'rgba(244, 194, 215, 0.3)');
+        gradient.addColorStop(1, 'transparent');
+      } else {
+        gradient.addColorStop(0, 'rgba(157, 78, 221, 0.8)');
+        gradient.addColorStop(0.6, 'rgba(0, 240, 255, 0.25)');
+        gradient.addColorStop(1, 'transparent');
+      }
     } else {
-      gradient.addColorStop(0, 'rgba(0, 240, 255, 0.85)');
-      gradient.addColorStop(0.6, 'rgba(157, 78, 221, 0.2)');
-      gradient.addColorStop(1, 'transparent');
+      if (isSakura) {
+        // Lavender-Sakura Pink Orb
+        gradient.addColorStop(0, 'rgba(244, 194, 215, 0.9)');
+        gradient.addColorStop(0.55, 'rgba(185, 166, 232, 0.35)');
+        gradient.addColorStop(1, 'transparent');
+      } else {
+        gradient.addColorStop(0, 'rgba(0, 240, 255, 0.85)');
+        gradient.addColorStop(0.6, 'rgba(157, 78, 221, 0.2)');
+        gradient.addColorStop(1, 'transparent');
+      }
     }
 
     this.ctx.fillStyle = gradient;
@@ -134,12 +166,22 @@ class JarvisOrb {
   }
 
   getPrimaryColor(alpha = 1) {
+    if (this.isSakuraTheme()) {
+      if (this.state === 'LISTENING') return `rgba(255, 64, 129, ${alpha})`;
+      if (this.state === 'THINKING') return `rgba(185, 166, 232, ${alpha})`;
+      return `rgba(244, 194, 215, ${alpha})`;
+    }
     if (this.state === 'LISTENING') return `rgba(255, 0, 85, ${alpha})`;
     if (this.state === 'THINKING') return `rgba(157, 78, 221, ${alpha})`;
     return `rgba(0, 240, 255, ${alpha})`;
   }
 
   getSecondaryColor(alpha = 1) {
+    if (this.isSakuraTheme()) {
+      if (this.state === 'LISTENING') return `rgba(244, 194, 215, ${alpha})`;
+      if (this.state === 'THINKING') return `rgba(244, 194, 215, ${alpha})`;
+      return `rgba(185, 166, 232, ${alpha})`;
+    }
     if (this.state === 'LISTENING') return `rgba(255, 120, 0, ${alpha})`;
     if (this.state === 'THINKING') return `rgba(0, 240, 255, ${alpha})`;
     return `rgba(157, 78, 221, ${alpha})`;

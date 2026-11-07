@@ -2,7 +2,7 @@
 class App {
   constructor() {
     this.activeTab = 'chat';
-    this.theme = localStorage.getItem('jarvis_theme') || 'dark';
+    this.theme = localStorage.getItem('jarvis_theme') || 'sakura';
 
     this.initTheme();
     this.initNavigation();
@@ -16,9 +16,10 @@ class App {
     document.documentElement.setAttribute('data-theme', this.theme);
     const themeBtn = document.getElementById('btnToggleTheme');
     if (themeBtn) {
-      themeBtn.innerHTML = this.theme === 'dark' ? '☀️' : '🌙';
+      themeBtn.innerHTML = (this.theme === 'classic' || this.theme === 'dark') ? '🌸' : '⚡';
+      themeBtn.title = (this.theme === 'classic' || this.theme === 'dark') ? 'Switch to Sakura Theme' : 'Switch to Classic Theme';
       themeBtn.addEventListener('click', () => {
-        this.setTheme(this.theme === 'dark' ? 'light' : 'dark');
+        this.setTheme((this.theme === 'classic' || this.theme === 'dark') ? 'sakura' : 'classic');
       });
     }
   }
@@ -29,7 +30,12 @@ class App {
     document.documentElement.setAttribute('data-theme', theme);
     const themeBtn = document.getElementById('btnToggleTheme');
     if (themeBtn) {
-      themeBtn.innerHTML = theme === 'dark' ? '☀️' : '🌙';
+      themeBtn.innerHTML = (theme === 'classic' || theme === 'dark') ? '🌸' : '⚡';
+      themeBtn.title = (theme === 'classic' || theme === 'dark') ? 'Switch to Sakura Theme' : 'Switch to Classic Theme';
+    }
+    const themeSelect = document.getElementById('settingAppTheme');
+    if (themeSelect) {
+      themeSelect.value = (theme === 'classic' || theme === 'dark') ? 'classic' : 'sakura';
     }
     if (window.soundFX) window.soundFX.click();
   }

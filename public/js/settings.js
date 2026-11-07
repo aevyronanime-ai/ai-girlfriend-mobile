@@ -92,6 +92,18 @@ class SettingsController {
     this.btnTestVoice = document.getElementById('btnTestVoice');
     this.btnTestApiKey = document.getElementById('btnTestApiKey');
 
+    // Phone Control
+    this.phoneControlToggle     = document.getElementById('settingPhoneControl');
+    this.phoneControlWarning    = document.getElementById('phoneControlWarning');
+    this.phoneControlStatusBadge = document.getElementById('phoneControlStatusBadge');
+    this.phoneControlLogsList   = document.getElementById('phoneControlLogsList');
+    this._phoneControlPollTimer = null;
+    this._pendingConfirmResolve = null;
+
+    // Sakura Theme & Petals
+    this.appThemeSelect         = document.getElementById('settingAppTheme');
+    this.sakuraPetalsToggle     = document.getElementById('settingSakuraPetals');
+
     this.bindEvents();
     this.loadSettings();
   }
@@ -191,6 +203,135 @@ class SettingsController {
     if (this.btnSave) {
       this.btnSave.addEventListener('click', () => this.saveSettings());
     }
+
+    // ── Sakura Theme & Petals ─────────────────────────────────────────────────
+    if (this.appThemeSelect) {
+      this.appThemeSelect.addEventListener('change', () => {
+        const theme = this.appThemeSelect.value;
+        if (window.app && typeof window.app.setTheme === 'function') {
+          window.app.setTheme(theme);
+        }
+        if (window.app) window.app.showToast(`थीम: ${theme === 'sakura' ? '🌸 Sakura' : '⚡ Classic'}`);
+      });
+    }
+
+    if (this.sakuraPetalsToggle) {
+      this.sakuraPetalsToggle.addEventListener('change', () => {
+        const on = this.sakuraPetalsToggle.checked;
+        if (window.sakuraPetals && typeof window.sakuraPetals.toggle === 'function') {
+          window.sakuraPetals.toggle(on);
+        }
+        if (window.app) window.app.showToast(on ? '🌸 Sakura Petals: ON' : 'Sakura Petals: OFF');
+      });
+    }
+
+    // ── Phone Control ─────────────────────────────────────────────────────────
+    if (this.phoneControlToggle) {
+      this.phoneControlToggle.addEventListener('change', async () => {
+        if (!this.phoneControlToggle.checked) {
+          // Turning OFF — just save state
+          try { localStorage.setItem('jarvis_phone_control', 'false'); } catch (e) {}
+          this._stopPhoneControlPoll();
+          this._updatePhoneControlBadge(false);
+          return;
+        }
+
+        // Turning ON — show permission explanation modal first
+        this.phoneControlToggle.checked = false; // keep OFF until user proceeds
+        const permModal = document.getElementById('phoneControlPermModal');
+        if (permModal) permModal.style.display = 'flex';
+      });
+    }
+
+    const btnOpenAcc = document.getElementById('btnOpenAccessibilitySettings');
+    if (btnOpenAcc) {
+      btnOpenAcc.addEventListener('click', () => {
+        if (window.systemLauncher) window.systemLauncher.openAccessibilitySettings();
+        if (window.app) window.app.showToast('Accessibility Settings खुल रहा है…');
+      });
+    }
+
+    const btnExplanation = document.getElementById('btnShowPhoneControlExplanation');
+    if (btnExplanation) {
+      btnExplanation.addEventListener('click', () => {
+        const permModal = document.getElementById('phoneControlPermModal');
+        if (permModal) permModal.style.display = 'flex';
+      });
+    }
+
+    const btnPermCancel = document.getElementById('btnPermModalCancel');
+    if (btnPermCancel) {
+      btnPermCancel.addEventListener('click', () => {
+        const permModal = document.getElementById('phoneControlPermModal');
+        if (permModal) permModal.style.display = 'none';
+        if (this.phoneControlToggle) this.phoneControlToggle.checked = false;
+      });
+    }
+
+    const btnPermProceed = document.getElementById('btnPermModalProceed');
+    if (btnPermProceed) {
+      btnPermProceed.addEventListener('click', async () => {
+        const permModal = document.getElementById('phoneControlPermModal');
+        if (permModal) permModal.style.display = 'none';
+        if (window.systemLauncher) window.systemLauncher.openAccessibilitySettings();
+        if (window.app) window.app.showToast('Accessibility Settings में सर्विस ON करें');
+
+        // Poll status every 2s for 60s to detect when user enables the service
+        let attempts = 0;
+        const checkInterval = setInterval(async () => {
+          attempts++;
+          const enabled = await this._isAccessibilityRunning();
+          if (enabled) {
+            clearInterval(checkInterval);
+            if (this.phoneControlToggle) this.phoneControlToggle.checked = true;
+            try { localStorage.setItem('jarvis_phone_control', 'true'); } catch (e) {}
+            this.checkAccessibilityStatus();
+            this._startPhoneControlPoll();
+            if (window.app) window.app.showToast('✅ Phone Control चालू हो गया!');
+          } else if (attempts >= 30) {
+            clearInterval(checkInterval);
+          }
+        }, 2000);
+      });
+    }
+
+    const btnStopSettings = document.getElementById('btnSettingsEmergencyStop');
+    const btnStopTopBar   = document.getElementById('btnEmergencyStopAll');
+    const emergencyHandler = async () => {
+      if (window.systemLauncher) {
+        await window.systemLauncher.stopAllAccessibilityActions().catch(() => {});
+      }
+      if (window.app) window.app.showToast('🛑 सभी Phone Control actions रोक दिए गए।');
+    };
+    if (btnStopSettings) btnStopSettings.addEventListener('click', emergencyHandler);
+    if (btnStopTopBar)   btnStopTopBar.addEventListener('click', emergencyHandler);
+
+    const btnClearLogs = document.getElementById('btnClearPhoneControlLogs');
+    if (btnClearLogs) {
+      btnClearLogs.addEventListener('click', () => {
+        if (window.systemLauncher) window.systemLauncher.clearAuditLogs();
+        this.renderPhoneControlLogs();
+        if (window.app) window.app.showToast('Logs साफ हो गए।');
+      });
+    }
+
+    // Confirm modal — Yes/No buttons
+    const btnYes = document.getElementById('btnConfirmActionYes');
+    const btnNo  = document.getElementById('btnConfirmActionNo');
+    if (btnYes) {
+      btnYes.addEventListener('click', () => {
+        const confirmModal = document.getElementById('phoneControlConfirmModal');
+        if (confirmModal) confirmModal.style.display = 'none';
+        if (this._pendingConfirmResolve) { this._pendingConfirmResolve(true); this._pendingConfirmResolve = null; }
+      });
+    }
+    if (btnNo) {
+      btnNo.addEventListener('click', () => {
+        const confirmModal = document.getElementById('phoneControlConfirmModal');
+        if (confirmModal) confirmModal.style.display = 'none';
+        if (this._pendingConfirmResolve) { this._pendingConfirmResolve(false); this._pendingConfirmResolve = null; }
+      });
+    }
   }
 
   async loadSettings() {
@@ -256,6 +397,27 @@ class SettingsController {
     }
 
     this.updatePersonaBadge(settings.persona || 'girlfriend');
+
+    // Restore Phone Control toggle state
+    if (this.phoneControlToggle) {
+      const pcEnabled = localStorage.getItem('jarvis_phone_control') === 'true';
+      this.phoneControlToggle.checked = pcEnabled;
+      if (pcEnabled) this._startPhoneControlPoll();
+    }
+
+    // Restore Theme & Sakura Petals
+    if (this.appThemeSelect) {
+      const savedTheme = localStorage.getItem('jarvis_theme') || 'sakura';
+      this.appThemeSelect.value = (savedTheme === 'classic' || savedTheme === 'dark') ? 'classic' : 'sakura';
+    }
+    if (this.sakuraPetalsToggle) {
+      const petalsOn = localStorage.getItem('jarvis_sakura_petals') !== 'false';
+      this.sakuraPetalsToggle.checked = petalsOn;
+    }
+
+    // Check AccessibilityService status on page load
+    this.checkAccessibilityStatus();
+    this.renderPhoneControlLogs();
   }
 
   async saveSettings() {
@@ -416,6 +578,105 @@ class SettingsController {
     }
   }
 
+  async _isAccessibilityRunning() {
+    if (window.systemLauncher && typeof window.systemLauncher.isAccessibilityEnabled === 'function') {
+      try {
+        return await window.systemLauncher.isAccessibilityEnabled();
+      } catch (e) {
+        return false;
+      }
+    }
+    return Boolean(window._mockAccessibilityServiceEnabled);
+  }
+
+  _startPhoneControlPoll() {
+    this._stopPhoneControlPoll();
+    this._phoneControlPollTimer = setInterval(() => {
+      this.checkAccessibilityStatus();
+    }, 10000);
+  }
+
+  _stopPhoneControlPoll() {
+    if (this._phoneControlPollTimer) {
+      clearInterval(this._phoneControlPollTimer);
+      this._phoneControlPollTimer = null;
+    }
+  }
+
+  _updatePhoneControlBadge(running) {
+    if (this.phoneControlStatusBadge) {
+      if (running) {
+        this.phoneControlStatusBadge.textContent = 'ON (Active)';
+        this.phoneControlStatusBadge.style.background = 'rgba(0, 240, 255, 0.2)';
+        this.phoneControlStatusBadge.style.color = 'var(--neon-cyan)';
+      } else {
+        this.phoneControlStatusBadge.textContent = 'OFF';
+        this.phoneControlStatusBadge.style.background = 'rgba(255,255,255,0.08)';
+        this.phoneControlStatusBadge.style.color = 'var(--text-muted)';
+      }
+    }
+
+    const emergencyBtn = document.getElementById('btnEmergencyStopAll');
+    if (emergencyBtn) {
+      const isEnabled = this.phoneControlToggle ? this.phoneControlToggle.checked : false;
+      emergencyBtn.style.display = (isEnabled && running) ? 'inline-flex' : 'none';
+    }
+
+    if (this.phoneControlWarning) {
+      const isToggleOn = this.phoneControlToggle ? this.phoneControlToggle.checked : false;
+      // Show warning if user wants Phone Control ON, but AccessibilityService is NOT active in Android Settings
+      this.phoneControlWarning.style.display = (isToggleOn && !running) ? 'block' : 'none';
+    }
+  }
+
+  async checkAccessibilityStatus() {
+    const isRunning = await this._isAccessibilityRunning();
+    this._updatePhoneControlBadge(isRunning);
+    return isRunning;
+  }
+
+  renderPhoneControlLogs() {
+    if (!this.phoneControlLogsList) return;
+    const logs = (window.systemLauncher && typeof window.systemLauncher.getAuditLogs === 'function')
+      ? window.systemLauncher.getAuditLogs()
+      : [];
+
+    if (!logs || logs.length === 0) {
+      this.phoneControlLogsList.innerHTML = '<div style="color:var(--text-muted); font-size:11px; padding:6px 0;">कोई कमांड लॉग मौजूद नहीं है।</div>';
+      return;
+    }
+
+    this.phoneControlLogsList.innerHTML = logs.map(l => {
+      const isSuccess = l.status === 'SUCCESS';
+      const color = isSuccess ? '#4ade80' : (l.status === 'STOPPED' ? '#fbbf24' : '#f87171');
+      const time = l.timeStr || (l.timestamp ? new Date(l.timestamp).toLocaleTimeString() : '');
+      const actionName = (l.action || '').toUpperCase();
+      const targetStr = l.target ? ` &rarr; "${escapeHtml(l.target)}"` : '';
+      const textStr = l.text ? ` (typed: "${escapeHtml(l.text)}")` : '';
+      const msgStr = l.message ? `<div style="color:var(--text-secondary); font-size:10px; margin-top:2px;">${escapeHtml(l.message)}</div>` : '';
+
+      return `
+        <div style="padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:700; color:${color};">[${actionName}]</span>
+            <span style="color:var(--text-muted); font-size:10px;">${time}</span>
+          </div>
+          <div style="color:var(--text-primary); font-size:11px;">${targetStr}${textStr}</div>
+          ${msgStr}
+        </div>
+      `;
+    }).join('');
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  }
+
   updatePersonaBadge(persona) {
     const badge = document.getElementById('activePersonaBadge');
     if (!badge) return;
@@ -430,4 +691,42 @@ class SettingsController {
   }
 }
 
+// Global High-Risk Action Confirmation Helper
+window.confirmPhoneControlAction = function(actionDescription) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('phoneControlConfirmModal');
+    const textElem = document.getElementById('phoneControlConfirmText');
+    const controller = window.settingsController || window.settingsManager;
+
+    if (!modal) {
+      const ok = (typeof window !== 'undefined' && typeof window.confirm === 'function')
+        ? window.confirm(`सुरक्षा चेतावनी:\n\n${actionDescription}\n\nक्या आप यह क्रिया करना चाहते हैं?`)
+        : true;
+      resolve(ok);
+      return;
+    }
+
+    if (textElem) {
+      textElem.textContent = actionDescription || 'क्या आप वाकई यह क्रिया करना चाहते हैं?';
+    }
+    modal.style.display = 'flex';
+
+    if (controller) {
+      controller._pendingConfirmResolve = resolve;
+    } else {
+      const btnYes = document.getElementById('btnConfirmActionYes');
+      const btnNo = document.getElementById('btnConfirmActionNo');
+      const done = (result) => {
+        modal.style.display = 'none';
+        if (btnYes) btnYes.onclick = null;
+        if (btnNo) btnNo.onclick = null;
+        resolve(result);
+      };
+      if (btnYes) btnYes.onclick = () => done(true);
+      if (btnNo) btnNo.onclick = () => done(false);
+    }
+  });
+};
+
 window.SettingsController = SettingsController;
+

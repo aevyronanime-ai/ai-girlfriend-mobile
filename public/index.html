@@ -1,12 +1,17 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="hi" data-theme="sakura">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>AI Girlfriend Mobile — Neural Companion & Assistant</title>
   
+  <!-- Typography: Poppins & Noto Sans Devanagari (Clean Hindi & English, >= 15sp) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
   <!-- PWA & Android Meta Tags -->
-  <meta name="theme-color" content="#ff2a85">
+  <meta name="theme-color" content="#1B1646">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -173,6 +178,7 @@
       </div>
 
       <div class="top-bar-actions">
+        <button class="chip-btn" id="btnEmergencyStopAll" style="display:none; background:rgba(255,64,129,0.2); color:#ff4081; border:1px solid #ff4081; font-weight:700; font-size:0.75rem; padding:4px 10px; border-radius:var(--radius-full);">🛑 Stop All</button>
         <button class="chip-btn" id="btnPWAInstall" style="display:none; background:linear-gradient(135deg, #ff2a85, #9d4edd); color:#fff; font-weight:700; border:none; padding:4px 10px; font-size:0.75rem; border-radius:var(--radius-full); box-shadow:0 0 10px rgba(255,42,133,0.5);">📲 Install App</button>
         <button class="btn-icon" id="btnToggleAutoSpeak" title="Auto-Speak Voice (TTS)">🔊</button>
         <button class="btn-icon" id="btnTopNewChat" title="New Conversation">
@@ -655,6 +661,28 @@
 
             <div class="setting-row">
               <div class="setting-info">
+                <h4>App Theme (थीम)</h4>
+                <p>🌸 Sakura Anime (गुलाबी-लैवेंडर) या ⚡ Classic J.A.R.V.I.S. (साइबरपंक)</p>
+              </div>
+              <select class="form-select" id="settingAppTheme" style="width:140px;">
+                <option value="sakura" selected>🌸 Sakura</option>
+                <option value="classic">⚡ Classic</option>
+              </select>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <h4>Sakura Petals (झरती पंखुड़ियाँ)</h4>
+                <p>स्क्रीन पर तैरती चेरी ब्लॉसम पंखुड़ियों का एनीमेशन</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="settingSakuraPetals" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
                 <h4>Futuristic Sound FX</h4>
                 <p>Synthesized UI blips, radar activation, and notification chimes</p>
               </div>
@@ -673,6 +701,51 @@
                 <input type="checkbox" id="settingAutoVoiceReply" checked>
                 <span class="slider"></span>
               </label>
+            </div>
+          </div>
+
+          <!-- Section 5: Phone Control (Accessibility Service) -->
+          <div class="settings-section-card" id="cardPhoneControl">
+            <div class="settings-section-title" style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                <span>Phone Control (Accessibility Service)</span>
+              </div>
+              <span id="phoneControlStatusBadge" class="persona-tag" style="background:rgba(255,255,255,0.08); color:var(--text-muted); font-size:0.75rem;">OFF</span>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <h4>Enable Phone Control</h4>
+                <p>बोलकर या लिखकर दूसरे ऐप्स चलाएँ (Back, Home, Scroll, Click, Type, YouTube control)</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="settingPhoneControl">
+                <span class="slider"></span>
+              </label>
+            </div>
+
+            <!-- Warning notice if accessibility service is disabled on device -->
+            <div id="phoneControlWarning" style="display:none; background:rgba(255, 170, 0, 0.12); border:1px solid #ffaa00; border-radius:var(--radius-sm); padding:10px 12px; margin:10px 0; font-size:0.8rem; color:#ffaa00;">
+              ⚠️ <strong>Accessibility Service बंद है!</strong><br>
+              फोन कंट्रोल के लिए Android Accessibility Settings में जाकर <strong>J.A.R.V.I.S. Phone Control Service</strong> को चालू करें।
+            </div>
+
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+              <button class="chip-btn" id="btnOpenAccessibilitySettings" style="background:var(--neon-cyan); color:#000; font-weight:700;">⚙️ Open Accessibility Settings</button>
+              <button class="chip-btn" id="btnShowPhoneControlExplanation">ℹ️ परमिशन व सुरक्षा जानकारी</button>
+              <button class="chip-btn" id="btnSettingsEmergencyStop" style="background:rgba(255,64,129,0.15); color:#ff4081; border-color:rgba(255,64,129,0.4);">🛑 Emergency Stop All</button>
+            </div>
+
+            <!-- Command Audit Logs -->
+            <div style="margin-top:16px; border-top:1px solid rgba(255,255,255,0.08); padding-top:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:0.8rem; font-weight:700; color:var(--neon-cyan);">📜 Phone Control Audit Logs</span>
+                <button class="chip-btn" id="btnClearPhoneControlLogs" style="font-size:0.7rem; padding:2px 8px;">Clear Logs</button>
+              </div>
+              <div id="phoneControlLogsList" style="max-height:140px; overflow-y:auto; font-family:monospace; font-size:0.72rem; color:var(--text-muted); background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.05);">
+                <div>कोई कमांड लॉग मौजूद नहीं है।</div>
+              </div>
             </div>
           </div>
 
@@ -857,6 +930,47 @@
     </div>
   </div>
 
+  <!-- Phone Control Permission Explanation Modal -->
+  <div id="phoneControlPermModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:var(--bg-card); border:1px solid var(--neon-cyan); border-radius:var(--radius-md); padding:20px; max-width:380px; width:100%; text-align:left; box-shadow:0 0 25px rgba(0,240,255,0.2);">
+      <div style="text-align:center; font-size:2.2rem; margin-bottom:8px;">📱🛡️</div>
+      <h3 style="font-size:1.15rem; color:var(--neon-cyan); margin-bottom:10px; text-align:center;">J.A.R.V.I.S. Phone Control</h3>
+      
+      <p style="font-size:0.82rem; line-height:1.45; color:var(--text-primary); margin-bottom:10px;">
+        यह सुविधा Android <strong>AccessibilityService</strong> का उपयोग करती है, ताकि आप बोलकर ("बैक जाओ", "नीचे स्क्रॉल करो", "YouTube चलाओ") या लिखकर फोन के दूसरे ऐप्स को नियंत्रित कर सकें।
+      </p>
+
+      <div style="background:rgba(0,240,255,0.05); border:1px solid rgba(0,240,255,0.2); border-radius:8px; padding:10px; margin-bottom:12px; font-size:0.78rem; line-height:1.4; color:var(--text-secondary);">
+        <strong style="color:var(--neon-cyan);">🔒 आपकी सुरक्षा व गोपनीयता गारंटी:</strong>
+        <ul style="margin:4px 0 0 16px; padding:0;">
+          <li>डिफ़ॉल्ट रूप से यह सेवा <strong>OFF</strong> रहती है।</li>
+          <li>बैंकिंग/UPI ऐप्स और पासवर्ड फ़ील्ड्स को <strong>कभी नहीं पढ़ा जाता</strong>।</li>
+          <li>संवेदनशील क्रियाओं (कॉल, पेमेंट, डिलीट) से पहले हमेशा "हाँ/नहीं" पूछा जाता है।</li>
+          <li>आप कभी भी <strong>"Stop All"</strong> बटन से इसे तुरंत रोक सकते हैं।</li>
+        </ul>
+      </div>
+
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="chip-btn" id="btnPermModalCancel" style="padding:8px 14px;">रद्द करें</button>
+        <button class="chip-btn" id="btnPermModalProceed" style="background:var(--neon-cyan); color:#000; font-weight:700; padding:8px 16px;">समझ गया, सेटिंग्स खोलें ⚙️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- High Risk Action Confirmation Modal -->
+  <div id="phoneControlConfirmModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:var(--bg-card); border:1px solid #ff4081; border-radius:var(--radius-md); padding:20px; max-width:340px; width:100%; text-align:center; box-shadow:0 0 25px rgba(255,64,129,0.3);">
+      <div style="font-size:2.2rem; margin-bottom:8px;">⚠️</div>
+      <h3 style="font-size:1.15rem; color:#ff4081; margin-bottom:8px;">सुरक्षा पुष्टि (Action Confirmation)</h3>
+      <p id="phoneControlConfirmText" style="font-size:0.85rem; line-height:1.4; color:var(--text-primary); margin-bottom:16px;">क्या आप वाकई यह क्रिया करना चाहते हैं?</p>
+      
+      <div style="display:flex; gap:10px; justify-content:center;">
+        <button class="chip-btn" id="btnConfirmActionNo" style="background:rgba(255,255,255,0.1); padding:8px 18px;">नहीं, रोको</button>
+        <button class="chip-btn" id="btnConfirmActionYes" style="background:#ff4081; color:#fff; font-weight:700; padding:8px 18px;">हाँ, जारी रखें</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Global Toast Notification Container -->
   <div class="toast-container" id="toastContainer"></div>
 </div>
@@ -873,6 +987,7 @@
 <script src="/js/history.js"></script>
 <script src="/js/settings.js"></script>
 <script src="/js/developer.js"></script>
+<script src="/js/sakura-petals.js"></script>
 <script src="/js/app.js"></script>
 
 </body>

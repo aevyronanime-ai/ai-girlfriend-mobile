@@ -232,9 +232,26 @@ class ChatController {
       msgBubble.innerHTML = this.renderMarkdown(finalText);
       this.addMessageActionButtons(assistantMsgId, finalText);
 
+      // Check for structured Phone Control command in chat response
+      let textToSpeak = finalText;
+      if (window.systemLauncher && typeof window.systemLauncher.executeStructuredCommand === 'function') {
+        const jsonMatch = finalText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || finalText.match(/(\{[\s\S]*"action"\s*:\s*"[^"]+"[\s\S]*\})/);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+            if (parsed && parsed.action) {
+              window.systemLauncher.executeStructuredCommand(parsed);
+              if (parsed.spokenText) {
+                textToSpeak = parsed.spokenText;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+
       const autoVoiceOn = (window.autoVoiceReplyEnabled !== false) && (window.autoSpeakEnabled !== false);
-      if (autoVoiceOn && window.voiceAssistant && finalText && !finalText.startsWith('⚠️')) {
-        window.voiceAssistant.speak(finalText);
+      if (autoVoiceOn && window.voiceAssistant && textToSpeak && !textToSpeak.startsWith('⚠️')) {
+        window.voiceAssistant.speak(textToSpeak);
       }
       if (window.soundFX) window.soundFX.success();
     } catch (err) {
