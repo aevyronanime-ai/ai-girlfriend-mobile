@@ -36,6 +36,7 @@ const jsFiles = [
   'history.js',
   'settings.js',
   'developer.js',
+  'video-studio.js',
   'app.js'
 ];
 

@@ -324,6 +324,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.orb = new JarvisOrb('orbCanvas');
   window.chat = new ChatController();
   window.tools = new ToolsController();
+  if (typeof VideoStudioController !== 'undefined') {
+    window.videoStudio = new VideoStudioController();
+  }
   window.historyManager = new HistoryController();
   window.settingsManager = new SettingsController();
   window.developerStudio = new DeveloperStudioController();

@@ -323,51 +323,173 @@
       </section>
 
       <!-- ====================================================================
-           VIEW 3: AI IMAGE GENERATOR
+           VIEW 3: AI MEDIA STUDIO (IMAGE, VIDEO & 2D ANIMATION)
            ==================================================================== -->
       <section class="tab-pane" id="tab-image">
         <div class="tool-view-wrapper">
           <div class="tool-header-card">
-            <h2>🎨 AI Image Generation Studio</h2>
-            <p>Synthesize ultra-realistic visuals, cyberpunk landscapes, and artistic portraits with state-of-the-art AI.</p>
+            <h2>🎨 AI Media Studio (Image & Video)</h2>
+            <p>Generate high-definition AI images, cinematic AI videos, and offline 2D animations in one unified studio.</p>
           </div>
 
-          <div class="form-group">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <label class="form-label" for="imagePromptInput">Visual Concept / Prompt</label>
-              <button class="chip-btn" id="btnEnhancePrompt" style="padding:2px 8px; font-size:0.72rem;">✨ Enhance Prompt</button>
-            </div>
-            <textarea class="form-control" id="imagePromptInput" rows="3" placeholder="e.g. Futuristic Iron Man suit glowing in a dark neon Mumbai street, hyper-realistic 8k..."></textarea>
+          <!-- Media Studio Sub-Tabs -->
+          <div class="sub-tabs-bar" id="mediaSubTabsBar" style="margin-bottom:16px;">
+            <button class="sub-tab-btn media-subtab active" id="subtabBtnImage" data-subtab="image">
+              🖼️ AI Image Studio
+            </button>
+            <button class="sub-tab-btn media-subtab" id="subtabBtnVideo" data-subtab="video">
+              🎬 Video & 2D Animation Studio
+            </button>
           </div>
 
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <!-- Sub-view 1: Image Studio (Preserves all original IDs & controls) -->
+          <div id="mediaPaneImage" class="media-pane">
             <div class="form-group">
-              <label class="form-label" for="imageStyleSelect">Artistic Style</label>
-              <select class="form-select" id="imageStyleSelect">
-                <option value="cyberpunk">Cyberpunk Neon</option>
-                <option value="realistic" selected>Photorealistic 8K</option>
-                <option value="anime">Anime / Manga</option>
-                <option value="fantasy">Epic Fantasy</option>
-                <option value="3d">3D Pixar Render</option>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label class="form-label" for="imagePromptInput">Visual Concept / Prompt</label>
+                <button class="chip-btn" id="btnEnhancePrompt" style="padding:2px 8px; font-size:0.72rem;">✨ Enhance Prompt</button>
+              </div>
+              <textarea class="form-control" id="imagePromptInput" rows="3" placeholder="e.g. Futuristic Iron Man suit glowing in a dark neon Mumbai street, hyper-realistic 8k..."></textarea>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div class="form-group">
+                <label class="form-label" for="imageStyleSelect">Artistic Style</label>
+                <select class="form-select" id="imageStyleSelect">
+                  <option value="cyberpunk">Cyberpunk Neon</option>
+                  <option value="realistic" selected>Photorealistic 8K</option>
+                  <option value="anime">Anime / Manga</option>
+                  <option value="fantasy">Epic Fantasy</option>
+                  <option value="3d">3D Pixar Render</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="imageRatioSelect">Aspect Ratio</label>
+                <select class="form-select" id="imageRatioSelect">
+                  <option value="1:1" selected>Square (1:1)</option>
+                  <option value="16:9">Landscape (16:9)</option>
+                  <option value="9:16">Mobile Story (9:16)</option>
+                </select>
+              </div>
+            </div>
+
+            <button class="btn-primary-action" id="btnGenerateImage">
+              <span>✨ Synthesize AI Visual</span>
+            </button>
+
+            <!-- Generated Image Frame -->
+            <div class="tool-result-box" id="imageResultBox" style="display:none;"></div>
+          </div>
+
+          <!-- Sub-view 2: Video & 2D Animation Studio -->
+          <div id="mediaPaneVideo" class="media-pane hide" style="display:none;">
+            <div class="form-group">
+              <label class="form-label" for="engine">मॉडल चुनें (Engine Selection)</label>
+              <select class="form-select" id="engine">
+                <option value="local">1) 2D Animator: ऑफ़लाइन, हमेशा फ्री, कोई key नहीं</option>
+                <option value="Wan-AI/Wan2.1-T2V-1.3B">2) AI वीडियो: Wan 2.1 (1.3B)</option>
+                <option value="Lightricks/LTX-Video">3) AI वीडियो: LTX-Video</option>
+                <option value="THUDM/CogVideoX-2b">4) AI वीडियो: CogVideoX-2b</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="imageRatioSelect">Aspect Ratio</label>
-              <select class="form-select" id="imageRatioSelect">
-                <option value="1:1" selected>Square (1:1)</option>
-                <option value="16:9">Landscape (16:9)</option>
-                <option value="9:16">Mobile Story (9:16)</option>
-              </select>
+              <label class="form-label" for="prompt">क्या बनाना है? (Prompt: हिंदी या English)</label>
+              <textarea class="form-control" id="prompt" rows="3" placeholder="साकुरा के पेड़ों के नीचे लंबे बालों वाली लड़की, झरती गुलाबी पंखुड़ियाँ"></textarea>
             </div>
+
+            <!-- Offline 2D Animator Options -->
+            <div id="localOpts">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="form-group">
+                  <label class="form-label" for="dur">समय (Duration)</label>
+                  <select class="form-select" id="dur">
+                    <option value="4">4 सेकंड</option>
+                    <option value="6" selected>6 सेकंड</option>
+                    <option value="10">10 सेकंड</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="ratio">साइज़ (Aspect Ratio)</label>
+                  <select class="form-select" id="ratio">
+                    <option value="p" selected>खड़ा (9:16 Portrait)</option>
+                    <option value="l">आड़ा (16:9 Landscape)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="caption">वीडियो पर लिखा टेक्स्ट (Subtitle / Caption)</label>
+                <input type="text" class="form-control" id="caption" placeholder="जैसे: नमस्ते कमांडर">
+              </div>
+            </div>
+
+            <!-- AI Video Generator Options -->
+            <div id="aiOpts" class="hide" style="display:none;">
+              <div class="form-group">
+                <label class="form-label" for="token">Hugging Face token</label>
+                <input type="password" class="form-control" id="token" placeholder="hf_...">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="mid">मॉडल ID (Model ID)</label>
+                <input type="text" class="form-control" id="mid">
+              </div>
+              <div style="margin:8px 0;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; color:var(--text-secondary); cursor:pointer;">
+                  <input id="fb" type="checkbox" checked style="width:auto; margin:0;">
+                  <span>फेल हो तो अगला मॉडल अपने आप आज़माओ (Auto-failover)</span>
+                </label>
+                <small style="color:var(--text-muted); font-size:0.75rem;">AI मॉडल की उपलब्धता सर्वर लोड के अनुसार बदल सकती है।</small>
+              </div>
+            </div>
+
+            <button class="btn-primary-action" id="go" style="margin-top:14px;">
+              <span>🎬 वीडियो बनाओ (Generate Video)</span>
+            </button>
+
+            <!-- Status & Progress Log -->
+            <div id="log" style="font-size:14px; color:var(--text-secondary); margin-top:10px; white-space:pre-wrap; min-height:22px; text-align:center;"></div>
+
+            <!-- Video Stage: Live Canvas / Output Player -->
+            <div id="stage" class="video-stage">
+              <canvas id="cv"></canvas>
+              <video id="out" class="hide" controls playsinline style="display:none;"></video>
+            </div>
+
+            <!-- Video Editing Controls (Preview & Adjustment) -->
+            <div id="videoEditorControls" class="video-editor-panel hide" style="display:none;">
+              <div style="font-size:0.85rem; font-weight:600; color:var(--accent-sakura); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                <span>✂️ Video Studio Editor & Controls:</span>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group" style="margin-bottom:6px;">
+                  <label class="form-label" for="videoSpeedSelect" style="font-size:0.75rem;">गति (Playback Speed)</label>
+                  <select class="form-select" id="videoSpeedSelect" style="padding:6px 10px; font-size:0.82rem;">
+                    <option value="0.5">0.5x Slow Motion</option>
+                    <option value="1" selected>1.0x Normal</option>
+                    <option value="1.25">1.25x Fast</option>
+                    <option value="1.5">1.5x Turbo</option>
+                    <option value="2">2.0x Double</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin-bottom:6px;">
+                  <label class="form-label" for="videoFilterSelect" style="font-size:0.75rem;">इफेक्ट / फिल्टर (Visual Filter)</label>
+                  <select class="form-select" id="videoFilterSelect" style="padding:6px 10px; font-size:0.82rem;">
+                    <option value="none" selected>Original</option>
+                    <option value="sakura">🌸 Sakura Dream</option>
+                    <option value="cyberpunk">⚡ Cyberpunk Glow</option>
+                    <option value="vintage">🎞️ Vintage B&W</option>
+                    <option value="warm">🌅 Golden Sunset</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Download Button -->
+            <a id="dl" class="dl-video-btn hide" download="video.webm" style="display:none;">
+              <span>⬇️ वीडियो डाउनलोड करो (Download Video)</span>
+            </a>
           </div>
-
-          <button class="btn-primary-action" id="btnGenerateImage">
-            <span>✨ Synthesize AI Visual</span>
-          </button>
-
-          <!-- Generated Image Frame -->
-          <div class="tool-result-box" id="imageResultBox" style="display:none;"></div>
         </div>
       </section>
 
@@ -988,6 +1110,7 @@
 <script src="/js/settings.js"></script>
 <script src="/js/developer.js"></script>
 <script src="/js/sakura-petals.js"></script>
+<script src="/js/video-studio.js"></script>
 <script src="/js/app.js"></script>
 
 </body>

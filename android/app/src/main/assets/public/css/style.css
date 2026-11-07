@@ -1420,3 +1420,78 @@ input:checked + .slider:before {
   border-left: 2px solid var(--neon-cyan);
 }
 
+/* ==========================================================================
+   VIDEO & 2D ANIMATION STUDIO STYLING
+   ========================================================================== */
+.media-pane {
+  display: block;
+}
+
+.media-subtab.active {
+  background: linear-gradient(135deg, rgba(244, 194, 215, 0.25), rgba(185, 166, 232, 0.25)) !important;
+  border-color: var(--accent-sakura) !important;
+  color: var(--accent-sakura) !important;
+  box-shadow: 0 0 12px rgba(244, 194, 215, 0.2);
+}
+
+.video-stage {
+  margin-top: 16px;
+  background: #0d0924;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  text-align: center;
+  border: 1px solid var(--border-glow);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  position: relative;
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.video-stage canvas,
+.video-stage video {
+  max-width: 100%;
+  max-height: 60vh;
+  display: block;
+  margin: auto;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.video-editor-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-top: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.hide {
+  display: none !important;
+}
+
+.dl-video-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent-sakura), var(--accent-lavender));
+  color: #1B1646;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  text-decoration: none;
+  margin-top: 12px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(244, 194, 215, 0.3);
+}
+
+.dl-video-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(244, 194, 215, 0.45);
+}
+
