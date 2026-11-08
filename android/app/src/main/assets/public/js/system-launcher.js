@@ -410,6 +410,73 @@ class SystemLauncher {
     return { running: mock, isRunning: mock, enabled: mock, isConfigured: mock };
   }
 
+  // Query in-app Accessibility diagnostics, last disconnect time, reason & error logs
+  async getAccessibilityDiagnostics() {
+    if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.getAccessibilityDiagnostics) {
+      try {
+        return await window.Capacitor.Plugins.SystemLauncher.getAccessibilityDiagnostics();
+      } catch (e) {
+        console.warn('getAccessibilityDiagnostics error:', e);
+      }
+    }
+    const mockRunning = Boolean(window._mockAccessibilityServiceEnabled);
+    let mockLogs = [];
+    try {
+      mockLogs = JSON.parse(localStorage.getItem('jarvis_mock_error_logs') || '[]');
+    } catch (e) {}
+    return {
+      isRunning: mockRunning,
+      running: mockRunning,
+      status: mockRunning ? 'RUNNING' : 'STOPPED',
+      lastConnectedTime: localStorage.getItem('jarvis_mock_last_connected') || 'कदापि नहीं (Never)',
+      lastDisconnectedTime: localStorage.getItem('jarvis_mock_last_disconnected') || 'कोई रिकॉर्ड नहीं',
+      disconnectReason: mockRunning ? 'सक्रिय व सामान्य' : (localStorage.getItem('jarvis_mock_disconnect_reason') || 'सर्विस अभी बंद है।'),
+      errorLogs: mockLogs
+    };
+  }
+
+  // Clear in-app error logs
+  async clearAccessibilityLogs() {
+    if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.clearAccessibilityLogs) {
+      try {
+        return await window.Capacitor.Plugins.SystemLauncher.clearAccessibilityLogs();
+      } catch (e) {
+        console.warn('clearAccessibilityLogs error:', e);
+      }
+    }
+    try {
+      localStorage.setItem('jarvis_mock_error_logs', '[]');
+      localStorage.setItem('jarvis_mock_disconnect_reason', 'लॉग्स साफ़ कर दिए गए');
+    } catch (e) {}
+    return { success: true };
+  }
+
+  // Open Android Battery Optimization Settings
+  async openBatteryOptimizationSettings() {
+    if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.openBatteryOptimizationSettings) {
+      try {
+        return await window.Capacitor.Plugins.SystemLauncher.openBatteryOptimizationSettings();
+      } catch (e) {
+        console.warn('openBatteryOptimizationSettings error:', e);
+      }
+    }
+    if (window.app) window.app.showToast('🔋 Android Settings → Apps → Battery → "No Restrictions" चुनें');
+    return { success: false, message: 'Platform not native or intent failed' };
+  }
+
+  // Open OEM Autostart Settings (Xiaomi/Redmi/Realme/Oppo/Vivo)
+  async openAutostartSettings() {
+    if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.openAutostartSettings) {
+      try {
+        return await window.Capacitor.Plugins.SystemLauncher.openAutostartSettings();
+      } catch (e) {
+        console.warn('openAutostartSettings error:', e);
+      }
+    }
+    if (window.app) window.app.showToast('🚀 Security ऐप ➔ Permissions ➔ Autostart चालू करें');
+    return { success: false, message: 'Platform not native or intent failed' };
+  }
+
   // Open Android App Info Settings (to allow restricted settings on Android 13/14/15)
   async openAppInfoSettings() {
     if (this.isNative && window.Capacitor.Plugins.SystemLauncher && window.Capacitor.Plugins.SystemLauncher.openAppInfoSettings) {

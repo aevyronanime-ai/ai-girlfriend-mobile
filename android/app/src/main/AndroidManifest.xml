@@ -23,6 +23,10 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 
+    <!-- Battery Optimization & Process Keep-Alive -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
     <!-- Hardware Features (Optional to support all phones including budget Redmi 13C 5G) -->
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -34,6 +38,7 @@
         <package android:name="com.android.chrome" />
         <package android:name="com.google.android.youtube" />
         <package android:name="com.whatsapp" />
+        <package android:name="com.miui.securitycenter" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />

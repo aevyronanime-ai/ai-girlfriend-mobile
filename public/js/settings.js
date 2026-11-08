@@ -100,12 +100,31 @@ class SettingsController {
     this._phoneControlPollTimer = null;
     this._pendingConfirmResolve = null;
 
+    // Diagnostics & Crash Log Elements
+    this.modalStatusLog         = document.getElementById('modalPhoneControlStatusLog');
+    this.btnOpenStatusModal     = document.getElementById('btnOpenPhoneControlStatusModal');
+    this.btnCloseStatusModal    = document.getElementById('btnClosePhoneControlStatusModal');
+    this.diagStatusBadge        = document.getElementById('diagServiceStatusBadge');
+    this.diagConnectedTime      = document.getElementById('diagLastConnectedTime');
+    this.diagDisconnectedTime   = document.getElementById('diagLastDisconnectedTime');
+    this.diagReason             = document.getElementById('diagDisconnectReason');
+    this.diagLogsList           = document.getElementById('diagErrorLogsList');
+    this.btnDiagAcc             = document.getElementById('btnDiagOpenAccessibility');
+    this.btnDiagBattery         = document.getElementById('btnDiagOpenBattery');
+    this.btnDiagAutostart       = document.getElementById('btnDiagOpenAutostart');
+    this.btnDiagRefresh         = document.getElementById('btnDiagRefresh');
+    this.btnDiagClearLogs       = document.getElementById('btnDiagClearLogs');
+    this.startupWarning         = document.getElementById('phoneControlStartupWarning');
+    this.btnStartupFix          = document.getElementById('btnStartupFixService');
+    this.btnStartupDismiss      = document.getElementById('btnStartupDismissWarning');
+
     // Sakura Theme & Petals
     this.appThemeSelect         = document.getElementById('settingAppTheme');
     this.sakuraPetalsToggle     = document.getElementById('settingSakuraPetals');
 
     this.bindEvents();
     this.loadSettings();
+    this.checkStartupStatus();
   }
 
   populateModelDropdown(models = [], selectedValue = 'gemini-3.8-flash') {
@@ -375,6 +394,63 @@ class SettingsController {
         const confirmModal = document.getElementById('phoneControlConfirmModal');
         if (confirmModal) confirmModal.style.display = 'none';
         if (this._pendingConfirmResolve) { this._pendingConfirmResolve(false); this._pendingConfirmResolve = null; }
+      });
+    }
+
+    // Diagnostics & Crash Log Modal Event Listeners
+    if (this.btnOpenStatusModal) {
+      this.btnOpenStatusModal.addEventListener('click', () => this.openStatusLogModal());
+    }
+    if (this.btnCloseStatusModal) {
+      this.btnCloseStatusModal.addEventListener('click', () => this.closeStatusLogModal());
+    }
+    if (this.btnDiagAcc) {
+      this.btnDiagAcc.addEventListener('click', () => {
+        if (window.systemLauncher) window.systemLauncher.openAccessibilitySettings();
+        if (window.app) window.app.showToast('Accessibility Settings खुल रहा है…');
+      });
+    }
+    if (this.btnDiagBattery) {
+      this.btnDiagBattery.addEventListener('click', () => {
+        if (window.systemLauncher && typeof window.systemLauncher.openBatteryOptimizationSettings === 'function') {
+          window.systemLauncher.openBatteryOptimizationSettings();
+        }
+        if (window.app) window.app.showToast('बैटरी सेटिंग्स: No Restrictions चुनें');
+      });
+    }
+    if (this.btnDiagAutostart) {
+      this.btnDiagAutostart.addEventListener('click', () => {
+        if (window.systemLauncher && typeof window.systemLauncher.openAutostartSettings === 'function') {
+          window.systemLauncher.openAutostartSettings();
+        }
+        if (window.app) window.app.showToast('ऑटोस्टार्ट सेटिंग्स खुल रही है…');
+      });
+    }
+    if (this.btnDiagRefresh) {
+      this.btnDiagRefresh.addEventListener('click', () => {
+        this.loadAccessibilityDiagnostics();
+        if (window.app) window.app.showToast('स्टेटस और लॉग्स ताज़ा किए गए।');
+      });
+    }
+    if (this.btnDiagClearLogs) {
+      this.btnDiagClearLogs.addEventListener('click', async () => {
+        if (window.systemLauncher && typeof window.systemLauncher.clearAccessibilityLogs === 'function') {
+          await window.systemLauncher.clearAccessibilityLogs();
+        }
+        await this.loadAccessibilityDiagnostics();
+        if (window.app) window.app.showToast('एरर लॉग्स साफ़ कर दिए गए।');
+      });
+    }
+
+    // Startup Warning Fix / Dismiss
+    if (this.btnStartupFix) {
+      this.btnStartupFix.addEventListener('click', () => {
+        this.openStatusLogModal();
+      });
+    }
+    if (this.btnStartupDismiss) {
+      this.btnStartupDismiss.addEventListener('click', () => {
+        if (this.startupWarning) this.startupWarning.style.display = 'none';
       });
     }
   }
@@ -692,6 +768,110 @@ class SettingsController {
   closeSetupGuide() {
     const guideModal = document.getElementById('phoneControlSetupGuideModal');
     if (guideModal) guideModal.style.display = 'none';
+  }
+
+  openStatusLogModal() {
+    if (this.modalStatusLog) {
+      this.modalStatusLog.style.display = 'flex';
+      this.loadAccessibilityDiagnostics();
+    }
+  }
+
+  closeStatusLogModal() {
+    if (this.modalStatusLog) {
+      this.modalStatusLog.style.display = 'none';
+    }
+  }
+
+  async loadAccessibilityDiagnostics() {
+    let diag = {
+      running: false,
+      lastConnectedTime: null,
+      lastDisconnectedTime: null,
+      lastDisconnectReason: null,
+      errorLogs: []
+    };
+
+    if (window.systemLauncher && typeof window.systemLauncher.getAccessibilityDiagnostics === 'function') {
+      try {
+        diag = await window.systemLauncher.getAccessibilityDiagnostics();
+      } catch (err) {
+        console.warn('Failed to get accessibility diagnostics:', err);
+      }
+    } else {
+      const running = await this._isAccessibilityRunning();
+      diag.running = running;
+      diag.lastConnectedTime = running ? new Date().toLocaleTimeString() : null;
+      diag.lastDisconnectedTime = running ? null : '10 मिनट पहले';
+      diag.lastDisconnectReason = running ? 'सर्विस सामान्य चल रही है' : 'Android Battery Saver या Task Killer द्वारा बंद';
+    }
+
+    if (this.diagStatusBadge) {
+      if (diag.running) {
+        this.diagStatusBadge.textContent = '🟢 चालू (Running)';
+        this.diagStatusBadge.style.background = 'rgba(74, 222, 128, 0.2)';
+        this.diagStatusBadge.style.color = '#4ade80';
+      } else {
+        this.diagStatusBadge.textContent = '🔴 बंद (OFF / Stopped)';
+        this.diagStatusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+        this.diagStatusBadge.style.color = '#f87171';
+      }
+    }
+
+    if (this.diagConnectedTime) {
+      this.diagConnectedTime.textContent = diag.lastConnectedTime || 'डेटा उपलब्ध नहीं';
+    }
+
+    if (this.diagDisconnectedTime) {
+      this.diagDisconnectedTime.textContent = diag.lastDisconnectedTime || 'डेटा उपलब्ध नहीं';
+    }
+
+    if (this.diagReason) {
+      this.diagReason.textContent = diag.lastDisconnectReason || (diag.running ? 'सर्विस सामान्य चल रही है' : 'Android OS या टास्क किलर द्वारा रोका गया');
+    }
+
+    if (this.diagLogsList) {
+      const logs = Array.isArray(diag.errorLogs) ? diag.errorLogs : [];
+      if (logs.length === 0) {
+        this.diagLogsList.innerHTML = '<div style="color:var(--text-muted); font-size:11px;">कोई एरर लॉग दर्ज नहीं है (सिस्टम सुरक्षित और सामान्य है)।</div>';
+      } else {
+        this.diagLogsList.innerHTML = logs.map(l => {
+          const time = l.time || (l.timestamp ? new Date(l.timestamp).toLocaleTimeString() : '');
+          const errorMsg = l.error || l.message || JSON.stringify(l);
+          const tag = l.tag ? `[${l.tag}] ` : '';
+          return `
+            <div style="padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+              <span style="color:#ef4444; font-weight:700;">${tag}</span>
+              <span style="color:var(--text-muted); font-size:10px;">${time}</span>
+              <div style="color:#fca5a5; font-size:11px; word-break:break-all;">${escapeHtml(errorMsg)}</div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  }
+
+  async checkStartupStatus() {
+    try {
+      const wasEnabled = localStorage.getItem('jarvis_phone_control') === 'true';
+      const isRunning = await this._isAccessibilityRunning();
+      if (wasEnabled && !isRunning) {
+        if (this.startupWarning) this.startupWarning.style.display = 'flex';
+      } else {
+        if (this.startupWarning) this.startupWarning.style.display = 'none';
+      }
+    } catch (e) {
+      console.warn('checkStartupStatus failed:', e);
+    }
   }
 
   async checkAccessibilityStatus() {

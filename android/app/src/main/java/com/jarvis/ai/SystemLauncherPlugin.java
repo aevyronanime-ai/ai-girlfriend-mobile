@@ -453,6 +453,124 @@ public class SystemLauncherPlugin extends Plugin {
     }
 
     /**
+     * Get detailed accessibility diagnostics, last disconnect time, reason & in-app error logs
+     */
+    @PluginMethod
+    public void getAccessibilityDiagnostics(PluginCall call) {
+        try {
+            org.json.JSONObject diag = JarvisAccessibilityService.getDiagnostics(getContext());
+            JSObject ret = JSObject.fromJSONObject(diag);
+            call.resolve(ret);
+        } catch (Exception e) {
+            JSObject ret = new JSObject();
+            ret.put("isRunning", JarvisAccessibilityService.isRunning());
+            ret.put("status", JarvisAccessibilityService.isRunning() ? "RUNNING" : "STOPPED");
+            ret.put("error", e.getMessage());
+            call.resolve(ret);
+        }
+    }
+
+    /**
+     * Clear in-app error and crash logs
+     */
+    @PluginMethod
+    public void clearAccessibilityLogs(PluginCall call) {
+        try {
+            JarvisAccessibilityService.clearLogs(getContext());
+            JSObject ret = new JSObject();
+            ret.put("success", true);
+            ret.put("message", "Logs cleared");
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Could not clear logs: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Open Android Battery Optimization Settings directly (to allow "No restrictions")
+     */
+    @PluginMethod
+    public void openBatteryOptimizationSettings(PluginCall call) {
+        try {
+            Intent intent = new Intent();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                intent.setAction(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+            } else {
+                intent.setAction(android.provider.Settings.ACTION_SETTINGS);
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+
+            JSObject ret = new JSObject();
+            ret.put("success", true);
+            ret.put("message", "Opened Battery Optimization Settings");
+            call.resolve(ret);
+        } catch (Exception e) {
+            try {
+                Intent fallback = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                fallback.setData(Uri.parse("package:" + getContext().getPackageName()));
+                fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                getContext().startActivity(fallback);
+
+                JSObject ret = new JSObject();
+                ret.put("success", true);
+                ret.put("message", "Opened App Details for Battery settings");
+                call.resolve(ret);
+            } catch (Exception ex) {
+                call.reject("Could not open battery settings: " + ex.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Open OEM Autostart Settings (Xiaomi/Redmi MIUI/HyperOS, Oppo, Vivo, Realme)
+     */
+    @PluginMethod
+    public void openAutostartSettings(PluginCall call) {
+        try {
+            Intent intent = new Intent();
+            String manufacturer = Build.MANUFACTURER != null ? Build.MANUFACTURER.toLowerCase(Locale.ROOT) : "";
+            boolean resolved = false;
+
+            if (manufacturer.contains("xiaomi") || manufacturer.contains("redmi")) {
+                intent.setComponent(new android.content.ComponentName(
+                    "com.miui.securitycenter",
+                    "com.miui.permcenter.autostart.AutoStartManagementActivity"
+                ));
+                if (intent.resolveActivity(getContext().getPackageManager()) != null) resolved = true;
+            } else if (manufacturer.contains("oppo") || manufacturer.contains("realme")) {
+                intent.setComponent(new android.content.ComponentName(
+                    "com.coloros.safecenter",
+                    "com.coloros.safecenter.permission.startup.StartupAppListActivity"
+                ));
+                if (intent.resolveActivity(getContext().getPackageManager()) != null) resolved = true;
+            } else if (manufacturer.contains("vivo")) {
+                intent.setComponent(new android.content.ComponentName(
+                    "com.vivo.permissionmanager",
+                    "com.vivo.permissionmanager.activity.PurviewTabActivity"
+                ));
+                if (intent.resolveActivity(getContext().getPackageManager()) != null) resolved = true;
+            }
+
+            if (!resolved) {
+                // Fallback to Application Details Settings
+                intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                intent.setData(Uri.parse("package:" + getContext().getPackageName()));
+            }
+
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+
+            JSObject ret = new JSObject();
+            ret.put("success", true);
+            ret.put("message", "Opened Autostart Settings");
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Could not open autostart settings: " + e.getMessage());
+        }
+    }
+
+    /**
      * Open Android App Info Settings (to allow restricted settings on Android 13/14/15)
      */
     @PluginMethod

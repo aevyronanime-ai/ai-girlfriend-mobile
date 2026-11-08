@@ -199,6 +199,17 @@
            VIEW 1: AI CHAT PANE
            ==================================================================== -->
       <section class="tab-pane active chat-pane" id="tab-chat">
+        <!-- Startup Warning Banner if Phone Control was enabled but Accessibility is off -->
+        <div id="phoneControlStartupWarning" style="display:none; background:rgba(239,68,68,0.14); border:1px solid #ef4444; border-radius:var(--radius-sm); padding:10px 14px; margin:10px 14px 4px; font-size:0.8rem; color:#fca5a5; justify-content:space-between; align-items:center; gap:8px;">
+          <div>
+            <strong>⚠️ Phone Control सर्विस बंद है!</strong> Android ने बैकग्राउंड में इसे रोक दिया हो सकता है।
+          </div>
+          <div style="display:flex; gap:6px; flex-shrink:0;">
+            <button type="button" class="chip-btn" id="btnStartupFixService" style="background:#ef4444; color:#fff; font-weight:700; font-size:0.75rem; padding:4px 10px;">ठीक करें</button>
+            <button type="button" class="chip-btn" id="btnStartupDismissWarning" style="background:rgba(255,255,255,0.1); font-size:0.75rem; padding:4px 8px;">✕</button>
+          </div>
+        </div>
+
         <!-- Messages List -->
         <div class="chat-messages" id="chatMessages">
           <!-- Rendered dynamically by chat.js -->
@@ -1280,6 +1291,7 @@
             </div>
 
             <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+              <button class="chip-btn" id="btnOpenPhoneControlStatusModal" style="background:rgba(0,240,255,0.15); border:1px solid var(--neon-cyan); color:var(--neon-cyan); font-weight:700;">📊 स्थिति व एरर लॉग (Status &amp; Logs)</button>
               <button class="chip-btn" id="btnOpenPhoneControlGuide" style="background:linear-gradient(135deg, #a855f7, #00f0ff); color:#000; font-weight:700;">📖 सेटअप गाइड</button>
               <button class="chip-btn" id="btnOpenAppInfoSettings">ℹ️ App Info खोलें</button>
               <button class="chip-btn" id="btnOpenAccessibilitySettings" style="background:var(--neon-cyan); color:#000; font-weight:700;">⚙️ Open Accessibility Settings</button>
@@ -1647,6 +1659,80 @@
 
       <div style="display:flex; justify-content:flex-end; gap:8px;">
         <button class="chip-btn" id="btnGuideCloseBottom" style="background:rgba(255,255,255,0.1); padding:8px 16px;">समझ गया (Close)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Phone Control Status & Diagnostics Log -->
+  <div id="modalPhoneControlStatusLog" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; align-items:center; justify-content:center; padding:14px; overflow-y:auto;">
+    <div style="background:var(--bg-card); border:1px solid var(--neon-cyan); border-radius:var(--radius-md); padding:18px; max-width:460px; width:100%; box-shadow:0 0 30px rgba(0,240,255,0.25); max-height:92vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:1.3rem;">📱</span>
+          <h3 style="font-size:1.05rem; color:var(--neon-cyan); margin:0;">फोन कंट्रोल स्थिति व एरर लॉग</h3>
+        </div>
+        <button type="button" class="chip-btn" id="btnClosePhoneControlStatusModal" style="padding:2px 8px; font-size:1rem; line-height:1;">✕</button>
+      </div>
+
+      <!-- Live Service State Card -->
+      <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:0.85rem; font-weight:700;">सर्विस स्थिति (Service Status):</span>
+          <span id="diagServiceStatusBadge" class="persona-tag" style="background:#ef4444; color:#fff; font-size:0.75rem; font-weight:700;">🔴 बंद (OFF)</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">
+          <span>अंतिम बार चालू:</span>
+          <span id="diagLastConnectedTime" style="color:var(--text-primary); font-family:monospace;">--</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--text-secondary); margin-bottom:4px;">
+          <span>अंतिम बार बंद:</span>
+          <span id="diagLastDisconnectedTime" style="color:var(--text-primary); font-family:monospace;">--</span>
+        </div>
+        <div style="font-size:0.78rem; color:var(--text-secondary); margin-top:6px; background:rgba(0,0,0,0.25); padding:6px 8px; border-radius:6px;">
+          <span style="color:#f59e0b; font-weight:600;">बंद होने का कारण:</span>
+          <div id="diagDisconnectReason" style="color:var(--text-primary); margin-top:2px;">कोई डेटा उपलब्ध नहीं</div>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons for Battery & Autostart -->
+      <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+        <div style="font-size:0.8rem; font-weight:700; color:var(--accent-sakura);">🛠️ चालू रखने के लिए 3 आवश्यक सेटिंग्स:</div>
+        
+        <button type="button" class="chip-btn" id="btnDiagOpenAccessibility" style="background:var(--neon-cyan); color:#000; font-weight:700; justify-content:center; padding:8px;">
+          ⚙️ 1. Accessibility सेटिंग्स खोलें (सर्विस ON करें)
+        </button>
+        
+        <button type="button" class="chip-btn" id="btnDiagOpenBattery" style="background:rgba(245,158,11,0.18); border-color:#f59e0b; color:#fbbf24; font-weight:600; justify-content:center; padding:8px;">
+          🔋 2. बैटरी ऑप्टिमाइज़ेशन बंद करें (No Restrictions)
+        </button>
+
+        <button type="button" class="chip-btn" id="btnDiagOpenAutostart" style="background:rgba(168,85,247,0.18); border-color:#a855f7; color:#c084fc; font-weight:600; justify-content:center; padding:8px;">
+          🚀 3. ऑटोस्टार्ट (Autostart) अनुमति दें
+        </button>
+      </div>
+
+      <!-- Hindi Battery & Task Killer Guide -->
+      <div style="background:rgba(0,240,255,0.04); border:1px solid rgba(0,240,255,0.15); border-radius:8px; padding:10px; margin-bottom:14px; font-size:0.75rem; line-height:1.45; color:var(--text-secondary);">
+        <strong style="color:var(--neon-cyan);">💡 अपने आप बंद होने से रोकने के 3 आसान नियम:</strong>
+        <ol style="margin:4px 0 0 16px; padding:0;">
+          <li><strong>No Restrictions करें</strong>: Battery Saver में जाकर "कोई प्रतिबंध नहीं" (No Restrictions) चुनें।</li>
+          <li><strong>Autostart चालू करें</strong>: Security ऐप ➔ Permissions ➔ Autostart ➔ AI Girlfriend Mobile को चालू रखें।</li>
+          <li><strong>हालिया ऐप्स (Recent Apps) में लॉक करें</strong>: Recent Apps स्क्रीन खोलकर ऐप कार्ड पर लॉन्ग प्रेस करें और 🔒 लॉक आइकॉन दबाएँ।</li>
+        </ol>
+      </div>
+
+      <!-- Error Logs List -->
+      <div style="border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:0.78rem; font-weight:700; color:var(--text-primary);">⚠️ इन-ऐप एरर लॉग (Crash &amp; Exception Logs)</span>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="chip-btn" id="btnDiagRefresh" style="font-size:0.7rem; padding:2px 8px;">🔄 ताज़ा करें</button>
+            <button type="button" class="chip-btn" id="btnDiagClearLogs" style="font-size:0.7rem; padding:2px 8px;">🧹 साफ़ करें</button>
+          </div>
+        </div>
+        <div id="diagErrorLogsList" style="max-height:150px; overflow-y:auto; font-family:monospace; font-size:0.7rem; color:var(--text-muted); background:rgba(0,0,0,0.35); padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
+          <div>कोई एरर लॉग मौजूद नहीं है (सिस्टम सामान्य है)।</div>
+        </div>
       </div>
     </div>
   </div>

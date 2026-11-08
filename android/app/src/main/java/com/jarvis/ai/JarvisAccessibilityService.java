@@ -23,6 +23,12 @@ import android.widget.Toast;
 
 import androidx.core.app.NotificationCompat;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import android.content.SharedPreferences;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -39,6 +45,13 @@ public class JarvisAccessibilityService extends AccessibilityService {
     public static final String ACTION_STOP_SERVICE = "com.jarvis.ai.ACTION_STOP_SERVICE";
     private static final int NOTIFICATION_ID = 9001;
     private static final String CHANNEL_ID = "jarvis_phone_control_channel";
+
+    private static final String PREF_NAME = "jarvis_accessibility_state";
+    private static final String KEY_STATUS = "service_status";
+    private static final String KEY_LAST_CONNECTED = "last_connected_time";
+    private static final String KEY_LAST_DISCONNECTED = "last_disconnected_time";
+    private static final String KEY_DISCONNECT_REASON = "disconnect_reason";
+    private static final String KEY_ERROR_LOGS = "error_logs";
 
     private String currentPackageName = "";
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -70,11 +83,105 @@ public class JarvisAccessibilityService extends AccessibilityService {
         return sInstance != null;
     }
 
+    public static synchronized void recordState(Context ctx, String status, String reason) {
+        if (ctx == null) return;
+        try {
+            SharedPreferences prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString(KEY_STATUS, status);
+            String now = new SimpleDateFormat("dd MMM yyyy, hh:mm:ss a", Locale.getDefault()).format(new Date());
+            if ("RUNNING".equals(status)) {
+                editor.putString(KEY_LAST_CONNECTED, now);
+            } else {
+                editor.putString(KEY_LAST_DISCONNECTED, now);
+            }
+            if (reason != null && !reason.isEmpty()) {
+                editor.putString(KEY_DISCONNECT_REASON, reason);
+            }
+            editor.apply();
+        } catch (Throwable ignored) {}
+    }
+
+    public static synchronized void recordError(Context ctx, String method, Throwable t) {
+        if (ctx == null) return;
+        try {
+            String msg = (t != null && t.getMessage() != null) ? t.getMessage() : (t != null ? t.getClass().getSimpleName() : "Unknown error");
+            Log.e(TAG, "Error in " + method + ": " + msg, t);
+
+            SharedPreferences prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+            String existingLogsJson = prefs.getString(KEY_ERROR_LOGS, "[]");
+            JSONArray logs = new JSONArray(existingLogsJson);
+
+            JSONObject logEntry = new JSONObject();
+            logEntry.put("timestamp", new SimpleDateFormat("dd MMM, hh:mm:ss a", Locale.getDefault()).format(new Date()));
+            logEntry.put("method", method);
+            logEntry.put("message", msg);
+
+            // Maintain circular buffer of 25 latest error entries
+            JSONArray newLogs = new JSONArray();
+            newLogs.put(logEntry);
+            for (int i = 0; i < logs.length() && i < 24; i++) {
+                newLogs.put(logs.get(i));
+            }
+
+            prefs.edit().putString(KEY_ERROR_LOGS, newLogs.toString()).apply();
+        } catch (Throwable ignored) {}
+    }
+
+    public static synchronized JSONObject getDiagnostics(Context ctx) {
+        JSONObject obj = new JSONObject();
+        try {
+            boolean running = isRunning();
+            obj.put("isRunning", running);
+            obj.put("running", running);
+
+            if (ctx != null) {
+                SharedPreferences prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+                obj.put("status", running ? "RUNNING" : prefs.getString(KEY_STATUS, "STOPPED"));
+                obj.put("lastConnectedTime", prefs.getString(KEY_LAST_CONNECTED, "कदापि नहीं (Never)"));
+                obj.put("lastDisconnectedTime", prefs.getString(KEY_LAST_DISCONNECTED, "कोई रिकॉर्ड नहीं"));
+                obj.put("disconnectReason", prefs.getString(KEY_DISCONNECT_REASON, running ? "सक्रिय व सामान्य" : "सर्विस बंद है"));
+                obj.put("errorLogs", new JSONArray(prefs.getString(KEY_ERROR_LOGS, "[]")));
+
+                boolean isConfigured = false;
+                try {
+                    String enabledServices = android.provider.Settings.Secure.getString(
+                        ctx.getContentResolver(),
+                        android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                    );
+                    if (enabledServices != null && enabledServices.contains(ctx.getPackageName())) {
+                        isConfigured = true;
+                    }
+                } catch (Throwable ignored) {}
+                obj.put("isConfigured", isConfigured);
+            }
+        } catch (Throwable t) {
+            try { obj.put("error", t.getMessage()); } catch (Throwable ignored) {}
+        }
+        return obj;
+    }
+
+    public static synchronized void clearLogs(Context ctx) {
+        if (ctx == null) return;
+        try {
+            ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+               .edit()
+               .putString(KEY_ERROR_LOGS, "[]")
+               .putString(KEY_DISCONNECT_REASON, "लॉग्स साफ़ कर दिए गए")
+               .apply();
+        } catch (Throwable ignored) {}
+    }
+
     @Override
     public void onCreate() {
-        super.onCreate();
-        sInstance = this;
-        Log.i(TAG, "JarvisAccessibilityService created");
+        try {
+            super.onCreate();
+            sInstance = this;
+            Log.i(TAG, "JarvisAccessibilityService created");
+            recordState(this, "CREATED", "सर्विस शुरू हुई (Created)");
+        } catch (Throwable t) {
+            recordError(this, "onCreate", t);
+        }
     }
 
     @Override
@@ -83,14 +190,15 @@ public class JarvisAccessibilityService extends AccessibilityService {
             super.onServiceConnected();
             sInstance = this;
             Log.i(TAG, "JarvisAccessibilityService connected");
+            recordState(this, "RUNNING", "सर्विस सफलतापूर्वक चालू (Connected) हुई");
             try {
                 showControlNotification();
-            } catch (Exception e) {
-                Log.w(TAG, "Notification error: " + e.getMessage());
+            } catch (Throwable e) {
+                recordError(this, "showControlNotification", e);
             }
             showToast("J.A.R.V.I.S. Phone Control सर्विस चालू हो गई है");
-        } catch (Exception ex) {
-            Log.e(TAG, "Error in onServiceConnected: " + ex.getMessage());
+        } catch (Throwable ex) {
+            recordError(this, "onServiceConnected", ex);
         }
     }
 
@@ -102,31 +210,55 @@ public class JarvisAccessibilityService extends AccessibilityService {
             if (pkg != null) {
                 currentPackageName = pkg.toString();
             }
-        } catch (Exception ex) {
-            Log.w(TAG, "Error in onAccessibilityEvent: " + ex.getMessage());
+        } catch (Throwable ex) {
+            recordError(this, "onAccessibilityEvent", ex);
         }
     }
 
     @Override
     public void onInterrupt() {
-        Log.w(TAG, "JarvisAccessibilityService interrupted");
-        isProcessing.set(false);
+        try {
+            Log.w(TAG, "JarvisAccessibilityService interrupted");
+            isProcessing.set(false);
+            recordState(this, "INTERRUPTED", "Android सिस्टम द्वारा सर्विस में बाधा (Interrupted) उत्पन्न की गई");
+        } catch (Throwable t) {
+            recordError(this, "onInterrupt", t);
+        }
     }
 
     @Override
     public boolean onUnbind(Intent intent) {
-        sInstance = null;
-        removeControlNotification();
-        Log.i(TAG, "JarvisAccessibilityService unbound");
-        return super.onUnbind(intent);
+        try {
+            sInstance = null;
+            removeControlNotification();
+            Log.i(TAG, "JarvisAccessibilityService unbound");
+            recordState(this, "STOPPED", "Android OS द्वारा unbind किया गया (RAM या बैटरी सेवर द्वारा प्रोसेस बंद)");
+        } catch (Throwable t) {
+            recordError(this, "onUnbind", t);
+        }
+        try {
+            return super.onUnbind(intent);
+        } catch (Throwable t) {
+            recordError(this, "onUnbindSuper", t);
+            return false;
+        }
     }
 
     @Override
     public void onDestroy() {
-        sInstance = null;
-        removeControlNotification();
-        Log.i(TAG, "JarvisAccessibilityService destroyed");
-        super.onDestroy();
+        try {
+            sInstance = null;
+            removeControlNotification();
+            Log.i(TAG, "JarvisAccessibilityService destroyed");
+            recordState(this, "STOPPED", "सर्विस नष्ट (Destroyed) हुई");
+        } catch (Throwable t) {
+            recordError(this, "onDestroy", t);
+        }
+        try {
+            super.onDestroy();
+        } catch (Throwable t) {
+            recordError(this, "onDestroySuper", t);
+        }
     }
 
     public String getCurrentPackageName() {
