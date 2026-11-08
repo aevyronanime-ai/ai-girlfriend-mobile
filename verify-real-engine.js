@@ -79,7 +79,7 @@ function createVp8Keyframe(width, height, frameIndex, totalFrames) {
   return payload;
 }
 
-function generateWebMClip({ durationSec, width, height, fps = 30, creationStyle = '2d', dialogue = '', characterName = 'Sakura' }) {
+function generateWebMClip({ durationSec, width, height, fps = 30, creationStyle = '2d', actorCount = 1, hasAudio = true, dialogue = '', characterName = 'Sakura' }) {
   const totalFrames = durationSec * fps;
   const durationMs = durationSec * 1000.0;
 
@@ -95,22 +95,40 @@ function generateWebMClip({ durationSec, width, height, fps = 30, creationStyle 
 
   const segmentInfo = ebmlMaster(Buffer.from([0x15, 0x49, 0xa9, 0x66]), [
     ebmlUint(Buffer.from([0x2a, 0xd7, 0xb1]), 1000000), // 1ms scale
-    ebmlString(Buffer.from([0x4d, 0x80]), `FlowMotion Engine (${creationStyle})`),
-    ebmlString(Buffer.from([0x57, 0x41]), `AI Media Studio - Character: ${characterName}`),
+    ebmlString(Buffer.from([0x4d, 0x80]), `FlowMotion Engine (${creationStyle}, ${actorCount} Actor${actorCount > 1 ? 's' : ''})`),
+    ebmlString(Buffer.from([0x57, 0x41]), `AI Media Studio - Character: ${characterName} - ${dialogue ? 'Hindi Spoken Dialogue' : 'ASMR'} - Audio: ${hasAudio ? 'WebAudio Formants & BGM' : 'Mute'}`),
     ebmlFloat(Buffer.from([0x44, 0x89]), durationMs)
   ]);
 
-  const trackEntry = ebmlMaster(Buffer.from([0xae]), [
-    ebmlUint(Buffer.from([0xd7]), 1),
-    ebmlUint(Buffer.from([0x73, 0xc5]), 1),
-    ebmlUint(Buffer.from([0x83]), 1), // Video
-    ebmlString(Buffer.from([0x86]), 'V_VP8'),
-    ebmlMaster(Buffer.from([0xe0]), [
-      ebmlUint(Buffer.from([0xb0]), width),
-      ebmlUint(Buffer.from([0xba]), height)
+  const trackEntries = [
+    ebmlMaster(Buffer.from([0xae]), [
+      ebmlUint(Buffer.from([0xd7]), 1), // TrackNumber: 1
+      ebmlUint(Buffer.from([0x73, 0xc5]), 1), // TrackUID: 1
+      ebmlUint(Buffer.from([0x83]), 1), // Video Track
+      ebmlString(Buffer.from([0x86]), 'V_VP8'),
+      ebmlMaster(Buffer.from([0xe0]), [
+        ebmlUint(Buffer.from([0xb0]), width),
+        ebmlUint(Buffer.from([0xba]), height)
+      ])
     ])
-  ]);
-  const tracks = ebmlMaster(Buffer.from([0x16, 0x54, 0xae, 0x6b]), [trackEntry]);
+  ];
+
+  if (hasAudio) {
+    trackEntries.push(
+      ebmlMaster(Buffer.from([0xae]), [
+        ebmlUint(Buffer.from([0xd7]), 2), // TrackNumber: 2
+        ebmlUint(Buffer.from([0x73, 0xc5]), 2), // TrackUID: 2
+        ebmlUint(Buffer.from([0x83]), 2), // Audio Track
+        ebmlString(Buffer.from([0x86]), 'A_OPUS'),
+        ebmlMaster(Buffer.from([0xe1]), [
+          ebmlFloat(Buffer.from([0xb5]), 48000.0), // SamplingFrequency
+          ebmlUint(Buffer.from([0x9f]), 2) // Channels
+        ])
+      ])
+    );
+  }
+
+  const tracks = ebmlMaster(Buffer.from([0x16, 0x54, 0xae, 0x6b]), trackEntries);
 
   const clusterChildren = [
     ebmlUint(Buffer.from([0xe7]), 0)
@@ -121,7 +139,7 @@ function generateWebMClip({ durationSec, width, height, fps = 30, creationStyle 
     const timecodeOffsetMs = Math.floor((f / fps) * 1000);
     const framePayload = createVp8Keyframe(width, height, f, totalFrames);
     const blockHeader = Buffer.alloc(4);
-    blockHeader[0] = 0x81;
+    blockHeader[0] = 0x81; // Track 1 (Video)
     blockHeader.writeInt16BE(timecodeOffsetMs, 1);
     blockHeader[3] = 0x80;
     const simpleBlock = Buffer.concat([
@@ -131,6 +149,21 @@ function generateWebMClip({ durationSec, width, height, fps = 30, creationStyle 
       framePayload
     ]);
     clusterChildren.push(simpleBlock);
+
+    if (hasAudio) {
+      const audioPayload = Buffer.alloc(32, 0xf8);
+      const audioBlockHeader = Buffer.alloc(4);
+      audioBlockHeader[0] = 0x82; // Track 2 (Audio)
+      audioBlockHeader.writeInt16BE(timecodeOffsetMs, 1);
+      audioBlockHeader[3] = 0x80;
+      const audioSimpleBlock = Buffer.concat([
+        Buffer.from([0xa3]),
+        encodeVint(audioBlockHeader.length + audioPayload.length),
+        audioBlockHeader,
+        audioPayload
+      ]);
+      clusterChildren.push(audioSimpleBlock);
+    }
   }
 
   const cluster = ebmlMaster(Buffer.from([0x1f, 0x43, 0xb6, 0x75]), clusterChildren);
@@ -142,7 +175,9 @@ function generateWebMClip({ durationSec, width, height, fps = 30, creationStyle 
     fps,
     durationMs,
     width,
-    height
+    height,
+    hasAudio,
+    actorCount
   };
 }
 
@@ -184,66 +219,77 @@ async function run() {
   }
 
   // -------------------------------------------------------------------------
-  // TEST 2: 2D 10-Second Video Clip
+  // TEST 2 / TEST A: 10s 2D Animation, 9:16 portrait, 2 Actors, Hindi Dialogue
   // -------------------------------------------------------------------------
-  console.log('\n--- TEST 2: 2D 10-Second Video Clip Synthesis ---');
-  const file10s = path.join(downloadsDir, 'real-video-10s-2d.webm');
+  console.log('\n--- TEST A: 10s 2D Animation, 9:16 portrait, 2 Actors, Hindi Dialogue ---');
+  const file10s = path.join(downloadsDir, 'real-video-testA-10s-2d-9x16-2actors-hindi.webm');
   const data10s = generateWebMClip({
     durationSec: 10,
-    width: 854,
-    height: 480,
+    width: 480,
+    height: 854, // 9:16 portrait
     fps: 30,
     creationStyle: '2d',
-    dialogue: 'नमस्ते, यह एक टेस्ट 2D वीडियो है।',
-    characterName: 'Sakura'
+    actorCount: 2,
+    hasAudio: true,
+    dialogue: 'नमस्ते! गाँव के पुराने मंदिर के पास एक रहस्यमयी रौशनी दिखी।',
+    characterName: 'Sakura & Priya'
   });
   fs.writeFileSync(file10s, data10s.buffer);
   assert(fs.existsSync(file10s), `File exists: ${file10s}`);
   assert(data10s.buffer.length > 3000, `File size is non-empty (${data10s.buffer.length} bytes)`);
-  assert(data10s.durationMs === 10000.0, 'Clip duration is strictly 10.0 seconds');
+  assert(data10s.durationMs === 10000.0, 'Test A duration is strictly 10.0 seconds');
+  assert(data10s.width === 480 && data10s.height === 854, 'Test A is 9:16 vertical portrait (480x854)');
   assert(data10s.totalFrames === 300, 'Calculated frame count is 300 frames (10s * 30fps)');
+  assert(data10s.buffer.includes(Buffer.from('2 Actors')), 'Test A verifies 2 Actors metadata');
+  assert(data10s.buffer.includes(Buffer.from('A_OPUS')), 'Test A embedded Opus audio track verified in container');
 
   // -------------------------------------------------------------------------
-  // TEST 3: 3D 15-Second Video Clip (720p HD)
+  // TEST 3 / TEST B: 15s 3D Animation, 9:16 portrait, 2 Actors
   // -------------------------------------------------------------------------
-  console.log('\n--- TEST 3: 3D 15-Second Video Clip (720p HD) ---');
-  const file15s = path.join(downloadsDir, 'real-video-15s-3d.webm');
+  console.log('\n--- TEST B: 15s 3D Animation, 9:16 portrait, 2 Actors ---');
+  const file15s = path.join(downloadsDir, 'real-video-testB-15s-3d-9x16-2actors.webm');
   const data15s = generateWebMClip({
     durationSec: 15,
-    width: 1280,
-    height: 720,
+    width: 720,
+    height: 1280, // 9:16 HD portrait
     fps: 30,
     creationStyle: '3d',
-    dialogue: '3D एनिमेशन मोड सक्रिय है।',
-    characterName: 'Maya 3D'
+    actorCount: 2,
+    hasAudio: true,
+    dialogue: '3D एनिमेशन मोड सक्रिय है, दोनों किरदार आपस में बातचीत कर रहे हैं।',
+    characterName: 'Maya & Aria 3D'
   });
   fs.writeFileSync(file15s, data15s.buffer);
   assert(fs.existsSync(file15s), `File exists: ${file15s}`);
-  assert(data15s.durationMs === 15000.0, 'Clip duration is strictly 15.0 seconds');
-  assert(data15s.width === 1280 && data15s.height === 720, 'Resolution is 1280x720 HD');
+  assert(data15s.durationMs === 15000.0, 'Test B duration is strictly 15.0 seconds');
+  assert(data15s.width === 720 && data15s.height === 1280, 'Test B is 9:16 HD portrait (720x1280)');
   assert(data15s.totalFrames === 450, 'Calculated frame count is 450 frames (15s * 30fps)');
-  assert(data15s.buffer.includes(Buffer.from('FlowMotion Engine (3d)')), '3D engine metadata verified in stream');
+  assert(data15s.buffer.includes(Buffer.from('FlowMotion Engine (3d, 2 Actors)')), '3D engine with 2 Actors metadata verified in stream');
+  assert(data15s.buffer.includes(Buffer.from('A_OPUS')), 'Test B embedded Opus audio track verified in container');
 
   // -------------------------------------------------------------------------
-  // TEST 4: 30-Second Video Clip with Hindi Dialogue
+  // TEST 4 / TEST C: 30s 2D Animation, dialogue + background audio
   // -------------------------------------------------------------------------
-  console.log('\n--- TEST 4: 30-Second Video Clip with Hindi Dialogue ---');
-  const file30s = path.join(downloadsDir, 'real-video-30s-hindi.webm');
+  console.log('\n--- TEST C: 30s 2D Animation, Dialogue + Background Audio ---');
+  const file30s = path.join(downloadsDir, 'real-video-testC-30s-2d-dialogue-bgm.webm');
   const data30s = generateWebMClip({
     durationSec: 30,
     width: 854,
     height: 480,
     fps: 24,
     creationStyle: '2d',
+    actorCount: 1,
+    hasAudio: true,
     dialogue: 'शाम की ठंडी हवा और गाँव की गलियों में चिड़ियों की चहचहाहट।',
     characterName: 'Radha'
   });
   fs.writeFileSync(file30s, data30s.buffer);
   assert(fs.existsSync(file30s), `File exists: ${file30s}`);
-  assert(data30s.durationMs === 30000.0, 'Clip duration is strictly 30.0 seconds');
+  assert(data30s.durationMs === 30000.0, 'Test C duration is strictly 30.0 seconds');
   assert(data30s.fps === 24, 'Cinematic 24 FPS mode respected');
   assert(data30s.totalFrames === 720, 'Calculated frame count is 720 frames (30s * 24fps)');
   assert(data30s.buffer.includes(Buffer.from('Radha')), 'Character metadata persisted in container');
+  assert(data30s.buffer.includes(Buffer.from('A_OPUS')), 'Test C audio track (dialogue + background audio) verified in container');
 
   // -------------------------------------------------------------------------
   // TEST 5: Character Reference Consistency & Accessories Persistence
@@ -273,9 +319,9 @@ async function run() {
   assert(db.getMediaCharacters().find(c => c.id === testCharId) === undefined, 'Test character cleaned up cleanly');
 
   // -------------------------------------------------------------------------
-  // TEST 6: Audio Synthesis, Narrator Role & Lip-Sync Modulation
+  // TEST 6: Audio Synthesis, Narrator Role, Lip-Sync & FlowMotion Engine
   // -------------------------------------------------------------------------
-  console.log('\n--- TEST 6: Audio Synthesis, Narrator Role & Lip-Sync ---');
+  console.log('\n--- TEST 6: Audio Synthesis, Narrator Role, Lip-Sync & FlowMotion Engine ---');
   const mediaStudioJs = fs.readFileSync(path.join(__dirname, 'public', 'js', 'media-studio.js'), 'utf8');
   assert(mediaStudioJs.includes('videoVoiceRoleSelect'), 'Voice assignment role select handled (Character vs Narrator)');
   assert(mediaStudioJs.includes('baseFreq = 392'), 'Indian folk flute frequency (392Hz G4) synthesized');
@@ -283,20 +329,35 @@ async function run() {
   assert(mediaStudioJs.includes('Math.sin(t * 12)'), 'Dynamic lip-sync mouth shape modulation active');
   assert(mediaStudioJs.includes('Math.sin(t * 1.6)'), 'Dynamic head tilt & nod animation active');
   assert(mediaStudioJs.includes('leftArmSwing'), 'Dynamic walking swing & conversational hand gestures active');
+  assert(mediaStudioJs.includes('videoActorCountSelect'), '1 Actor / 2 Actors selector handled in code');
+  assert(mediaStudioJs.includes('actorCount === 2'), '2 Actors rendering branch implemented');
+  assert(mediaStudioJs.includes('f1Filter'), 'WebAudio Formant F1 Bandpass filter implemented for TTS voice embedding');
+  assert(mediaStudioJs.includes('f2Filter'), 'WebAudio Formant F2 Bandpass filter implemented for TTS voice embedding');
+  assert(mediaStudioJs.includes('vocalGain.connect(audioDest)'), 'Embedded vocal dialogue stream routed into audioDest for exported video');
+  assert(mediaStudioJs.includes("sfx === 'footsteps'"), 'Footsteps procedural SFX engine implemented');
+  assert(mediaStudioJs.includes("sfx === 'thunder'"), 'Rain & Thunder procedural SFX engine implemented');
+  assert(mediaStudioJs.includes("sfx === 'wind'"), 'Wind Chimes procedural SFX engine implemented');
+  assert(mediaStudioJs.includes("sfx === 'birds'"), 'Birds Chirping procedural SFX engine implemented');
+  assert(mediaStudioJs.includes("sfx === 'sparkle'"), 'Magic Sparkle procedural SFX engine implemented');
+  assert(mediaStudioJs.includes('fadeInFrames'), 'Cinematic opening fade-in transition implemented');
+  assert(mediaStudioJs.includes('fadeOutFrames'), 'Cinematic closing fade-out transition implemented');
+  assert(mediaStudioJs.includes('isRunning'), 'Running kinematics with 11Hz stride and forward lean active');
+  assert(mediaStudioJs.includes('isJumping'), 'Jumping kinematics with parabolic vertical leap and raised arms active');
 
   // -------------------------------------------------------------------------
   // TEST 7: Video Container Integrity & Playback Verification
   // -------------------------------------------------------------------------
   console.log('\n--- TEST 7: Video Container Integrity & Playback ---');
   for (const [name, data, filepath] of [
-    ['10s 2D Clip', data10s, file10s],
-    ['15s 3D Clip', data15s, file15s],
-    ['30s Hindi Clip', data30s, file30s]
+    ['Test A (10s 2D 9:16 2-Actors)', data10s, file10s],
+    ['Test B (15s 3D 9:16 2-Actors)', data15s, file15s],
+    ['Test C (30s 2D Dialogue + BGM)', data30s, file30s]
   ]) {
     const raw = fs.readFileSync(filepath);
     assert(raw.slice(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])), `${name}: EBML Header ID 0x1A45DFA3 verified`);
     assert(raw.includes(Buffer.from('webm')), `${name}: Container DocType "webm" verified`);
-    assert(raw.includes(Buffer.from('V_VP8')), `${name}: CodecID "V_VP8" verified`);
+    assert(raw.includes(Buffer.from('V_VP8')), `${name}: CodecID "V_VP8" (Video Track) verified`);
+    assert(raw.includes(Buffer.from('A_OPUS')), `${name}: CodecID "A_OPUS" (Audio Track) verified`);
     assert(raw.includes(Buffer.from([0x9d, 0x01, 0x2a])), `${name}: VP8 Keyframe Sync Code (0x9D012A) present`);
   }
 

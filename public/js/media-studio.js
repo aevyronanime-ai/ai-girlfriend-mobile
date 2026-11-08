@@ -76,6 +76,7 @@ class MediaStudioController {
     this.motionChips = document.querySelectorAll('.flow-motion-chip');
 
     // Video Settings
+    this.videoActorCountSelect = document.getElementById('videoActorCountSelect');
     this.videoArtisticStyleSelect = document.getElementById('videoArtisticStyleSelect');
     this.videoLightingSelect = document.getElementById('videoLightingSelect');
     this.videoQualitySelect = document.getElementById('videoQualitySelect');
@@ -955,6 +956,8 @@ class MediaStudioController {
       const artisticStyle = this.videoArtisticStyleSelect ? this.videoArtisticStyleSelect.value : 'anime';
       const lighting = this.videoLightingSelect ? this.videoLightingSelect.value : 'golden_hour';
       const resolution = this.videoResolutionSelect ? this.videoResolutionSelect.value : '720p';
+      const actorCount = this.videoActorCountSelect ? (parseInt(this.videoActorCountSelect.value, 10) || 1) : 1;
+      const sfx = this.videoSfxSelect ? this.videoSfxSelect.value : 'none';
 
       const videoBlob = await this._renderFlowMotionClip({
         prompt,
@@ -965,11 +968,13 @@ class MediaStudioController {
         duration: this.videoDuration,
         aspectRatio: this.videoAspectRatio,
         motionTags: Array.from(this.selectedMotionTags),
+        actorCount,
         character: this.activeCharacter,
         characterRef: this.characterReferenceData,
         sceneRef: this.sceneReferenceData,
         dialogue: isNoDialogue ? '' : dialogueText,
         bgm: this.videoBgmSelect ? this.videoBgmSelect.value : 'sakura',
+        sfx,
         onProgress: (pct, msg) => {
           if (this.vidProgressBar) this.vidProgressBar.style.width = `${pct}%`;
           if (this.vidProgressPercent) this.vidProgressPercent.textContent = `${pct}%`;
@@ -995,7 +1000,7 @@ class MediaStudioController {
       }
 
       if (this.vidResultMetaBadge) {
-        this.vidResultMetaBadge.textContent = `${this.videoDuration}s • ${resolution} • ${this.videoAspectRatio} • ${this.creationStyle.toUpperCase()} • ${artisticStyle.toUpperCase()}`;
+        this.vidResultMetaBadge.textContent = `${this.videoDuration}s • ${resolution} • ${this.videoAspectRatio} • ${actorCount} Actor${actorCount > 1 ? 's' : ''} • ${this.creationStyle.toUpperCase()} • ${artisticStyle.toUpperCase()}`;
       }
 
       if (this.vidResultsSection) {
@@ -1018,7 +1023,7 @@ class MediaStudioController {
   }
 
   // --- Realtime Canvas & WebAudio Playable Video Synthesis Engine ---
-  async _renderFlowMotionClip({ prompt, creationStyle, artisticStyle, lighting, resolution, duration, aspectRatio, motionTags, character, characterRef, sceneRef, dialogue, bgm, onProgress }) {
+  async _renderFlowMotionClip({ prompt, creationStyle, artisticStyle, lighting, resolution, duration, aspectRatio, motionTags = [], actorCount = 1, character, characterRef, sceneRef, dialogue, bgm, sfx = 'none', onProgress }) {
     const canvas = this.flowRenderCanvas || document.createElement('canvas');
     let width = 1280;
     let height = 720;
@@ -1057,10 +1062,12 @@ class MediaStudioController {
       sceneImg = await this._loadImage(sceneRef).catch(() => null);
     }
 
-    // Audio Context Setup for Speech & Ambient Sound
+    // Audio Context Setup for Speech, SFX & Ambient Sound
     let audioCtx = null;
     let audioDest = null;
-    let osc = null;
+    let bgmOsc = null;
+    const sfxSources = [];
+    const vocalNodes = [];
 
     if (typeof window.AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
       try {
@@ -1068,22 +1075,213 @@ class MediaStudioController {
         audioCtx = new AudioCtor();
         audioDest = audioCtx.createMediaStreamDestination();
 
-        // Add soft ambient background harmony oscillator
+        // 1. Ambient Background Harmony (BGM)
         if (bgm && bgm !== 'none') {
-          osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.type = 'sine';
+          bgmOsc = audioCtx.createOscillator();
+          const bgmGain = audioCtx.createGain();
+          bgmOsc.type = 'sine';
           let baseFreq = 220;
           if (bgm === 'village_folk') baseFreq = 392; // Indian folk flute tone (G4)
           else if (bgm === 'cinematic') baseFreq = 174.61; // F3
           else if (bgm === 'sakura') baseFreq = 261.63; // C4
           else if (bgm === 'fantasy') baseFreq = 329.63; // E4
           else if (bgm === 'rain' || bgm === 'thunder_rain') baseFreq = 110; // A2 low calm
-          osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
-          gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
-          osc.connect(gain);
-          gain.connect(audioDest);
-          osc.start();
+          bgmOsc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+          bgmGain.gain.setValueAtTime(0.035, audioCtx.currentTime);
+          bgmOsc.connect(bgmGain);
+          bgmGain.connect(audioDest);
+          bgmOsc.start();
+        }
+
+        // 2. Sound Effects Engine (Footsteps, Rain & Thunder, Wind, Birds, Magic Sparkle)
+        if (sfx && sfx !== 'none') {
+          const sampleRate = audioCtx.sampleRate || 44100;
+          const sfxGain = audioCtx.createGain();
+          sfxGain.connect(audioDest);
+
+          if (sfx === 'footsteps') {
+            // Rhythmic Footsteps: 2 footsteps per second loop
+            const bufferLen = Math.floor(sampleRate * 1.0);
+            const stepBuffer = audioCtx.createBuffer(1, bufferLen, sampleRate);
+            const data = stepBuffer.getChannelData(0);
+            const stepTimes = [0.05, 0.55];
+            for (const st of stepTimes) {
+              const startSample = Math.floor(st * sampleRate);
+              const stepSamples = Math.floor(sampleRate * 0.08);
+              for (let i = 0; i < stepSamples && (startSample + i) < bufferLen; i++) {
+                const curT = i / sampleRate;
+                const decay = Math.exp(-curT * 55);
+                const oscVal = Math.sin(2 * Math.PI * 95 * curT) * 0.7 + (Math.random() * 2 - 1) * 0.3;
+                data[startSample + i] += oscVal * decay * 0.45;
+              }
+            }
+            const stepSrc = audioCtx.createBufferSource();
+            stepSrc.buffer = stepBuffer;
+            stepSrc.loop = true;
+            sfxGain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+            stepSrc.connect(sfxGain);
+            stepSrc.start();
+            sfxSources.push(stepSrc);
+          } else if (sfx === 'thunder') {
+            // Rain and Thunder: rain background + periodic thunder rumble
+            const rainSec = 4.0;
+            const rainLen = Math.floor(sampleRate * rainSec);
+            const rainBuf = audioCtx.createBuffer(1, rainLen, sampleRate);
+            const rData = rainBuf.getChannelData(0);
+            let lastOut = 0.0;
+            for (let i = 0; i < rainLen; i++) {
+              const white = Math.random() * 2 - 1;
+              lastOut = (lastOut * 0.93) + (white * 0.07);
+              const curSec = i / sampleRate;
+              let thunder = 0;
+              if (curSec > 1.2 && curSec < 2.8) {
+                const tPhase = (curSec - 1.2) / 1.6;
+                const tEnv = Math.sin(tPhase * Math.PI);
+                thunder = (Math.sin(2 * Math.PI * 52 * curSec) * 0.6 + (Math.random() * 2 - 1) * 0.4) * tEnv * 0.5;
+              }
+              rData[i] = lastOut * 0.15 + thunder;
+            }
+            const rainSrc = audioCtx.createBufferSource();
+            rainSrc.buffer = rainBuf;
+            rainSrc.loop = true;
+            sfxGain.gain.setValueAtTime(0.22, audioCtx.currentTime);
+            rainSrc.connect(sfxGain);
+            rainSrc.start();
+            sfxSources.push(rainSrc);
+          } else if (sfx === 'wind') {
+            // Wind Chimes & Gentle Breeze
+            const windSec = 3.0;
+            const windLen = Math.floor(sampleRate * windSec);
+            const windBuf = audioCtx.createBuffer(1, windLen, sampleRate);
+            const wData = windBuf.getChannelData(0);
+            for (let i = 0; i < windLen; i++) {
+              const curSec = i / sampleRate;
+              const breeze = Math.sin(2 * Math.PI * 0.33 * curSec) * 0.08 * (Math.random() * 2 - 1);
+              let chime = 0;
+              for (const chTime of [0.6, 1.8]) {
+                if (curSec >= chTime && curSec < chTime + 0.9) {
+                  const cT = curSec - chTime;
+                  chime += (Math.sin(2 * Math.PI * 2637 * cT) * 0.5 + Math.sin(2 * Math.PI * 3136 * cT) * 0.5) * Math.exp(-cT * 4.5) * 0.25;
+                }
+              }
+              wData[i] = breeze + chime;
+            }
+            const windSrc = audioCtx.createBufferSource();
+            windSrc.buffer = windBuf;
+            windSrc.loop = true;
+            sfxGain.gain.setValueAtTime(0.20, audioCtx.currentTime);
+            windSrc.connect(sfxGain);
+            windSrc.start();
+            sfxSources.push(windSrc);
+          } else if (sfx === 'birds') {
+            // Birds Chirping: procedural FM chirps
+            const birdSec = 2.5;
+            const birdLen = Math.floor(sampleRate * birdSec);
+            const birdBuf = audioCtx.createBuffer(1, birdLen, sampleRate);
+            const bData = birdBuf.getChannelData(0);
+            const chirpStarts = [0.3, 0.5, 1.4, 1.6];
+            for (const cStart of chirpStarts) {
+              const chirpSamples = Math.floor(sampleRate * 0.12);
+              const startSample = Math.floor(cStart * sampleRate);
+              for (let i = 0; i < chirpSamples && (startSample + i) < birdLen; i++) {
+                const cT = i / sampleRate;
+                const freq = 2400 + (cT / 0.12) * 1100;
+                const env = Math.sin((cT / 0.12) * Math.PI);
+                bData[startSample + i] += Math.sin(2 * Math.PI * freq * cT) * env * 0.35;
+              }
+            }
+            const birdSrc = audioCtx.createBufferSource();
+            birdSrc.buffer = birdBuf;
+            birdSrc.loop = true;
+            sfxGain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+            birdSrc.connect(sfxGain);
+            birdSrc.start();
+            sfxSources.push(birdSrc);
+          } else if (sfx === 'sparkle') {
+            // Magic Sparkle: cascading high crystalline arpeggio
+            const spkSec = 2.0;
+            const spkLen = Math.floor(sampleRate * spkSec);
+            const spkBuf = audioCtx.createBuffer(1, spkLen, sampleRate);
+            const sData = spkBuf.getChannelData(0);
+            const tones = [1046, 1318, 1568, 2093, 2637, 3136];
+            for (let idx = 0; idx < tones.length; idx++) {
+              const tStart = idx * 0.12;
+              const startSample = Math.floor(tStart * sampleRate);
+              const toneSamples = Math.floor(sampleRate * 0.4);
+              for (let i = 0; i < toneSamples && (startSample + i) < spkLen; i++) {
+                const cT = i / sampleRate;
+                const toneFreq = tones[idx];
+                const env = Math.exp(-cT * 8.0);
+                sData[startSample + i] += Math.sin(2 * Math.PI * toneFreq * cT) * env * 0.22;
+              }
+            }
+            const spkSrc = audioCtx.createBufferSource();
+            spkSrc.buffer = spkBuf;
+            spkSrc.loop = true;
+            sfxGain.gain.setValueAtTime(0.20, audioCtx.currentTime);
+            spkSrc.connect(sfxGain);
+            spkSrc.start();
+            sfxSources.push(spkSrc);
+          }
+        }
+
+        // 3. Embedded TTS Spoken Dialogue Formant Vocal Track in WebAudio
+        if (dialogue && dialogue.trim().length > 0) {
+          let f0 = 220; // default sweet female voice (~A3/A4)
+          const voiceGender = this.videoVoiceGenderSelect ? this.videoVoiceGenderSelect.value : 'female';
+          const voiceRole = this.videoVoiceRoleSelect ? this.videoVoiceRoleSelect.value : 'character';
+          if (voiceGender === 'male') f0 = 130;
+          else if (voiceGender === 'child') f0 = 310;
+          else if (voiceGender === 'narrator' || voiceRole === 'narrator') f0 = 110;
+
+          const pitchMult = this.videoVoicePitch ? parseFloat(this.videoVoicePitch.value) || 1.2 : 1.2;
+          const speedMult = this.videoVoiceSpeed ? parseFloat(this.videoVoiceSpeed.value) || 1.0 : 1.0;
+          f0 = Math.max(80, Math.min(500, f0 * (pitchMult / 1.2)));
+
+          const vocalOsc = audioCtx.createOscillator();
+          vocalOsc.type = 'sawtooth';
+          vocalOsc.frequency.setValueAtTime(f0, audioCtx.currentTime);
+
+          // Dual Formant Bandpass Filters (F1 ~750Hz open vowel, F2 ~1650Hz front vowel)
+          const f1Filter = audioCtx.createBiquadFilter();
+          f1Filter.type = 'bandpass';
+          f1Filter.frequency.setValueAtTime(750, audioCtx.currentTime);
+          f1Filter.Q.setValueAtTime(4.0, audioCtx.currentTime);
+
+          const f2Filter = audioCtx.createBiquadFilter();
+          f2Filter.type = 'bandpass';
+          f2Filter.frequency.setValueAtTime(1650, audioCtx.currentTime);
+          f2Filter.Q.setValueAtTime(4.5, audioCtx.currentTime);
+
+          const vocalGain = audioCtx.createGain();
+          vocalGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+
+          vocalOsc.connect(f1Filter);
+          vocalOsc.connect(f2Filter);
+          f1Filter.connect(vocalGain);
+          f2Filter.connect(vocalGain);
+          vocalGain.connect(audioDest);
+
+          // Program rhythmic speech cadence envelope into audio track
+          const syllableDur = Math.max(0.18, 0.26 / speedMult);
+          const totalSyllables = Math.floor(duration / syllableDur);
+          const now = audioCtx.currentTime;
+
+          for (let sIdx = 0; sIdx < totalSyllables; sIdx++) {
+            const sTime = now + (sIdx * syllableDur);
+            if (sIdx % 5 === 4) {
+              vocalGain.gain.setValueAtTime(0.0001, sTime);
+            } else {
+              const peakGain = 0.16;
+              vocalGain.gain.setValueAtTime(0.0001, sTime);
+              vocalGain.gain.linearRampToValueAtTime(peakGain, sTime + syllableDur * 0.25);
+              vocalGain.gain.linearRampToValueAtTime(peakGain * 0.7, sTime + syllableDur * 0.75);
+              vocalGain.gain.linearRampToValueAtTime(0.0001, sTime + syllableDur * 0.95);
+            }
+          }
+
+          vocalOsc.start();
+          vocalNodes.push(vocalOsc, vocalGain);
         }
       } catch (e) {}
     }
@@ -1100,7 +1298,7 @@ class MediaStudioController {
       }
     }
 
-    // Trigger Speech synthesis in background if dialogue present
+    // Trigger Speech synthesis in background for live speaker preview
     if (dialogue && typeof window.speechSynthesis !== 'undefined') {
       try {
         window.speechSynthesis.cancel();
@@ -1109,7 +1307,7 @@ class MediaStudioController {
         let rate = this.videoVoiceSpeed ? parseFloat(this.videoVoiceSpeed.value) || 1.0 : 1.0;
         let pitch = this.videoVoicePitch ? parseFloat(this.videoVoicePitch.value) || 1.2 : 1.2;
         if (this.videoVoiceRoleSelect && this.videoVoiceRoleSelect.value === 'narrator') {
-          pitch = Math.max(0.85, pitch * 0.85); // deeper narrator timbre
+          pitch = Math.max(0.85, pitch * 0.85);
           rate = Math.min(1.0, rate * 0.95);
         }
         utter.rate = rate;
@@ -1266,25 +1464,82 @@ class MediaStudioController {
         ctx.restore();
       });
 
-      // Animated Character Placement with Parallax
+      // Animated Character(s) Placement & Kinematics with Parallax
       const charPanRatio = (cam === 'parallax') ? 0.35 : 0.0;
-      const charCenterX = width * 0.5 + Math.sin(t * 1.5) * 8 + (panX * charPanRatio);
-      const charCenterY = height * 0.52 + Math.cos(t * 2.0) * 4 + (panY * charPanRatio);
 
       if (charImg) {
-        // Draw recurring user character with breathing & zoom
+        // Single uploaded character reference image
         const scale = (height * 0.72) / charImg.height;
         const cW = charImg.width * scale;
         const cH = charImg.height * scale;
+        const charCenterX = width * 0.5 + Math.sin(t * 1.5) * 8 + (panX * charPanRatio);
+        const charCenterY = height * 0.52 + Math.cos(t * 2.0) * 4 + (panY * charPanRatio);
 
         ctx.save();
         ctx.shadowColor = 'rgba(0,0,0,0.5)';
         ctx.shadowBlur = 18;
         ctx.drawImage(charImg, charCenterX - cW / 2, charCenterY - cH / 2, cW, cH);
         ctx.restore();
+      } else if (actorCount === 2) {
+        // 2 Actors in Scene (Left and Right facing each other with dialogue interaction)
+        const charScale = height * 0.88;
+        const isActor1Speaking = dialogue ? (Math.sin(t * 1.8) >= 0) : true;
+        const isActor2Speaking = dialogue ? (Math.sin(t * 1.8) < 0) : false;
+
+        // Actor 1 (Left Actor - Royal Violet Kimono, Dark Indigo Hair, facing Right)
+        const cx1 = width * 0.30 + Math.sin(t * 1.4) * 6 + (panX * charPanRatio);
+        const cy1 = height * 0.52 + Math.cos(t * 1.8) * 4 + (panY * charPanRatio);
+        this._drawProceduralCharacter(
+          ctx, cx1, cy1, charScale, is3D, t,
+          isActor1Speaking ? dialogue : '',
+          character, motionTags,
+          1, // facing right
+          isActor1Speaking,
+          0 // Actor index 0
+        );
+
+        // Actor 2 (Right Actor - Emerald Teal Kimono, Warm Auburn Hair, facing Left)
+        const cx2 = width * 0.70 - Math.sin(t * 1.4) * 6 + (panX * charPanRatio);
+        const cy2 = height * 0.52 + Math.cos(t * 1.8 + 1.0) * 4 + (panY * charPanRatio);
+        this._drawProceduralCharacter(
+          ctx, cx2, cy2, charScale, is3D, t,
+          isActor2Speaking ? dialogue : '',
+          character, motionTags,
+          -1, // facing left
+          isActor2Speaking,
+          1 // Actor index 1
+        );
       } else {
-        // Procedural 2D Anime / 3D Stylized Character with Lip Sync
-        this._drawProceduralCharacter(ctx, charCenterX, charCenterY, height, is3D, t, dialogue, character);
+        // 1 Actor (Solo Performance - Centered)
+        const charCenterX = width * 0.5 + Math.sin(t * 1.5) * 8 + (panX * charPanRatio);
+        const charCenterY = height * 0.52 + Math.cos(t * 2.0) * 4 + (panY * charPanRatio);
+        this._drawProceduralCharacter(
+          ctx, charCenterX, charCenterY, height, is3D, t,
+          dialogue, character, motionTags,
+          1, // facing forward/right
+          true,
+          0
+        );
+      }
+
+      // Cinematic Opening Fade-in & Closing Fade-out Transitions
+      const fadeInFrames = Math.max(1, Math.floor(totalFrames * 0.06));
+      if (f < fadeInFrames) {
+        const fadeAlpha = 1.0 - (f / fadeInFrames);
+        ctx.save();
+        ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha.toFixed(3)})`;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+      }
+
+      const fadeOutFrames = Math.max(1, Math.floor(totalFrames * 0.06));
+      const fadeOutStart = totalFrames - fadeOutFrames;
+      if (f >= fadeOutStart) {
+        const fadeAlpha = (f - fadeOutStart) / fadeOutFrames;
+        ctx.save();
+        ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha.toFixed(3)})`;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
       }
 
       // Dialogue Subtitle Overlay
@@ -1315,8 +1570,14 @@ class MediaStudioController {
       await new Promise(r => { recorder.onstop = r; });
     }
 
-    if (osc) {
-      try { osc.stop(); } catch (e) {}
+    if (bgmOsc) {
+      try { bgmOsc.stop(); } catch (e) {}
+    }
+    for (const src of sfxSources) {
+      try { src.stop(); } catch (e) {}
+    }
+    for (const node of vocalNodes) {
+      try { if (node.stop) node.stop(); } catch (e) {}
     }
     if (audioCtx) {
       try { audioCtx.close(); } catch (e) {}
@@ -1326,24 +1587,76 @@ class MediaStudioController {
   }
 
   // Draw procedural character with animated eyes, head tilt, gestures, breathing, accessories, and real-time lip sync
-  _drawProceduralCharacter(ctx, cx, cy, canvasH, is3D, t, dialogue, character) {
+  _drawProceduralCharacter(ctx, cx, cy, canvasH, is3D, t, dialogue, character, motionTags = [], facingDir = 1, isSpeaking = true, actorIndex = 0) {
     ctx.save();
     const headRadius = canvasH * 0.12;
     const bodyWidth = headRadius * 1.8;
 
-    // 1. Dynamic Head Tilt & Nod
-    const headTilt = Math.sin(t * 1.6) * 0.035;
-    const nodOffset = Math.cos(t * 3.2) * 2;
+    // Kinematics & Physics calculation (running, jumping, walking)
+    const isRunning = motionTags.includes('running');
+    const isJumping = motionTags.includes('jumping');
+    const isWalking = motionTags.includes('walking') || (!isRunning && !isJumping);
 
-    // 2. Animated Arms with Walking Swing & Conversational Hand Gestures
-    const leftArmSwing = Math.sin(t * 5.0) * 16;
-    const rightArmSwing = dialogue ? Math.sin(t * 7.5) * 20 : -Math.sin(t * 5.0) * 16;
+    let strideBob = 0;
+    let forwardLean = 0;
+    if (isRunning) {
+      strideBob = Math.abs(Math.sin(t * 11.0)) * 14;
+      forwardLean = 0.12 * facingDir;
+    } else if (isWalking) {
+      strideBob = Math.abs(Math.sin(t * 5.0)) * 5;
+      forwardLean = 0.02 * facingDir;
+    }
+
+    let jumpY = 0;
+    let armJumpAngle = 0;
+    if (isJumping) {
+      const jumpPeriod = 2.2;
+      const jumpPhase = (t % jumpPeriod) / jumpPeriod;
+      if (jumpPhase < 0.55) {
+        const jumpNorm = jumpPhase / 0.55;
+        jumpY = -Math.sin(jumpNorm * Math.PI) * (canvasH * 0.13);
+        armJumpAngle = -48 * Math.sin(jumpNorm * Math.PI);
+      }
+    }
+
+    const totalY = cy - strideBob + jumpY;
+
+    // Apply root position and lean angle
+    ctx.translate(cx, totalY);
+    if (forwardLean) ctx.rotate(forwardLean);
+
+    // Dynamic Head Tilt & Nod
+    const headTilt = facingDir * (Math.sin(t * 1.6) * 0.035);
+    const nodOffset = isSpeaking ? Math.cos(t * 4.0) * 3 : Math.cos(t * 2.0) * 1.5;
+
+    // Dynamic Arm Kinematics with Running, Jumping & Speaking Gestures
+    let leftArmSwing = 0;
+    let rightArmSwing = 0;
+
+    if (isRunning) {
+      leftArmSwing = Math.sin(t * 11.0) * 36;
+      rightArmSwing = -Math.sin(t * 11.0) * 36;
+    } else if (isJumping && Math.abs(jumpY) > 8) {
+      leftArmSwing = armJumpAngle;
+      rightArmSwing = armJumpAngle;
+    } else {
+      leftArmSwing = Math.sin(t * 5.0) * 16;
+      rightArmSwing = isSpeaking && dialogue ? (facingDir * (20 + Math.sin(t * 7.5) * 18)) : -Math.sin(t * 5.0) * 16;
+    }
+
+    // Sleeve and Robe Palettes based on Actor Index
+    const robeBaseColor = (actorIndex === 1) ? (is3D ? '#0d9488' : '#059669') : (is3D ? '#6d28d9' : '#9333ea');
+    const robeMainGrad = (actorIndex === 1) ? ['#0d9488', '#0f766e', '#134e4a'] : ['#7c3aed', '#5b21b6', '#3b0764'];
+    const obiColor = (actorIndex === 1) ? (is3D ? '#f43f5e' : '#fb7185') : (is3D ? '#f59e0b' : '#fbbf24');
+    const obiAccent = (actorIndex === 1) ? '#be123c' : '#b45309';
+    const hairGradColors = (actorIndex === 1) ? ['#7c2d12', '#5c2c16', '#2b1006'] : ['#312e81', '#1e1b4b', '#0f0b29'];
+    const hairPlainColor = (actorIndex === 1) ? '#5c2c16' : '#312e81';
 
     // Left Arm (Sleeve & Hand)
     ctx.save();
-    ctx.translate(cx - bodyWidth * 0.38, cy + headRadius * 1.1);
+    ctx.translate(-bodyWidth * 0.38, headRadius * 1.1);
     ctx.rotate((leftArmSwing * Math.PI) / 180);
-    ctx.fillStyle = is3D ? '#6d28d9' : '#9333ea';
+    ctx.fillStyle = robeBaseColor;
     ctx.beginPath();
     ctx.ellipse(0, headRadius * 0.65, headRadius * 0.22, headRadius * 0.6, 0.15, 0, Math.PI * 2);
     ctx.fill();
@@ -1354,11 +1667,11 @@ class MediaStudioController {
     ctx.fill();
     ctx.restore();
 
-    // Right Arm (Sleeve & Hand) - expressive gesture when talking
+    // Right Arm (Sleeve & Hand)
     ctx.save();
-    ctx.translate(cx + bodyWidth * 0.38, cy + headRadius * 1.1);
+    ctx.translate(bodyWidth * 0.38, headRadius * 1.1);
     ctx.rotate((rightArmSwing * Math.PI) / 180);
-    ctx.fillStyle = is3D ? '#6d28d9' : '#9333ea';
+    ctx.fillStyle = robeBaseColor;
     ctx.beginPath();
     ctx.ellipse(0, headRadius * 0.65, headRadius * 0.22, headRadius * 0.6, -0.15, 0, Math.PI * 2);
     ctx.fill();
@@ -1369,40 +1682,40 @@ class MediaStudioController {
     ctx.fill();
     ctx.restore();
 
-    // 3. Body / Kimono Robe
+    // Body / Kimono Robe
     if (is3D) {
-      const robeGrad = ctx.createLinearGradient(cx - bodyWidth / 2, cy, cx + bodyWidth / 2, cy + headRadius * 3);
-      robeGrad.addColorStop(0, '#7c3aed');
-      robeGrad.addColorStop(0.5, '#5b21b6');
-      robeGrad.addColorStop(1, '#3b0764');
+      const robeGrad = ctx.createLinearGradient(-bodyWidth / 2, 0, bodyWidth / 2, headRadius * 3);
+      robeGrad.addColorStop(0, robeMainGrad[0]);
+      robeGrad.addColorStop(0.5, robeMainGrad[1]);
+      robeGrad.addColorStop(1, robeMainGrad[2]);
       ctx.fillStyle = robeGrad;
     } else {
-      ctx.fillStyle = '#a855f7';
+      ctx.fillStyle = (actorIndex === 1) ? '#059669' : '#a855f7';
     }
     ctx.beginPath();
-    ctx.moveTo(cx - bodyWidth / 2, cy + headRadius * 2.8);
-    ctx.lineTo(cx - bodyWidth * 0.4, cy + headRadius * 0.8);
-    ctx.lineTo(cx + bodyWidth * 0.4, cy + headRadius * 0.8);
-    ctx.lineTo(cx + bodyWidth / 2, cy + headRadius * 2.8);
+    ctx.moveTo(-bodyWidth / 2, headRadius * 2.8);
+    ctx.lineTo(-bodyWidth * 0.4, headRadius * 0.8);
+    ctx.lineTo(bodyWidth * 0.4, headRadius * 0.8);
+    ctx.lineTo(bodyWidth / 2, headRadius * 2.8);
     ctx.closePath();
     ctx.fill();
 
-    // 4. Waist Obi Sash Accessory (Golden / Ruby Accent Band)
-    const obiY = cy + headRadius * 1.6;
+    // Waist Obi Sash Accessory
+    const obiY = headRadius * 1.6;
     const obiH = headRadius * 0.42;
-    ctx.fillStyle = is3D ? '#f59e0b' : '#fbbf24';
-    ctx.fillRect(cx - bodyWidth * 0.36, obiY, bodyWidth * 0.72, obiH);
-    ctx.fillStyle = '#b45309';
-    ctx.fillRect(cx - bodyWidth * 0.36, obiY + obiH * 0.4, bodyWidth * 0.72, obiH * 0.2);
+    ctx.fillStyle = obiColor;
+    ctx.fillRect(-bodyWidth * 0.36, obiY, bodyWidth * 0.72, obiH);
+    ctx.fillStyle = obiAccent;
+    ctx.fillRect(-bodyWidth * 0.36, obiY + obiH * 0.4, bodyWidth * 0.72, obiH * 0.2);
 
-    // 5. Head & Face with Tilt
+    // Head & Face with Tilt & Facing Direction
     ctx.save();
-    ctx.translate(cx, cy + nodOffset);
+    ctx.translate(0, nodOffset);
     ctx.rotate(headTilt);
 
     // Face Skin
     if (is3D) {
-      const skinGrad = ctx.createRadialGradient(-headRadius * 0.2, -headRadius * 0.2, headRadius * 0.1, 0, 0, headRadius);
+      const skinGrad = ctx.createRadialGradient(-headRadius * 0.2 * facingDir, -headRadius * 0.2, headRadius * 0.1, 0, 0, headRadius);
       skinGrad.addColorStop(0, '#fff7ed');
       skinGrad.addColorStop(0.7, '#fed7aa');
       skinGrad.addColorStop(1, '#fba779');
@@ -1414,15 +1727,15 @@ class MediaStudioController {
     ctx.arc(0, 0, headRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // 6. Hair (Long anime hair with volume)
+    // Hair
     if (is3D) {
       const hairGrad = ctx.createRadialGradient(0, -headRadius * 0.5, headRadius * 0.2, 0, 0, headRadius * 1.2);
-      hairGrad.addColorStop(0, '#312e81');
-      hairGrad.addColorStop(0.7, '#1e1b4b');
-      hairGrad.addColorStop(1, '#0f0b29');
+      hairGrad.addColorStop(0, hairGradColors[0]);
+      hairGrad.addColorStop(0.7, hairGradColors[1]);
+      hairGrad.addColorStop(1, hairGradColors[2]);
       ctx.fillStyle = hairGrad;
     } else {
-      ctx.fillStyle = '#312e81';
+      ctx.fillStyle = hairPlainColor;
     }
     ctx.beginPath();
     ctx.arc(0, -headRadius * 0.15, headRadius * 1.08, Math.PI, Math.PI * 2);
@@ -1433,23 +1746,38 @@ class MediaStudioController {
     ctx.closePath();
     ctx.fill();
 
-    // 7. Hair Accessory: Sakura Flower Pin on Right Hair
-    const pinX = headRadius * 0.72;
-    const pinY = -headRadius * 0.55;
-    ctx.fillStyle = '#f472b6';
-    for (let pIdx = 0; pIdx < 5; pIdx++) {
-      const pAngle = (pIdx * Math.PI * 2) / 5;
+    // Hair Accessory
+    if (actorIndex === 1) {
+      // Golden Star Pin on Left/Right Hair
+      const pinX = headRadius * 0.70 * facingDir;
+      const pinY = -headRadius * 0.55;
+      ctx.fillStyle = '#fbbf24';
       ctx.beginPath();
-      ctx.ellipse(pinX + Math.cos(pAngle) * 7, pinY + Math.sin(pAngle) * 7, 5, 3, pAngle, 0, Math.PI * 2);
+      ctx.arc(pinX, pinY, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.arc(pinX, pinY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Sakura Flower Pin on Right Hair
+      const pinX = headRadius * 0.72;
+      const pinY = -headRadius * 0.55;
+      ctx.fillStyle = '#f472b6';
+      for (let pIdx = 0; pIdx < 5; pIdx++) {
+        const pAngle = (pIdx * Math.PI * 2) / 5;
+        ctx.beginPath();
+        ctx.ellipse(pinX + Math.cos(pAngle) * 7, pinY + Math.sin(pAngle) * 7, 5, 3, pAngle, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(pinX, pinY, 3, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.fillStyle = '#fbbf24';
-    ctx.beginPath();
-    ctx.arc(pinX, pinY, 3, 0, Math.PI * 2);
-    ctx.fill();
 
-    // 8. Eyes with Blinking & Shading
-    const isBlinking = (Math.sin(t * 3.5) > 0.92);
+    // Eyes with Blinking & Shading
+    const isBlinking = (Math.sin(t * 3.5 + actorIndex) > 0.92);
     const eyeSpacing = headRadius * 0.38;
     const eyeY = -headRadius * 0.05;
 
@@ -1464,17 +1792,16 @@ class MediaStudioController {
       ctx.lineTo(eyeSpacing + 10, eyeY);
       ctx.stroke();
     } else {
-      // Big expressive anime eyes
       ctx.beginPath();
       ctx.ellipse(-eyeSpacing, eyeY, 8, 11, 0, 0, Math.PI * 2);
       ctx.ellipse(eyeSpacing, eyeY, 8, 11, 0, 0, Math.PI * 2);
       ctx.fill();
 
       // Eye Iris color
-      ctx.fillStyle = '#38bdf8';
+      ctx.fillStyle = (actorIndex === 1) ? '#10b981' : '#38bdf8';
       ctx.beginPath();
-      ctx.arc(-eyeSpacing, eyeY + 2, 5, 0, Math.PI * 2);
-      ctx.arc(eyeSpacing, eyeY + 2, 5, 0, Math.PI * 2);
+      ctx.arc(-eyeSpacing + (facingDir * 1), eyeY + 2, 5, 0, Math.PI * 2);
+      ctx.arc(eyeSpacing + (facingDir * 1), eyeY + 2, 5, 0, Math.PI * 2);
       ctx.fill();
 
       // Eye Highlights
@@ -1485,17 +1812,17 @@ class MediaStudioController {
       ctx.fill();
     }
 
-    // 9. Blush Cheeks
+    // Blush Cheeks
     ctx.fillStyle = 'rgba(255, 112, 166, 0.42)';
     ctx.beginPath();
     ctx.ellipse(-eyeSpacing * 1.1, headRadius * 0.18, 10, 5, 0, 0, Math.PI * 2);
     ctx.ellipse(eyeSpacing * 1.1, headRadius * 0.18, 10, 5, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 10. Natural Lip Sync Mouth Animation
+    // Natural Lip Sync Mouth Animation
     const mouthY = headRadius * 0.38;
-    let mouthOpen = 2; // resting smile
-    if (dialogue) {
+    let mouthOpen = 2; // resting gentle smile
+    if (isSpeaking && dialogue) {
       mouthOpen = 3 + Math.abs(Math.sin(t * 12)) * 7;
     }
 
@@ -1508,7 +1835,7 @@ class MediaStudioController {
     if (is3D) {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
       ctx.beginPath();
-      ctx.ellipse(-headRadius * 0.25, -headRadius * 0.35, headRadius * 0.28, headRadius * 0.14, -0.2, 0, Math.PI * 2);
+      ctx.ellipse(-headRadius * 0.25 * facingDir, -headRadius * 0.35, headRadius * 0.28, headRadius * 0.14, -0.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
