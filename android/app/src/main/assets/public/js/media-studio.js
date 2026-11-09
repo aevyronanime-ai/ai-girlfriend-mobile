@@ -65,6 +65,7 @@ class MediaStudioController {
     this.videoNegPromptInput = document.getElementById('videoNegativePromptInput');
 
     // Video Duration Buttons
+    this.btnDur8 = document.getElementById('btnDuration8');
     this.btnDur10 = document.getElementById('btnDuration10');
     this.btnDur15 = document.getElementById('btnDuration15');
     this.btnDur30 = document.getElementById('btnDuration30');
@@ -500,10 +501,35 @@ class MediaStudioController {
       });
     }
 
-    // Duration Selector (10s, 15s, 30s)
+    // Live Detection of "नाम: संवाद" or "Name: Dialogue" format in Prompt
+    if (this.videoPromptInput) {
+      this.videoPromptInput.addEventListener('input', () => {
+        const val = this.videoPromptInput.value;
+        const { cues, fullDialogue } = this._parsePromptDialogue(val, '');
+        if (cues.length > 0 && this.videoDialogueInput) {
+          // If dialogue box is empty or was previously auto-filled, sync detected dialogue
+          if (!this.videoDialogueInput.value.trim() || this.videoDialogueInput.dataset.autoFilled === 'true') {
+            this.videoDialogueInput.value = fullDialogue;
+            this.videoDialogueInput.dataset.autoFilled = 'true';
+            this.videoDialogueInput.style.borderColor = 'var(--neon-cyan)';
+            setTimeout(() => {
+              if (this.videoDialogueInput) this.videoDialogueInput.style.borderColor = '';
+            }, 1200);
+          }
+        }
+      });
+    }
+
+    if (this.videoDialogueInput) {
+      this.videoDialogueInput.addEventListener('input', () => {
+        this.videoDialogueInput.dataset.autoFilled = 'false';
+      });
+    }
+
+    // Duration Selector (8s Test Clip, 10s, 15s, 30s)
     const setDuration = (dur) => {
       this.videoDuration = dur;
-      [this.btnDur10, this.btnDur15, this.btnDur30].forEach(btn => {
+      [this.btnDur8, this.btnDur10, this.btnDur15, this.btnDur30].forEach(btn => {
         if (btn) {
           const match = parseInt(btn.dataset.duration, 10) === dur;
           btn.classList.toggle('active', match);
@@ -512,6 +538,7 @@ class MediaStudioController {
       if (window.soundFX) window.soundFX.click();
     };
 
+    if (this.btnDur8) this.btnDur8.addEventListener('click', () => setDuration(8));
     if (this.btnDur10) this.btnDur10.addEventListener('click', () => setDuration(10));
     if (this.btnDur15) this.btnDur15.addEventListener('click', () => setDuration(15));
     if (this.btnDur30) this.btnDur30.addEventListener('click', () => setDuration(30));
@@ -898,12 +925,87 @@ class MediaStudioController {
     if (window.app) window.app.showToast(`Character "${name}" saved to library ✨`);
   }
 
+  // Parse "नाम: संवाद" or "Name: Dialogue" format from prompt and dialogue box
+  _parsePromptDialogue(promptText = '', defaultDialogue = '') {
+    const rawP = String(promptText || '').trim();
+    const rawD = String(defaultDialogue || '').trim();
+
+    const cues = [];
+    const promptLines = [];
+    const lines = rawP ? rawP.split(/\r?\n/) : [];
+
+    // Regex matches formats like: "रोहन: अरे वाह!", "प्रिया - बहुत अच्छा", "Rohan: Hello"
+    const dialogueLineRegex = /^([^:\-–—\n]{1,30})\s*[:\-–—]\s*(.+)$/;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      const match = line.match(dialogueLineRegex);
+      if (match) {
+        const speaker = match[1].trim();
+        const text = match[2].trim();
+        if (text) {
+          cues.push({ speaker, text });
+        }
+      } else {
+        promptLines.push(line);
+      }
+    }
+
+    // Also parse defaultDialogue if no cues in prompt or if defaultDialogue has explicit cues
+    if (cues.length === 0 && rawD) {
+      const dLines = rawD.split(/\r?\n/);
+      for (const rawDLine of dLines) {
+        const dl = rawDLine.trim();
+        if (!dl) continue;
+        const dMatch = dl.match(dialogueLineRegex);
+        if (dMatch) {
+          cues.push({ speaker: dMatch[1].trim(), text: dMatch[2].trim() });
+        } else {
+          cues.push({ speaker: '', text: dl });
+        }
+      }
+    }
+
+    // Build unified full dialogue string
+    let fullDialogue = '';
+    if (cues.length > 0) {
+      fullDialogue = cues.map(c => c.speaker ? `${c.speaker}: ${c.text}` : c.text).join('\n');
+    } else if (rawD) {
+      fullDialogue = rawD;
+    }
+
+    const cleanPrompt = promptLines.join(' ').trim() || (cues.length > 0 ? cues.map(c => c.text).join('. ') : '');
+
+    return { cleanPrompt, cues, fullDialogue };
+  }
+
   // --- 6. REAL PLAYABLE VIDEO SYNTHESIS & RENDERER ---
   async generateVideo() {
-    const prompt = this.videoPromptInput ? this.videoPromptInput.value.trim() : '';
-    if (!prompt) {
-      if (window.app) window.app.showToast('Please enter a video prompt description');
+    const rawPrompt = this.videoPromptInput ? this.videoPromptInput.value.trim() : '';
+    const rawDialogue = this.videoDialogueInput ? this.videoDialogueInput.value.trim() : '';
+
+    // Step 0: Parse "नाम: संवाद" format from prompt and dialogue box
+    const { cleanPrompt, cues, fullDialogue } = this._parsePromptDialogue(rawPrompt, rawDialogue);
+
+    // If both prompt and dialogue are completely empty, show clean Hindi message
+    if (!cleanPrompt && cues.length === 0 && !fullDialogue) {
+      if (window.app) {
+        window.app.showToast('कृपया वीडियो के लिए कोई दृश्य (Scene Prompt) या संवाद (Dialogue) दर्ज करें।');
+      }
+      if (this.videoPromptInput) {
+        this.videoPromptInput.focus();
+        this.videoPromptInput.style.borderColor = '#ef4444';
+        setTimeout(() => {
+          if (this.videoPromptInput) this.videoPromptInput.style.borderColor = '';
+        }, 2200);
+      }
       return;
+    }
+
+    // If dialogue lines were found in prompt, auto-sync to dialogue box so user sees them
+    if (cues.length > 0 && this.videoDialogueInput && !this.videoDialogueInput.value.trim()) {
+      this.videoDialogueInput.value = fullDialogue;
     }
 
     this.isGeneratingVideo = true;
@@ -912,55 +1014,59 @@ class MediaStudioController {
       this.btnGenerateVid.innerHTML = `<span class="btn-icon">⏳</span><span class="btn-text">Rendering Video Clip...</span>`;
     }
 
+    // Ensure preview frame is visible with a nice poster immediately (never a blank/grey box)
+    if (this.vidResultsSection) {
+      this.vidResultsSection.style.display = 'block';
+    }
+    if (this.vidPreviewPlayer && !this.vidPreviewPlayer.poster) {
+      this.vidPreviewPlayer.poster = '/images/sakura-anime-bg.webp';
+    }
+
     if (this.vidProgressBox) {
       this.vidProgressBox.style.display = 'block';
       this.vidProgressBar.style.width = '10%';
       this.vidProgressPercent.textContent = '10%';
-      this.vidProgressText.textContent = 'Preparing scene geometry & character motion...';
+      this.vidProgressText.textContent = 'दृश्य व कैरेक्टर मोशन तैयार किया जा रहा है...';
     }
 
     if (window.soundFX) window.soundFX.click();
 
     try {
-      // Step 1: Synthesize audio and dialogue if enabled
-      let audioBlob = null;
       const isAudioEnabled = this.chkAudioGeneration ? this.chkAudioGeneration.checked : true;
       const isNoDialogue = this.chkNoDialogue ? this.chkNoDialogue.checked : false;
-      const dialogueText = this.videoDialogueInput ? this.videoDialogueInput.value.trim() : '';
+      const effectiveDialogue = isNoDialogue ? '' : fullDialogue;
+      const effectiveCues = isNoDialogue ? [] : cues;
 
       if (this.vidProgressBar) {
         this.vidProgressBar.style.width = '30%';
         this.vidProgressPercent.textContent = '30%';
-        this.vidProgressText.textContent = 'Synthesizing voice audio & speech envelope...';
+        this.vidProgressText.textContent = 'आवाज़, संवाद और ऑडियो मिक्सिंग...';
       }
 
-      let audioStream = null;
-      let audioCtx = null;
-      let analyser = null;
-
-      if (isAudioEnabled && !isNoDialogue && dialogueText && typeof window.AudioContext !== 'undefined') {
-        try {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          analyser = audioCtx.createAnalyser();
-          analyser.fftSize = 256;
-        } catch (e) {}
-      }
-
-      // Step 2: Render Playable Frames on Canvas with MediaRecorder
       if (this.vidProgressBar) {
         this.vidProgressBar.style.width = '50%';
         this.vidProgressPercent.textContent = '50%';
-        this.vidProgressText.textContent = 'Animating character motion, facial expressions & lip sync...';
+        this.vidProgressText.textContent = '2D एनिमेशन फ्रेम्स व लिप-सिंक रेंडरिंग...';
       }
 
       const artisticStyle = this.videoArtisticStyleSelect ? this.videoArtisticStyleSelect.value : 'anime';
       const lighting = this.videoLightingSelect ? this.videoLightingSelect.value : 'golden_hour';
       const resolution = this.videoResolutionSelect ? this.videoResolutionSelect.value : '720p';
-      const actorCount = this.videoActorCountSelect ? (parseInt(this.videoActorCountSelect.value, 10) || 1) : 1;
+      let actorCount = this.videoActorCountSelect ? (parseInt(this.videoActorCountSelect.value, 10) || 1) : 1;
+      // If 2 different speakers were detected in cues, automatically use 2 actors
+      if (effectiveCues.length >= 2 && actorCount === 1) {
+        const speakers = new Set(effectiveCues.map(c => c.speaker).filter(Boolean));
+        if (speakers.size >= 2) {
+          actorCount = 2;
+          if (this.videoActorCountSelect) this.videoActorCountSelect.value = '2';
+        }
+      }
       const sfx = this.videoSfxSelect ? this.videoSfxSelect.value : 'none';
 
+      const promptToUse = cleanPrompt || rawPrompt || (cues.length > 0 ? cues.map(c => c.text).join('. ') : 'Cinematic Animation Scene');
+
       const videoBlob = await this._renderFlowMotionClip({
-        prompt,
+        prompt: promptToUse,
         creationStyle: this.creationStyle,
         artisticStyle,
         lighting,
@@ -972,7 +1078,8 @@ class MediaStudioController {
         character: this.activeCharacter,
         characterRef: this.characterReferenceData,
         sceneRef: this.sceneReferenceData,
-        dialogue: isNoDialogue ? '' : dialogueText,
+        dialogue: effectiveDialogue,
+        dialogueCues: effectiveCues,
         bgm: this.videoBgmSelect ? this.videoBgmSelect.value : 'sakura',
         sfx,
         onProgress: (pct, msg) => {
@@ -1009,7 +1116,7 @@ class MediaStudioController {
       }
 
       if (window.soundFX) window.soundFX.success();
-      if (window.app) window.app.showToast('✨ Video generation complete! Ready to play & download.');
+      if (window.app) window.app.showToast('✨ वीडियो सफलतापूर्वक तैयार हो गया! प्ले और डाउनलोड करें।');
     } catch (err) {
       if (window.app) window.app.showToast('Render error: ' + err.message);
     } finally {
@@ -1023,7 +1130,7 @@ class MediaStudioController {
   }
 
   // --- Realtime Canvas & WebAudio Playable Video Synthesis Engine ---
-  async _renderFlowMotionClip({ prompt, creationStyle, artisticStyle, lighting, resolution, duration, aspectRatio, motionTags = [], actorCount = 1, character, characterRef, sceneRef, dialogue, bgm, sfx = 'none', onProgress }) {
+  async _renderFlowMotionClip({ prompt, creationStyle, artisticStyle, lighting, resolution, duration, aspectRatio, motionTags = [], actorCount = 1, character, characterRef, sceneRef, dialogue, dialogueCues = [], bgm, sfx = 'none', onProgress }) {
     const canvas = this.flowRenderCanvas || document.createElement('canvas');
     let width = 1280;
     let height = 720;
@@ -1225,8 +1332,38 @@ class MediaStudioController {
           }
         }
 
+        // Calculate structured dialogue cue timings
+        const processedCues = [];
+        if (dialogueCues && dialogueCues.length > 0) {
+          const cueCount = dialogueCues.length;
+          const usableStart = Math.min(0.8, duration * 0.08);
+          const usableEnd = Math.max(usableStart + 1.0, duration - Math.min(0.8, duration * 0.08));
+          const totalUsable = usableEnd - usableStart;
+          const slotDuration = totalUsable / cueCount;
+
+          dialogueCues.forEach((cue, idx) => {
+            const start = usableStart + (idx * slotDuration);
+            const end = Math.min(usableEnd, start + slotDuration - 0.15);
+            processedCues.push({
+              speaker: cue.speaker || (cueCount > 1 ? (idx === 0 ? 'Character 1' : 'Character 2') : ''),
+              text: cue.text,
+              startTime: start,
+              endTime: end,
+              actorIndex: idx % (actorCount >= 2 ? 2 : 1)
+            });
+          });
+        } else if (dialogue && dialogue.trim()) {
+          processedCues.push({
+            speaker: '',
+            text: dialogue.trim(),
+            startTime: Math.min(0.8, duration * 0.08),
+            endTime: duration - Math.min(0.8, duration * 0.08),
+            actorIndex: 0
+          });
+        }
+
         // 3. Embedded TTS Spoken Dialogue Formant Vocal Track in WebAudio
-        if (dialogue && dialogue.trim().length > 0) {
+        if ((dialogue && dialogue.trim().length > 0) || processedCues.length > 0) {
           let f0 = 220; // default sweet female voice (~A3/A4)
           const voiceGender = this.videoVoiceGenderSelect ? this.videoVoiceGenderSelect.value : 'female';
           const voiceRole = this.videoVoiceRoleSelect ? this.videoVoiceRoleSelect.value : 'character';
@@ -1262,21 +1399,40 @@ class MediaStudioController {
           f2Filter.connect(vocalGain);
           vocalGain.connect(audioDest);
 
-          // Program rhythmic speech cadence envelope into audio track
-          const syllableDur = Math.max(0.18, 0.26 / speedMult);
-          const totalSyllables = Math.floor(duration / syllableDur);
+          // Program rhythmic speech cadence envelope into audio track based on cues
+          const syllableDur = Math.max(0.18, 0.24 / speedMult);
           const now = audioCtx.currentTime;
 
-          for (let sIdx = 0; sIdx < totalSyllables; sIdx++) {
-            const sTime = now + (sIdx * syllableDur);
-            if (sIdx % 5 === 4) {
-              vocalGain.gain.setValueAtTime(0.0001, sTime);
-            } else {
-              const peakGain = 0.16;
-              vocalGain.gain.setValueAtTime(0.0001, sTime);
-              vocalGain.gain.linearRampToValueAtTime(peakGain, sTime + syllableDur * 0.25);
-              vocalGain.gain.linearRampToValueAtTime(peakGain * 0.7, sTime + syllableDur * 0.75);
-              vocalGain.gain.linearRampToValueAtTime(0.0001, sTime + syllableDur * 0.95);
+          if (processedCues.length > 0) {
+            for (const cue of processedCues) {
+              const cueDur = Math.max(0.5, cue.endTime - cue.startTime);
+              const cueSyllables = Math.floor(cueDur / syllableDur);
+              for (let sIdx = 0; sIdx < cueSyllables; sIdx++) {
+                const sTime = now + cue.startTime + (sIdx * syllableDur);
+                if (sIdx % 5 === 4) {
+                  vocalGain.gain.setValueAtTime(0.0001, sTime);
+                } else {
+                  const peakGain = 0.16;
+                  vocalGain.gain.setValueAtTime(0.0001, sTime);
+                  vocalGain.gain.linearRampToValueAtTime(peakGain, sTime + syllableDur * 0.25);
+                  vocalGain.gain.linearRampToValueAtTime(peakGain * 0.7, sTime + syllableDur * 0.75);
+                  vocalGain.gain.linearRampToValueAtTime(0.0001, sTime + syllableDur * 0.95);
+                }
+              }
+            }
+          } else {
+            const totalSyllables = Math.floor(duration / syllableDur);
+            for (let sIdx = 0; sIdx < totalSyllables; sIdx++) {
+              const sTime = now + (sIdx * syllableDur);
+              if (sIdx % 5 === 4) {
+                vocalGain.gain.setValueAtTime(0.0001, sTime);
+              } else {
+                const peakGain = 0.16;
+                vocalGain.gain.setValueAtTime(0.0001, sTime);
+                vocalGain.gain.linearRampToValueAtTime(peakGain, sTime + syllableDur * 0.25);
+                vocalGain.gain.linearRampToValueAtTime(peakGain * 0.7, sTime + syllableDur * 0.75);
+                vocalGain.gain.linearRampToValueAtTime(0.0001, sTime + syllableDur * 0.95);
+              }
             }
           }
 
@@ -1317,9 +1473,13 @@ class MediaStudioController {
     }
 
     // Render loop setup
-    const totalFrames = Math.max(90, Math.min(duration * fps, duration * fps));
+    const totalFrames = Math.max(30, Math.round(duration * fps));
     const is3D = creationStyle === '3d';
     const isSakura = prompt.toLowerCase().includes('sakura') || bgm === 'sakura';
+    const isHeadless = (typeof window === 'undefined') || (typeof MediaRecorder === 'undefined') || Boolean(window._mockTestingEnvironment);
+    const targetDurationMs = duration * 1000;
+    const frameIntervalMs = targetDurationMs / totalFrames;
+    const startTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
     // Particle field
     const particles = [];
@@ -1483,15 +1643,20 @@ class MediaStudioController {
       } else if (actorCount === 2) {
         // 2 Actors in Scene (Left and Right facing each other with dialogue interaction)
         const charScale = height * 0.88;
-        const isActor1Speaking = dialogue ? (Math.sin(t * 1.8) >= 0) : true;
-        const isActor2Speaking = dialogue ? (Math.sin(t * 1.8) < 0) : false;
+        const activeCue = (typeof processedCues !== 'undefined') ? processedCues.find(c => t >= c.startTime && t <= c.endTime) : null;
+        const isAnyoneSpeaking = Boolean(activeCue);
+        const currentSpeakerIndex = activeCue ? activeCue.actorIndex : -1;
+        const currentSpeakerText = activeCue ? activeCue.text : '';
+
+        const isActor1Speaking = isAnyoneSpeaking ? (currentSpeakerIndex === 0) : false;
+        const isActor2Speaking = isAnyoneSpeaking ? (currentSpeakerIndex === 1) : false;
 
         // Actor 1 (Left Actor - Royal Violet Kimono, Dark Indigo Hair, facing Right)
         const cx1 = width * 0.30 + Math.sin(t * 1.4) * 6 + (panX * charPanRatio);
         const cy1 = height * 0.52 + Math.cos(t * 1.8) * 4 + (panY * charPanRatio);
         this._drawProceduralCharacter(
           ctx, cx1, cy1, charScale, is3D, t,
-          isActor1Speaking ? dialogue : '',
+          isActor1Speaking ? currentSpeakerText : '',
           character, motionTags,
           1, // facing right
           isActor1Speaking,
@@ -1503,7 +1668,7 @@ class MediaStudioController {
         const cy2 = height * 0.52 + Math.cos(t * 1.8 + 1.0) * 4 + (panY * charPanRatio);
         this._drawProceduralCharacter(
           ctx, cx2, cy2, charScale, is3D, t,
-          isActor2Speaking ? dialogue : '',
+          isActor2Speaking ? currentSpeakerText : '',
           character, motionTags,
           -1, // facing left
           isActor2Speaking,
@@ -1511,13 +1676,17 @@ class MediaStudioController {
         );
       } else {
         // 1 Actor (Solo Performance - Centered)
+        const activeCue = (typeof processedCues !== 'undefined') ? processedCues.find(c => t >= c.startTime && t <= c.endTime) : null;
+        const isSpeaking = Boolean(activeCue) || Boolean(dialogue);
+        const speakerText = activeCue ? activeCue.text : dialogue;
         const charCenterX = width * 0.5 + Math.sin(t * 1.5) * 8 + (panX * charPanRatio);
         const charCenterY = height * 0.52 + Math.cos(t * 2.0) * 4 + (panY * charPanRatio);
         this._drawProceduralCharacter(
           ctx, charCenterX, charCenterY, height, is3D, t,
-          dialogue, character, motionTags,
+          isSpeaking ? speakerText : '',
+          character, motionTags,
           1, // facing forward/right
-          true,
+          isSpeaking,
           0
         );
       }
@@ -1542,27 +1711,72 @@ class MediaStudioController {
         ctx.restore();
       }
 
-      // Dialogue Subtitle Overlay
-      if (dialogue) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-        const textPad = 12;
-        const boxH = 46;
-        ctx.fillRect(width * 0.08, height - boxH - 24, width * 0.84, boxH);
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(width * 0.08, height - boxH - 24, width * 0.84, boxH);
+      // Dialogue Subtitle Overlay with Speaker Name Badging
+      const activeCue = (typeof processedCues !== 'undefined') ? processedCues.find(c => t >= c.startTime && t <= c.endTime) : null;
+      const subtitleText = activeCue ? activeCue.text : dialogue;
+      const speakerName = activeCue ? activeCue.speaker : '';
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `600 ${Math.max(16, Math.floor(width * 0.024))}px "Noto Sans Devanagari", system-ui, sans-serif`;
+      if (subtitleText && subtitleText.trim()) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(10, 6, 20, 0.78)';
+        const boxH = speakerName ? 52 : 44;
+        const boxY = height - boxH - 24;
+        const boxX = width * 0.06;
+        const boxW = width * 0.88;
+        const radius = 10;
+
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(boxX, boxY, boxW, boxH, radius);
+        } else {
+          ctx.rect(boxX, boxY, boxW, boxH);
+        }
+        ctx.fill();
+        ctx.strokeStyle = (activeCue && activeCue.actorIndex === 1) ? 'rgba(13, 148, 136, 0.75)' : 'rgba(0, 240, 255, 0.75)';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(dialogue, width / 2, height - boxH / 2 - 24);
+
+        if (speakerName) {
+          ctx.font = `700 ${Math.max(13, Math.floor(width * 0.018))}px "Noto Sans Devanagari", system-ui, sans-serif`;
+          ctx.fillStyle = (activeCue && activeCue.actorIndex === 1) ? '#2dd4bf' : '#38bdf8';
+          ctx.fillText(`【${speakerName}】`, width / 2, boxY + 16);
+
+          ctx.font = `600 ${Math.max(15, Math.floor(width * 0.022))}px "Noto Sans Devanagari", system-ui, sans-serif`;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(subtitleText, width / 2, boxY + 36);
+        } else {
+          ctx.font = `600 ${Math.max(15, Math.floor(width * 0.023))}px "Noto Sans Devanagari", system-ui, sans-serif`;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(subtitleText, width / 2, boxY + boxH / 2);
+        }
         ctx.restore();
       }
 
-      // Small delay between frames for smooth encoding
-      await new Promise(r => setTimeout(r, 16));
+      // Realtime frame pacing so MediaRecorder captures exact duration (8s, 10s, 15s, 30s)
+      if (!isHeadless) {
+        const nextTargetTime = startTime + ((f + 1) * frameIntervalMs);
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const sleepMs = nextTargetTime - now;
+        if (sleepMs > 0) {
+          await new Promise(r => setTimeout(r, sleepMs));
+        } else {
+          await new Promise(r => setTimeout(r, 0));
+        }
+      } else {
+        await new Promise(r => setTimeout(r, 1));
+      }
+    }
+
+    // Ensure recorder captures full duration before stopping
+    if (!isHeadless) {
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      const elapsed = now - startTime;
+      if (elapsed < targetDurationMs) {
+        await new Promise(r => setTimeout(r, targetDurationMs - elapsed));
+      }
     }
 
     if (recorder) {

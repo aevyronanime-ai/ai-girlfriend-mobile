@@ -2219,9 +2219,24 @@ option {
 .flow-video-player-frame {
   position: relative;
   width: 100%;
-  background: #000;
-  border-radius: 10px;
+  min-height: 240px;
+  background: radial-gradient(circle at 50% 40%, #1e1136 0%, #0d0619 100%);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 12px;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+.flow-video-player-frame video {
+  width: 100%;
+  max-height: 480px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: transparent;
+  display: block;
 }
 
 .flow-video-actions-grid {

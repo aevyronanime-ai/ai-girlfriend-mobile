@@ -582,10 +582,14 @@
               </div>
             </div>
 
-            <!-- 4. Video Duration Selector (Short Clips Only: 10s, 15s, 30s) -->
+            <!-- 4. Video Duration Selector (Short Clips Only: 8s, 10s, 15s, 30s) -->
             <div class="flow-card">
               <label class="flow-label">⏱️ Video Duration (Short Clips Only)</label>
               <div class="flow-duration-row">
+                <button type="button" class="flow-duration-btn" id="btnDuration8" data-duration="8">
+                  <span class="dur-val">8</span>
+                  <span class="dur-unit">Test Clip</span>
+                </button>
                 <button type="button" class="flow-duration-btn" id="btnDuration10" data-duration="10">
                   <span class="dur-val">10</span>
                   <span class="dur-unit">Seconds</span>
@@ -904,7 +908,7 @@
 
               <!-- HTML5 Video Player -->
               <div class="flow-video-player-frame">
-                <video id="videoPreviewPlayer" playsinline controls style="width:100%; max-height:480px; border-radius:10px; background:#000;"></video>
+                <video id="videoPreviewPlayer" playsinline controls poster="/images/sakura-anime-bg.webp" style="width:100%; max-height:480px; border-radius:10px; background:transparent; object-fit:contain;"></video>
               </div>
 
               <!-- Action Buttons: Download MP4, Regenerate, New Clip, Save Gallery -->
