@@ -98,7 +98,11 @@
       const base = 'jarvis-' + String(prompt).replace(/[^\w\u0900-\u097F]+/g, '-').slice(0, 24) + '-' + Date.now();
       bar.appendChild(mk('⬇️ Download', () => saveImage(url, base)));
       bar.appendChild(mk('🔁 फिर बनाओ', () => run(prompt, prompt, false)));
-      host.appendChild(bar);
+      bar.style.cssText = 'display:flex;flex:0 0 100%;width:100%;max-width:100%;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center';
+      Array.from(bar.children).forEach(b => { b.style.flex = '0 0 auto'; b.style.width = 'auto'; b.style.height = 'auto'; b.style.minHeight = '0'; b.style.padding = '6px 12px'; b.style.fontSize = '13px'; b.style.whiteSpace = 'nowrap'; });
+      const img = host.querySelector('img');
+      const anchor = img ? (img.closest('.message-content,.msg-content,.bubble,.message-bubble') || img.parentElement) : host;
+      (anchor || host).appendChild(bar);
     }, 150);
   }
 
@@ -110,7 +114,7 @@
       if (chat && chat.appendMessage) chat.appendMessage('user', orig || prompt, 'u_img_' + Date.now(), Date.now());
       toast('🎨 फोटो बन रही है…');
       if (fromVoice) say('ठीक है सर, फोटो बना रहा हूँ।');
-      const url = await generate(prompt);
+      const url = await generate(prompt + ', high quality, detailed, natural lighting');
       const aid = 'a_img_' + Date.now();
       if (chat && chat.appendMessage) chat.appendMessage('assistant', '🎨 "' + prompt + '"', aid, Date.now(), url);
       addButtons(aid, url, prompt);
