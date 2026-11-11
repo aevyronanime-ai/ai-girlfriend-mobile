@@ -1,13 +1,13 @@
 (function () {
   if (window.__fabMenuLoaded) return;
   window.__fabMenuLoaded = true;
-  var START = 160, GAP = 62;
+  var START = 270, GAP = 62;
   var css = document.createElement('style');
   css.textContent =
-    '#fabm-main{position:fixed;right:16px;bottom:90px;width:56px;height:56px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:linear-gradient(135deg,#ec4899,#8b5cf6);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;z-index:2147483647;box-shadow:0 4px 16px rgba(0,0,0,.45);cursor:pointer;transition:transform .25s}' +
+    '#fabm-main{position:fixed;right:16px;bottom:200px;width:56px;height:56px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:linear-gradient(135deg,#ec4899,#8b5cf6);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;z-index:2147483647;box-shadow:0 4px 16px rgba(0,0,0,.45);cursor:pointer;transition:transform .25s}' +
     '#fabm-main.open{transform:rotate(45deg)}' +
     '.fabm-item{display:none!important}' +
-    '#fabm-wrap.open .fabm-item{display:flex!important;position:fixed!important;left:auto!important;top:auto!important;right:16px!important;margin:0!important;transform:none!important;z-index:2147483646!important}';
+    'body.fabm-open .fabm-item{display:flex!important;position:fixed!important;left:auto!important;top:auto!important;right:16px!important;margin:0!important;transform:none!important;z-index:2147483646!important}';
   document.head.appendChild(css);
   var wrap = document.createElement('div');
   wrap.id = 'fabm-wrap';
@@ -25,13 +25,13 @@
   }
   main.addEventListener('click', function (e) {
     e.stopPropagation();
-    var open = wrap.classList.toggle('open');
+    var open = wrap.classList.toggle('open'); document.body.classList.toggle('fabm-open', open);
     main.classList.toggle('open', open);
     if (open) layout();
   });
   document.addEventListener('click', function (e) {
     if (wrap.classList.contains('open') && !e.target.closest('.fabm-item') && e.target !== main) {
-      wrap.classList.remove('open');
+      wrap.classList.remove('open'); document.body.classList.remove('fabm-open');
       main.classList.remove('open');
     }
   });
