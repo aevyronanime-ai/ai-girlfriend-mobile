@@ -656,9 +656,10 @@ Always include a friendly spokenText in Hindi explaining what you are doing.`;
             .filter(m => m.content);
           const rmodels = ['google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3.5-super-vl:free', 'liquid/lfm-2.5-2.6b:free'];
           for (const mdl of rmodels) {
+            let rt = null;
             try {
               const rc = new AbortController();
-              const rt = setTimeout(() => rc.abort(), 12000);
+              rt = setTimeout(() => rc.abort(), 12000); // 12s me pehla token nahi aaya to next model
               const rr = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 signal: rc.signal,
@@ -666,21 +667,60 @@ Always include a friendly spokenText in Hindi explaining what you are doing.`;
                 body: JSON.stringify({
                   model: mdl,
                   max_tokens: 160,
+                  stream: true,
                   messages: [{ role: 'system', content: this.getSystemPrompt() }, ...rh, { role: 'user', content: message }]
                 })
               });
+              if (!rr.ok) {
+                clearTimeout(rt);
+                const ej = await rr.json().catch(() => ({}));
+                rerr += mdl.split('/')[1] + ': ' + ((ej.error && ej.error.message) || ('HTTP ' + rr.status)) + ' | ';
+                continue;
+              }
+              const rdr = rr.body.getReader();
+              const rdec = new TextDecoder();
+              let nb = '';
+              let got = '';
+              let first = true;
+              if (window.JarvisQ) window.JarvisQ.reset();
+              while (true) {
+                const { done, value } = await rdr.read();
+                if (done) break;
+                nb += rdec.decode(value, { stream: true });
+                let nl;
+                while ((nl = nb.indexOf('\n')) >= 0) {
+                  const ln = nb.slice(0, nl).trim();
+                  nb = nb.slice(nl + 1);
+                  if (!ln.startsWith('data:')) continue;
+                  const pl = ln.slice(5).trim();
+                  if (!pl || pl === '[DONE]') continue;
+                  try {
+                    const j = JSON.parse(pl);
+                    const t = (j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content) || '';
+                    if (t) {
+                      if (first) { first = false; clearTimeout(rt); }
+                      got += t;
+                      if (window.JarvisQ) window.JarvisQ.feed(t);
+                      if (onChunk) onChunk(got);
+                    }
+                  } catch (e) {}
+                }
+              }
               clearTimeout(rt);
-              const rd = await rr.json();
-              rtext = (rd.choices && rd.choices[0] && rd.choices[0].message && rd.choices[0].message.content || '').trim();
+              rtext = got.trim();
+              if (window.JarvisQ) window.JarvisQ.flush();
               if (rtext) break;
-              rerr += mdl.split('/')[1] + ': ' + ((rd.error && (rd.error.message + ' ' + JSON.stringify(rd.error.metadata || {}).slice(0, 120))) || 'खाली') + ' | ';
-            } catch (e) { rerr += mdl.split('/')[1] + ': ' + e.message + ' | '; }
+              rerr += mdl.split('/')[1] + ': खाली | ';
+            } catch (e) {
+              if (rt) clearTimeout(rt);
+              rerr += mdl.split('/')[1] + ': ' + e.message + ' | ';
+            }
           }
           if (!rtext) rtext = '⚠️ OpenRouter से जवाब नहीं मिला। ' + rerr;
         }
         if (onChunk) onChunk(rtext);
         if (sessionId) this.addMessage(sessionId, 'assistant', rtext);
-        return { text: rtext, model: 'openrouter' };
+        return { text: rtext, model: 'openrouter', spoken: !!(window.JarvisQ && window.JarvisQ.started) };
       }
 
       // Ollama (on-phone model) branch
