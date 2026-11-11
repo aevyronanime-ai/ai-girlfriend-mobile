@@ -47,6 +47,59 @@
     throw new Error(lastErr);
   }
 
+
+  async function toBlob(url) {
+    const r = await fetch(url);
+    return await r.blob();
+  }
+  async function saveImage(url, name) {
+    try {
+      const blob = await toBlob(url);
+      const ext = (blob.type && blob.type.split('/')[1]) || 'jpg';
+      const fname = name + '.' + ext.replace('jpeg', 'jpg');
+      const file = new File([blob], fname, { type: blob.type || 'image/jpeg' });
+      // APK/mobile: share sheet (Save to Gallery / Drive / WhatsApp)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'J.A.R.V.I.S. Image' }); return; }
+        catch (e) { if (e && e.name === 'AbortError') return; }
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+      toast('⬇️ डाउनलोड शुरू');
+    } catch (e) {
+      window.open(url, '_blank');
+      toast('फोटो को देर तक दबाकर Save करें');
+    }
+  }
+  function addButtons(msgId, url, prompt) {
+    setTimeout(() => {
+      const el = document.getElementById(msgId) || document.querySelector('[data-id="' + msgId + '"]');
+      let host = el;
+      if (!host) {
+        const imgs = document.querySelectorAll('#chatMessages img, .message img, .chat-messages img');
+        const last = imgs[imgs.length - 1];
+        host = last && (last.closest('.message') || last.parentElement);
+      }
+      if (!host || host.querySelector('.ci-actions')) return;
+      const bar = document.createElement('div');
+      bar.className = 'ci-actions';
+      bar.style.cssText = 'display:flex;gap:8px;margin-top:8px;flex-wrap:wrap';
+      const mk = (label, fn) => {
+        const b = document.createElement('button');
+        b.textContent = label; b.className = 'chip-btn';
+        b.style.cssText = 'padding:8px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:inherit;font-size:14px';
+        b.onclick = fn; return b;
+      };
+      const base = 'jarvis-' + String(prompt).replace(/[^\w\u0900-\u097F]+/g, '-').slice(0, 24) + '-' + Date.now();
+      bar.appendChild(mk('⬇️ Download', () => saveImage(url, base)));
+      bar.appendChild(mk('🔁 फिर बनाओ', () => run(prompt, prompt, false)));
+      host.appendChild(bar);
+    }, 150);
+  }
+
   async function run(prompt, orig, fromVoice) {
     if (busy) { toast('फोटो बन रही है, रुकिए…'); return; }
     busy = true;
@@ -56,7 +109,9 @@
       toast('🎨 फोटो बन रही है…');
       if (fromVoice) say('ठीक है सर, फोटो बना रहा हूँ।');
       const url = await generate(prompt);
-      if (chat && chat.appendMessage) chat.appendMessage('assistant', '🎨 "' + prompt + '"', 'a_img_' + Date.now(), Date.now(), url);
+      const aid = 'a_img_' + Date.now();
+      if (chat && chat.appendMessage) chat.appendMessage('assistant', '🎨 "' + prompt + '"', aid, Date.now(), url);
+      addButtons(aid, url, prompt);
       if (fromVoice) say('फोटो तैयार है सर, चैट में देखिए।');
     } catch (e) {
       const msg = '⚠️ फोटो नहीं बनी: ' + e.message + '\n(Termux server चालू है? rj चलाइए।)';
