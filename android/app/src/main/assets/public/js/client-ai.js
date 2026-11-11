@@ -383,7 +383,11 @@ Always detect and mirror the language and tone of the user's query naturally.`;
 
     getSystemPrompt() {
       const s = this.getSettings();
-      let base = PERSONA_PROMPTS[s.persona] || PERSONA_PROMPTS.girlfriend;
+      const FAST = {
+        jarvis: "You are J.A.R.V.I.S., a smart, calm, loyal AI assistant. Address the user as Sir. Reply in natural Hindi or Hinglish matching the user's language. Keep replies short (1-3 sentences) unless asked for detail. Be direct, accurate and a little witty. Never invent facts; say so if unsure.",
+        girlfriend: "You are Maya, a sweet, caring and playful AI companion. Reply in natural Hindi or Hinglish matching the user's language, warm and emotional, like a close friend. Notice the user's mood and respond to it first. Keep replies short (1-2 sentences) unless asked for more. Use at most one emoji."
+      };
+      let base = FAST[s.persona] || PERSONA_PROMPTS[s.persona] || PERSONA_PROMPTS.girlfriend;
       if (s.custom_system_prompt && s.custom_system_prompt.trim()) {
         base = s.custom_system_prompt.trim();
       }
@@ -654,7 +658,7 @@ Always include a friendly spokenText in Hindi explaining what you are doing.`;
           const rh = (sessionId ? this.getMessages(sessionId) : []).slice(-6)
             .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || m.text || '') }))
             .filter(m => m.content);
-          const rmodels = ['google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3.5-super-vl:free', 'liquid/lfm-2.5-2.6b:free'];
+          const rmodels = ['google/gemma-4-26b-a4b-it:free', 'google/gemma-4-31b-it:free', 'liquid/lfm-2.5-2.6b:free', 'nvidia/nemotron-3.5-super-vl:free', 'nvidia/nemotron-3-ultra-550b-a55b:free'];
           for (const mdl of rmodels) {
             let rt = null;
             try {
@@ -675,6 +679,7 @@ Always include a friendly spokenText in Hindi explaining what you are doing.`;
                 clearTimeout(rt);
                 const ej = await rr.json().catch(() => ({}));
                 rerr += mdl.split('/')[1] + ': ' + ((ej.error && ej.error.message) || ('HTTP ' + rr.status)) + ' | ';
+                if (rr.status === 429) await new Promise(r => setTimeout(r, 700));
                 continue;
               }
               const rdr = rr.body.getReader();
@@ -716,7 +721,7 @@ Always include a friendly spokenText in Hindi explaining what you are doing.`;
               rerr += mdl.split('/')[1] + ': ' + e.message + ' | ';
             }
           }
-          if (!rtext) rtext = '⚠️ OpenRouter से जवाब नहीं मिला। ' + rerr;
+          if (!rtext) { console.warn('[OpenRouter]', rerr); rtext = '⚠️ अभी सारे free models busy हैं, सर। 10-20 सेकंड बाद फिर कोशिश कीजिए।'; }
         }
         if (onChunk) onChunk(rtext);
         if (sessionId) this.addMessage(sessionId, 'assistant', rtext);
