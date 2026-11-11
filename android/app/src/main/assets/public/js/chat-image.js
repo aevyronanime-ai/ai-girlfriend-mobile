@@ -6,10 +6,12 @@
 
   const V = '(?:generate|जनरेट|banao|bana do|banado|बनाओ|बना दो)';
   const N = '(?:image|photo|picture|pic|इमेज|फोटो|फ़ोटो|तस्वीर)';
+  const V2 = '(?:generate|generator|generation|banao|bana do|banado|bana|बनाओ|बना दो|बनाना|जनरेट|जनरेटर)';
   const RX = [
     new RegExp('^(?:please\\s+|plz\\s+)?(?:generate|create|make|draw)\\s+(?:an?\\s+)?' + N + '\\s*(?:of|for|:|-)?\\s*(.+)$', 'i'),
-    new RegExp('^' + N + '\\s*' + V + '\\s*(?:karo|करो)?\\s*[:\\-]?\\s*(.+)$', 'i'),
-    new RegExp('^(.+?)\\s+(?:की|का|ki|ka|ke)\\s+' + N + '\\s+' + V + '(?:\\s+(?:karo|करो))?$', 'i')
+    new RegExp('^' + N + '\\s*' + V2 + '\\s*(?:karo|करो)?\\s*[:\\-]?\\s*(.+)$', 'i'),
+    new RegExp('^(.+?)\\s+(?:की|का|के|ki|ka|ke)\\s+' + N + '(?:\\s+' + V2 + ')?(?:\\s+(?:karo|करो|kar do|chahiye|चाहिए))?$', 'i'),
+    new RegExp('^((?:\\S+\\s+){0,3}\\S+)\\s+' + N + '\\s+' + V2 + '(?:\\s+(?:karo|करो))?$', 'i')
   ];
 
   function clean(p) {
