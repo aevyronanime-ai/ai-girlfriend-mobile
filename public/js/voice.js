@@ -474,6 +474,8 @@ class VoiceAssistant {
     const lower = transcript.toLowerCase();
 
     // 1. Navigation Commands
+    { const _ip = window.chatImage && window.chatImage.match(lower); if (_ip) { window.chatImage.run(_ip, true); return; } }
+
     if (lower.includes('image generator') || lower.includes('photo banao') || lower.includes('generate image')) {
       window.app.switchTab('image');
       this.speak('Opening AI Image Generator. What image would you like to create?');
