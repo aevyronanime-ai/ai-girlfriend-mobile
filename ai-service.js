@@ -839,13 +839,15 @@ async function generateImage({ prompt, style = 'realistic', aspectRatio = '1:1',
   else if (mLower.includes('anime')) pollinationsModel = 'flux-anime';
   else if (mLower.includes('real')) pollinationsModel = 'flux-realism';
 
+  let pollKey = process.env.POLLINATIONS_KEY || '';
+  if (!pollKey) { try { pollKey = require('fs').readFileSync(require('path').join(__dirname, '.pollinations-key'), 'utf8').trim(); } catch (e) {} }
   const count = Math.max(1, Math.min(4, parseInt(quantity, 10) || 1));
   const images = [];
 
   for (let i = 0; i < count; i++) {
     const seed = Math.floor(Math.random() * 1000000);
     const encodedPrompt = encodeURIComponent(finalPrompt);
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=${pollinationsModel}&nologo=true&seed=${seed}`;
+    const url = `https://gen.pollinations.ai/image/${encodedPrompt}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}` + (pollKey ? `&key=${encodeURIComponent(pollKey)}` : '');
     images.push({
       url,
       imageUrl: url,
