@@ -86,7 +86,7 @@
     r.style.setProperty('--te-accent2', c.accent2);
     r.style.setProperty('--te-bg', c.bg);
     r.style.setProperty('--te-card', c.card);
-    r.setAttribute('data-theme', t.id);
+    r.setAttribute('data-anime', t.id);
     r.setAttribute('data-mood', sessionMood || '');
     setBackground(t.id, sessionMood);
     window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: t.id, mood: sessionMood, colors: c } }));
@@ -189,7 +189,7 @@
 
   function buildPanel() {
     const btn = document.createElement('button');
-    btn.textContent = '\uD83C\uDFA8';
+    btn.textContent = '\uD83C\uDF80';
     btn.setAttribute('aria-label', 'Themes');
     btn.style.cssText = 'position:fixed;left:12px;bottom:84px;z-index:99999;width:44px;height:44px;border-radius:50%;border:2px solid var(--te-accent);background:var(--te-card);color:#fff;font-size:20px';
     const panel = document.createElement('div');
