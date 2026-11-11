@@ -1,0 +1,70 @@
+(function () {
+  var norm = function (s) { return String(s || '').toLowerCase().replace(/[।,.!?]/g, ' ').replace(/\s+/g, ' ').trim(); };
+  var YT = /(youtube|यूट्यूब|यू ट्यूब)/;
+  var OPEN = /(खोलो|खोल दो|खोलिए|खोल दे|चालू करो|चालू कर दो|open|kholo|khol do|khol de|chalu karo|start karo)/;
+  var PLAY = /^(.*?)\s*(चलाओ|चला दो|चला दे|बजाओ|बजा दो|chalao|chala do|chala de|bajao|baja do|play karo|play kar do)$/;
+  var PLAY2 = /^(play|प्ले)\s+(.+)$/;
+  var GS1 = /^(.+?)\s*(google karo|google kar do|गूगल करो|गूगल कर दो|search karo|search kar do|सर्च करो|सर्च कर दो|ढूंढो|dhundo)$/;
+  var GS2 = /^(search|सर्च)\s+(.+)$/;
+  var APPS = [
+    { re: YT, target: 'youtube', say: 'YouTube खोल दिया।' },
+    { re: /(chrome|क्रोम)/, target: 'chrome', say: 'Chrome खोल दिया।' },
+    { re: /(whatsapp|व्हाट्सएप|व्हाट्सऐप|वॉट्सऐप)/, target: 'whatsapp', say: 'WhatsApp खोल दिया।' },
+    { re: /(camera|कैमरा)/, target: 'camera', say: 'कैमरा खोल दिया।' }
+  ];
+  var stripYT = function (q) { return q.replace(/(youtube|यूट्यूब|यू ट्यूब)\s*(पर|पे|par|pe|me|में)?/g, ' ').replace(/\s+/g, ' ').trim(); };
+  var yt = function (q) { return { action: 'search_youtube', target: q, say: 'YouTube पर "' + q + '" की खोज खोल दी।' }; };
+  var gg = function (q) { return { action: 'search_google', target: q, say: 'Google पर "' + q + '" की खोज खोल दी।' }; };
+  function parse(m) {
+    var t = norm(m), p, q, i;
+    if (!t || t.length > 80) return null;
+    p = t.match(PLAY);
+    if (p) {
+      q = stripYT(p[1]);
+      if (q) return yt(q);
+      if (YT.test(t)) return { action: 'open_app', target: 'youtube', say: APPS[0].say };
+      return null;
+    }
+    p = t.match(PLAY2);
+    if (p) { q = stripYT(p[2]); if (q) return yt(q); }
+    if (OPEN.test(t)) {
+      for (i = 0; i < APPS.length; i++) {
+        if (APPS[i].re.test(t)) return { action: 'open_app', target: APPS[i].target, say: APPS[i].say };
+      }
+    }
+    p = t.match(GS1);
+    if (p) { q = p[1].replace(/^(google|गूगल)\s*(पर|पे|par|pe|me|में)?\s*/, '').trim(); if (q) return gg(q); }
+    p = t.match(GS2);
+    if (p) return gg(p[2]);
+    return null;
+  }
+  async function run(c) {
+    try {
+      var L = window.systemLauncher;
+      if (!L || typeof L.executeStructuredCommand !== 'function') return { success: false, message: 'Launcher नहीं मिला' };
+      return await L.executeStructuredCommand({ action: c.action, target: c.target });
+    } catch (e) { return { success: false, message: String((e && e.message) || e) }; }
+  }
+  function install() {
+    var C = window.ClientAI;
+    if (!C || C.__lc || typeof C.callGeminiDirect !== 'function') return false;
+    var orig = C.callGeminiDirect;
+    C.__lc = true;
+    C.callGeminiDirect = async function (o) {
+      var c = (o && !o.imageBase64) ? parse(o.message) : null;
+      if (!c) return orig.apply(this, arguments);
+      var r = await run(c), say = c.say;
+      if (r && r.success === false) say = '⚠️ ' + (r.message || 'कमांड नहीं चली');
+      try {
+        if (o.onChunk) o.onChunk(say);
+        if (o.sessionId && C.addMessage) C.addMessage(o.sessionId, 'assistant', say);
+      } catch (e) {}
+      return { text: say, model: 'local-command' };
+    };
+    return true;
+  }
+  if (!install()) {
+    document.addEventListener('DOMContentLoaded', install);
+    window.addEventListener('load', install);
+  }
+})();

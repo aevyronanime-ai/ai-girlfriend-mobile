@@ -622,7 +622,7 @@ class VoiceAssistant {
       const activeSessionId = window.chat ? window.chat.activeSessionId : null;
       let reply = '';
 
-      if (window.ClientAI && !window.ClientAI.serverAvailable) {
+      if (window.ClientAI) {
         const clientRes = await window.ClientAI.callGeminiDirect({
           sessionId: activeSessionId,
           message: transcript
@@ -772,6 +772,20 @@ class VoiceAssistant {
         window.app.showToast('Settings → Text-to-speech में Hindi (India) आवाज़ डाउनलोड करें');
       }
     }
+
+    // 2.5 Termux human-like girl voice (edge-tts server)
+    try {
+      const tr = await fetch("http://127.0.0.1:5005/tts?text=" + encodeURIComponent(cleaned));
+      if (tr.ok) {
+        const tb = await tr.blob();
+        if (window._termuxVoice) window._termuxVoice.pause();
+        window._termuxVoice = new Audio(URL.createObjectURL(tb));
+        this.setState('SPEAKING');
+        await window._termuxVoice.play();
+        window._termuxVoice.onended = () => this.setState('IDLE');
+        return;
+      }
+    } catch (e) { /* server बंद है, पुरानी आवाज़ पर जाओ */ }
 
     // 3. Try Native Android TTS bridge first if in Capacitor / APK
     if (window.systemLauncher && typeof window.systemLauncher.speakText === 'function') {

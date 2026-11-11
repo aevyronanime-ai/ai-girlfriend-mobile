@@ -1,4 +1,5 @@
 function isDiscontinuedModel(name) {
+  if (String(name || '').startsWith('ollama:')) return false;
   if (!name) return true;
   const m = String(name).toLowerCase().trim();
   const discontinued = [
@@ -153,7 +154,14 @@ class SettingsController {
     }
 
     const chosen = isDiscontinuedModel(selectedValue) ? 'gemini-3.8-flash' : (list.includes(selectedValue) ? selectedValue : 'gemini-3.8-flash');
+    {
+      const oo = document.createElement('option');
+      oo.value = 'ollama:qwen2.5:3b';
+      oo.textContent = '🦙 Ollama: qwen2.5:3b (फ़ोन में, फ़्री)';
+      this.modelSelect.insertBefore(oo, this.modelSelect.firstChild);
+    }
     this.modelSelect.value = chosen;
+    if (String(selectedValue || '').startsWith('ollama:')) this.modelSelect.value = selectedValue;
   }
 
   bindEvents() {

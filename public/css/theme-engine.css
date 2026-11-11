@@ -1,0 +1,49 @@
+/* theme-engine.css: restyles the whole app from CSS variables set by theme-engine.js */
+:root {
+  --te-accent: #ff8fb8;
+  --te-accent2: #7a5cff;
+  --te-bg: #0e1226;
+  --te-card: #1a2040;
+  --te-bg-image: none;
+}
+html, body {
+  background-color: var(--te-bg) !important;
+  transition: background-color 0.6s ease;
+}
+body {
+  background-image: linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.7)), var(--te-bg-image) !important;
+  background-size: cover !important;
+  background-position: center top !important;
+  background-attachment: fixed !important;
+}
+header, [class*="header"], [class*="topbar"], [class*="navbar"] {
+  background: linear-gradient(90deg, var(--te-card), var(--te-bg)) !important;
+  border-color: var(--te-accent) !important;
+}
+nav, [class*="bottom-nav"], [class*="tabbar"] {
+  background: var(--te-card) !important;
+  border-color: var(--te-accent) !important;
+}
+[class*="bubble"], [class*="message"] {
+  border-color: var(--te-accent) !important;
+}
+[class*="bubble"][class*="user"], [class*="message"][class*="user"] {
+  background: linear-gradient(135deg, var(--te-accent), var(--te-accent2)) !important;
+  color: #fff !important;
+}
+[class*="bubble"][class*="ai"], [class*="message"][class*="ai"], [class*="bubble"][class*="bot"] {
+  background: var(--te-card) !important;
+}
+button, [class*="btn"] {
+  border-color: var(--te-accent) !important;
+}
+[class*="send"], [class*="primary"], [class*="generate"] {
+  background: linear-gradient(90deg, var(--te-accent), var(--te-accent2)) !important;
+  color: #fff !important;
+}
+[class*="card"], [class*="panel"] {
+  border-color: var(--te-accent) !important;
+}
+[class*="active"] {
+  color: var(--te-accent) !important;
+}

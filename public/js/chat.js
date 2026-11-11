@@ -250,7 +250,7 @@ class ChatController {
       }
 
       const autoVoiceOn = (window.autoVoiceReplyEnabled !== false) && (window.autoSpeakEnabled !== false);
-      if (autoVoiceOn && window.voiceAssistant && textToSpeak && !textToSpeak.startsWith('⚠️')) {
+      if (autoVoiceOn && !(result && result.spoken) && window.voiceAssistant && textToSpeak && !textToSpeak.startsWith('⚠️')) {
         window.voiceAssistant.speak(textToSpeak);
       }
       if (window.soundFX) window.soundFX.success();
@@ -317,7 +317,7 @@ class ChatController {
     this.isStreaming = true;
     if (this.sendBtn) this.sendBtn.disabled = true;
 
-    if (window.ClientAI && !window.ClientAI.serverAvailable) {
+    if (window.ClientAI && (!window.ClientAI.serverAvailable || localStorage.getItem('use_ollama') === '1')) {
       return this.handleClientAISend(message, currentImgBase64, currentImgMime, typingId);
     }
 

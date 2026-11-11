@@ -1,3 +1,69 @@
+
+window.JarvisQ = (function () {
+  let buf = '', q = [], playing = false, gen = 0, cur = null, curRes = null, api = { started: false };
+  const clean = s => s.replace(/[*_`#>]+/g, '').trim();
+  const enabled = () => window.autoVoiceReplyEnabled !== false && window.autoSpeakEnabled !== false;
+  const st = x => { try { if (window.voiceAssistant && window.voiceAssistant.setState) window.voiceAssistant.setState(x); } catch (e) {} };
+  async function getAudio(t) {
+    const r = await fetch('http://127.0.0.1:5005/tts?text=' + encodeURIComponent(t));
+    if (!r.ok) throw new Error('tts');
+    return URL.createObjectURL(await r.blob());
+  }
+  async function pump() {
+    if (playing) return;
+    playing = true;
+    const my = gen;
+    while (q.length && my === gen) {
+      const item = q.shift();
+      try {
+        const url = await item.p;
+        if (my !== gen) break;
+        st('SPEAKING');
+        await new Promise(res => { curRes = res; cur = new Audio(url); cur.onended = res; cur.onerror = res; cur.play().catch(res); });
+      } catch (e) {}
+    }
+    if (my === gen) { playing = false; st('IDLE'); }
+  }
+  function push(t) {
+    t = clean(t);
+    if (t.length < 2 || !enabled()) return;
+    api.started = true;
+    const p = getAudio(t);
+    p.catch(() => {});
+    q.push({ p });
+    pump();
+  }
+  api.reset = function () {
+    gen++; q = []; buf = ''; api.started = false; playing = false;
+    try { if (cur) cur.pause(); if (curRes) curRes(); } catch (e) {}
+    try { if (window._termuxVoice) window._termuxVoice.pause(); } catch (e) {}
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+  };
+  api.feed = function (t) {
+    buf += t;
+    const re = /^[\s\S]*?[.!?\u0964\n]+(\s|$)/;
+    let m;
+    while ((m = buf.match(re))) { push(m[0]); buf = buf.slice(m[0].length); }
+  };
+  api.flush = function () { if (buf.trim()) push(buf); buf = ''; };
+  return api;
+})();
+
+let _voice;
+async function speak(text) {
+  try {
+    if (_voice) _voice.pause();
+    const r = await fetch("http://127.0.0.1:5005/tts?text=" + encodeURIComponent(text));
+    if (!r.ok) throw new Error("tts fail");
+    _voice = new Audio(URL.createObjectURL(await r.blob()));
+    await _voice.play();
+  } catch (e) {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "hi-IN";
+    speechSynthesis.speak(u);
+  }
+}
+
 // ClientAI: Standalone on-device engine for AI Girlfriend Mobile
 // Enables 100% operation without Termux or Node.js server.js
 // Directly calls Google Gemini REST API from phone and stores history/keys in localStorage.
@@ -29,6 +95,7 @@
   ];
 
   function isDiscontinuedModel(name) {
+  if (String(name || '').startsWith('ollama:')) return false;
     if (!name) return true;
     const lower = String(name).toLowerCase().trim();
     if (DISCONTINUED_MODELS.some(d => lower === d || lower.startsWith(d))) return true;
@@ -575,6 +642,103 @@ Always include a friendly spokenText in Hindi explaining what you are doing.`;
     async callGeminiDirect({ sessionId, message, imageBase64, imageMime, onChunk }) {
       const apiKey = this.getApiKey();
       const settings = this.getSettings();
+
+      // OpenRouter branch
+      if (localStorage.getItem('ai_provider') === 'openrouter') {
+        let rtext = '';
+        let rerr = '';
+        const orKey = localStorage.getItem('or_key') || '';
+        if (!orKey) {
+          rtext = '⚠️ OpenRouter key नहीं है। 🔑 बटन दबाकर key डालो।';
+        } else {
+          const rh = (sessionId ? this.getMessages(sessionId) : []).slice(-10)
+            .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || m.text || '') }))
+            .filter(m => m.content);
+          const rmodels = ['google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3.5-super-vl:free', 'liquid/lfm-2.5-2.6b:free'];
+          for (const mdl of rmodels) {
+            try {
+              const rc = new AbortController();
+              const rt = setTimeout(() => rc.abort(), 25000);
+              const rr = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                signal: rc.signal,
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + orKey },
+                body: JSON.stringify({
+                  model: mdl,
+                  max_tokens: 160,
+                  messages: [{ role: 'system', content: this.getSystemPrompt() }, ...rh, { role: 'user', content: message }]
+                })
+              });
+              clearTimeout(rt);
+              const rd = await rr.json();
+              rtext = (rd.choices && rd.choices[0] && rd.choices[0].message && rd.choices[0].message.content || '').trim();
+              if (rtext) break;
+              rerr += mdl.split('/')[1] + ': ' + ((rd.error && (rd.error.message + ' ' + JSON.stringify(rd.error.metadata || {}).slice(0, 120))) || 'खाली') + ' | ';
+            } catch (e) { rerr += mdl.split('/')[1] + ': ' + e.message + ' | '; }
+          }
+          if (!rtext) rtext = '⚠️ OpenRouter से जवाब नहीं मिला। ' + rerr;
+        }
+        if (onChunk) onChunk(rtext);
+        if (sessionId) this.addMessage(sessionId, 'assistant', rtext);
+        return { text: rtext, model: 'openrouter' };
+      }
+
+      // Ollama (on-phone model) branch
+      if (localStorage.getItem('use_ollama') === '1' || String(settings.ai_model || '').startsWith('ollama:')) {
+        const om = 'qwen2.5:1.5b';
+        let otext = '';
+        try {
+          const hist = (sessionId ? this.getMessages(sessionId) : []).slice(-8)
+            .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || m.text || '') }))
+            .filter(m => m.content);
+          const ctrl = new AbortController();
+          const tm = setTimeout(() => ctrl.abort(), 120000);
+          const orr = await fetch('http://127.0.0.1:11434/api/chat', {
+            method: 'POST',
+            signal: ctrl.signal,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: om, keep_alive: '30m',
+              stream: true,
+              options: { temperature: 0.7, num_predict: 100, num_ctx: 1024 },
+              messages: [
+                { role: 'system', content: 'तुम एक प्यारी दोस्ताना लड़की हो। हमेशा हिंदी में 1-2 छोटे वाक्यों में जवाब दो।' },
+                ...hist,
+                { role: 'user', content: message }
+              ]
+            })
+          });
+          clearTimeout(tm);
+          const rd = orr.body.getReader();
+          const dec = new TextDecoder();
+          let nb = '';
+          window.JarvisQ.reset();
+          while (true) {
+            const { done, value } = await rd.read();
+            if (done) break;
+            nb += dec.decode(value, { stream: true });
+            let nl;
+            while ((nl = nb.indexOf('\n')) >= 0) {
+              const ln = nb.slice(0, nl).trim();
+              nb = nb.slice(nl + 1);
+              if (!ln) continue;
+              try {
+                const j = JSON.parse(ln);
+                const t = (j.message && j.message.content) || '';
+                if (t) { otext += t; window.JarvisQ.feed(t); if (onChunk) onChunk(otext); }
+              } catch (e) {}
+            }
+          }
+          otext = otext.trim();
+          window.JarvisQ.flush();
+        } catch (e) {
+          otext = '⚠️ Ollama से जवाब नहीं मिला। Termux में ~/start-jarvis.sh चलाओ। (' + e.message + ')';
+        }
+        if (!otext) otext = '⚠️ Ollama ने खाली जवाब दिया।';
+        if (onChunk) onChunk(otext);
+        if (sessionId) this.addMessage(sessionId, 'assistant', otext);
+        return { text: otext, model: 'ollama:' + om, spoken: window.JarvisQ.started };
+      }
 
       // If no API key is provided, use friendly local reply
       if (!apiKey) {
