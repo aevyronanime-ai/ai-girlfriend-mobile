@@ -847,7 +847,10 @@ async function generateImage({ prompt, style = 'realistic', aspectRatio = '1:1',
   for (let i = 0; i < count; i++) {
     const seed = Math.floor(Math.random() * 1000000);
     const encodedPrompt = encodeURIComponent(finalPrompt);
-    const url = `https://gen.pollinations.ai/image/${encodedPrompt}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}` + (pollKey ? `&key=${encodeURIComponent(pollKey)}` : '');
+    const r = await fetch(`https://gen.pollinations.ai/image/${encodedPrompt}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}`, { headers: pollKey ? { Authorization: 'Bearer ' + pollKey } : {} });
+    if (!r.ok) { const t = (await r.text()).slice(0, 200); throw new Error('Pollinations HTTP ' + r.status + ': ' + t); }
+    const buf = Buffer.from(await r.arrayBuffer());
+    const url = 'data:' + (r.headers.get('content-type') || 'image/jpeg') + ';base64,' + buf.toString('base64');
     images.push({
       url,
       imageUrl: url,

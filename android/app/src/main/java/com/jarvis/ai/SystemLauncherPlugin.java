@@ -671,4 +671,29 @@ public class SystemLauncherPlugin extends Plugin {
         ret.put("message", "All actions stopped");
         call.resolve(ret);
     }
+
+    /**
+     * Agent mode: compact list of visible screen nodes
+     */
+    @PluginMethod
+    public void readScreenNodes(PluginCall call) {
+        JSObject ret = new JSObject();
+        if (!JarvisAccessibilityService.isRunning()) {
+            ret.put("success", false);
+            ret.put("reason", "Accessibility Service चालू नहीं है।");
+            call.resolve(ret);
+            return;
+        }
+        String json = JarvisAccessibilityService.getInstance().getScreenNodesJson();
+        if (json == null) {
+            ret.put("success", false);
+            ret.put("blocked", true);
+            ret.put("reason", "सुरक्षा कारणों से इस ऐप में स्क्रीन नहीं पढ़ी जा सकती।");
+        } else {
+            ret.put("success", true);
+            ret.put("nodes", json);
+            ret.put("app", JarvisAccessibilityService.getInstance().getCurrentPackageName());
+        }
+        call.resolve(ret);
+    }
 }

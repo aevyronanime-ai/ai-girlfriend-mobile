@@ -712,6 +712,46 @@ public class JarvisAccessibilityService extends AccessibilityService {
         }
     }
 
+    // --- SCREEN NODES for Agent mode (compact JSON) ---
+    public String getScreenNodesJson() {
+        if (isCurrentAppSensitive()) return null;
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return "[]";
+        org.json.JSONArray arr = new org.json.JSONArray();
+        collectNodesJson(root, arr);
+        return arr.toString();
+    }
+
+    private void collectNodesJson(AccessibilityNodeInfo node, org.json.JSONArray arr) {
+        if (node == null || arr.length() >= 80 || !node.isVisibleToUser()) return;
+        try {
+            if (!isPasswordOrPinNode(node)) {
+                CharSequence t = node.getText();
+                CharSequence d = node.getContentDescription();
+                String ts = t != null ? t.toString().trim() : "";
+                String ds = d != null ? d.toString().trim() : "";
+                if (!ts.isEmpty() || !ds.isEmpty()) {
+                    org.json.JSONObject o = new org.json.JSONObject();
+                    if (ts.length() > 60) ts = ts.substring(0, 60);
+                    if (ds.length() > 60) ds = ds.substring(0, 60);
+                    o.put("t", ts);
+                    o.put("d", ds);
+                    String id = node.getViewIdResourceName();
+                    if (id != null && id.contains("/")) id = id.substring(id.indexOf('/') + 1);
+                    o.put("id", id == null ? "" : id);
+                    o.put("c", node.isClickable());
+                    android.graphics.Rect r = new android.graphics.Rect();
+                    node.getBoundsInScreen(r);
+                    o.put("b", r.left + "," + r.top + "," + r.right + "," + r.bottom);
+                    arr.put(o);
+                }
+            }
+        } catch (Exception ignored) {}
+        for (int i = 0; i < node.getChildCount(); i++) {
+            collectNodesJson(node.getChild(i), arr);
+        }
+    }
+
     public void stopAll() {
         isProcessing.set(false);
         showToast("J.A.R.V.I.S. Phone Control रोका गया");

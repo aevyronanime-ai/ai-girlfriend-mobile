@@ -651,14 +651,14 @@ Always include a friendly spokenText in Hindi explaining what you are doing.`;
         if (!orKey) {
           rtext = '⚠️ OpenRouter key नहीं है। 🔑 बटन दबाकर key डालो।';
         } else {
-          const rh = (sessionId ? this.getMessages(sessionId) : []).slice(-10)
+          const rh = (sessionId ? this.getMessages(sessionId) : []).slice(-6)
             .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || m.text || '') }))
             .filter(m => m.content);
           const rmodels = ['google/gemma-4-31b-it:free', 'google/gemma-4-26b-a4b-it:free', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'nvidia/nemotron-3.5-super-vl:free', 'liquid/lfm-2.5-2.6b:free'];
           for (const mdl of rmodels) {
             try {
               const rc = new AbortController();
-              const rt = setTimeout(() => rc.abort(), 25000);
+              const rt = setTimeout(() => rc.abort(), 12000);
               const rr = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 signal: rc.signal,

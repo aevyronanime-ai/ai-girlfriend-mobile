@@ -504,6 +504,8 @@ class VoiceAssistant {
       return;
     }
 
+    { const _ag = window.jarvisAgent && window.jarvisAgent.match(lower); if (_ag) { window.jarvisAgent.run(_ag); return; } }
+
     // 2. Google Chrome & YouTube Voice Commands
     const googleSearchPatterns = [
       /(?:search google for|google search for|search on google|google search)\s+(.+)/i,
