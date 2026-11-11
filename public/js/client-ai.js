@@ -890,7 +890,17 @@ Always include a friendly spokenText in Hindi explaining what you are doing.`;
     generateImageUrl(prompt, width = 1024, height = 1024, model = 'flux') {
       const seed = Math.floor(Math.random() * 999999);
       const cleanPrompt = encodeURIComponent((prompt || 'Beautiful cyberpunk girl companion').trim());
-      return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=${width}&height=${height}&seed=${seed}&model=${model}&nologo=true`;
+      let key = '';
+      try {
+        key = localStorage.getItem('pollinations_key') || '';
+        if (!key && !localStorage.getItem('pollinations_key_asked')) {
+          localStorage.setItem('pollinations_key_asked', '1');
+          key = (window.prompt('Pollinations API key (enter.pollinations.ai)') || '').trim();
+          if (key) localStorage.setItem('pollinations_key', key);
+        }
+      } catch (e) {}
+      const m = /^[a-z0-9-]+$/i.test(model || '') ? String(model).toLowerCase() : 'flux';
+      return `https://gen.pollinations.ai/image/${cleanPrompt}?width=${width}&height=${height}&seed=${seed}&model=${m}&nologo=true` + (key ? `&key=${encodeURIComponent(key)}` : '');
     }
 
     async generateWriting({ topic, details, tone, format, lang }) {
