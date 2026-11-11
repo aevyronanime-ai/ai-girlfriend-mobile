@@ -893,7 +893,7 @@ Always include a friendly spokenText in Hindi explaining what you are doing.`;
       let key = '';
       try {
         key = localStorage.getItem('pollinations_key') || '';
-        if (!key && !localStorage.getItem('pollinations_key_asked')) {
+        if (!key) {
           localStorage.setItem('pollinations_key_asked', '1');
           key = (window.prompt('Pollinations API key (enter.pollinations.ai)') || '').trim();
           if (key) localStorage.setItem('pollinations_key', key);
